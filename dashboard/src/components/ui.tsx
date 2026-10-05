@@ -73,10 +73,11 @@ export function ScorePill({ score }: { score: number | null }) {
   );
 }
 
-/** 0–4 dimension meter. */
-export function Meter({ score, max = 4 }: { score: number | null; max?: number }) {
+/** Category meter: the fill carries severity; the track is a lighter step of the same ramp. */
+export function Meter({ score, max }: { score: number | null; max: number }) {
   if (score === null) return <div className="h-2 w-full rounded-full bg-sunken" title="Not applicable" />;
-  const fill = score >= 3 ? "bg-accent" : score >= 2 ? "bg-warning" : "bg-critical";
+  const share = score / max;
+  const fill = share >= 0.75 ? "bg-accent" : share >= 0.5 ? "bg-warning" : "bg-critical";
   return (
     <div className="h-2 w-full rounded-full bg-accent-track" role="meter" aria-valuemin={0} aria-valuemax={max} aria-valuenow={score}>
       <div className={`h-2 rounded-full ${fill}`} style={{ width: `${Math.max(4, (score / max) * 100)}%` }} />

@@ -1,3 +1,4 @@
+import { startSyncJob } from "@/background/sync.job";
 import { subscribeToCallEnded } from "@/background/voicecall-ended.event";
 import { sequelize } from "@/db";
 import { env } from "@/env";
@@ -30,6 +31,8 @@ console.log("database connected");
 if (env.AUDIT_SUBSCRIBE) {
   subscribeToCallEnded().catch((e) => console.error("could not subscribe to voicecall.ended:", e.message));
 }
+
+if (env.AUDIT_SYNC_ENABLED) startSyncJob();
 
 export default { port: env.PORT, fetch: app.fetch };
 console.log(`auditing service on :${env.PORT}`);

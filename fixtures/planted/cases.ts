@@ -17,7 +17,7 @@ export type PlantedCase = {
     goal_reason_code?: string;
     min_score?: number;
     max_score?: number;
-    /** dimension key → highest acceptable score */
+    /** scorecard category → highest acceptable points (out of 20) */
     max_dimension?: Record<string, number>;
   };
 };
@@ -128,7 +128,7 @@ export const cases: PlantedCase[] = [
       ...GOOD.slice(14),
     ],
     outcome: GOOD_OUTCOME,
-    expect: { success: "FAIL", failure_codes: ["AGENT_LOOP"], max_dimension: { active_listening: 1 } },
+    expect: { success: "FAIL", failure_codes: ["AGENT_LOOP"], max_dimension: { communication: 10 } },
   },
   {
     name: "outcome-mismatch",
@@ -187,6 +187,6 @@ export const cases: PlantedCase[] = [
       ["agent", "Okay. The team will email you. Bye."],
     ],
     outcome: GOOD_OUTCOME,
-    expect: { success: "PASS", max_dimension: { answer_confirmation: 2, active_listening: 2 }, max_score: 80 },
+    expect: { success: "PASS", max_dimension: { query_handling: 14, communication: 14 }, max_score: 80 },
   },
 ];

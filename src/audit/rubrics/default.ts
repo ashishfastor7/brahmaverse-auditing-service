@@ -1,14 +1,47 @@
-import type { Rubric } from "./types";
+import type { FailureCondition, Rubric } from "./types";
 
-/** Used for any agent without its own rubric yet, so every call still gets audited. */
+export const COMMON_FAILURES: FailureCondition[] = [
+  {
+    code: "CRITICAL_HALLUCINATION",
+    label: "Stated false facts",
+    definition:
+      "The agent stated a material fact (price, policy, date, service, product or job detail) that its instructions contradict or " +
+      "do not support. When the full instructions are NOT provided, only flag a statement that contradicts the call variables — " +
+      "a fact that is merely absent from the variables is not a hallucination. Never flag facts you simply cannot verify.",
+  },
+  {
+    code: "IGNORED_STOP_REQUEST",
+    label: "Ignored a request to stop or for a human",
+    definition:
+      "The other party clearly asked to end the call, not to be called again, or to speak to a human, and the agent kept going " +
+      "instead of acknowledging and closing or escalating.",
+  },
+  {
+    code: "UNAUTHORIZED_PROMISE",
+    label: "Made a promise it cannot make",
+    definition: "The agent promised something outside its authority (discounts, guarantees, selection, outcomes).",
+  },
+  {
+    code: "UNPROFESSIONAL_CONDUCT",
+    label: "Rude or unprofessional",
+    definition: "The agent was rude, dismissive, argumentative, or used inappropriate language.",
+  },
+  {
+    code: "AGENT_LOOP",
+    label: "Stuck in a loop",
+    definition: "The agent repeated the same question or statement three or more times without making progress.",
+  },
+];
+
+/** Used for any agent without its own rubric, and as the base the agent rubrics adapt. */
 export const defaultRubric: Rubric = {
-  version: "default-v1",
-  agent_label: "Voice agent",
-  agent_codes: [],
-  context: "An AI voice agent on a phone call with a customer. Its purpose is described by its instructions, when provided.",
+  version: "default-v2",
+  context:
+    "An AI voice agent on a phone call (inbound or outbound) with a customer or other party. Its purpose is described by its " +
+    "instructions when provided; otherwise infer it from the call.",
   goal: {
-    description: "The purpose of the call, as set by the agent's instructions, was accomplished.",
-    achieved_if: ["The call's purpose (per the agent's instructions, or evident from the call) was accomplished"],
+    description: "The purpose of the call, as set by the agent's instructions or evident from the call, was accomplished.",
+    achieved_if: ["The call's purpose was accomplished (the caller's need was met, or the agent's task was completed)"],
     not_applicable_if: [
       "The person who answered was not the intended person",
       "The call reached voicemail, an IVR, or nobody spoke",
@@ -16,83 +49,68 @@ export const defaultRubric: Rubric = {
     ],
     reason_codes: {
       ACHIEVED: ["PURPOSE_ACCOMPLISHED"],
-      NOT_ACHIEVED: ["CUSTOMER_NOT_INTERESTED", "CALLBACK_REQUESTED", "CALL_DROPPED", "AGENT_FAILED_TASK", "OTHER"],
+      NOT_ACHIEVED: ["CUSTOMER_NOT_INTERESTED", "CALLBACK_REQUESTED", "CALL_DROPPED", "AGENT_FAILED_TASK", "NEED_NOT_MET", "OTHER"],
       NOT_APPLICABLE: ["WRONG_PERSON", "VOICEMAIL_OR_NO_ANSWER", "UNUSABLE_AUDIO"],
     },
   },
-  failure_conditions: [
-    {
-      code: "CRITICAL_HALLUCINATION",
-      label: "Stated false facts",
-      definition:
-        "The agent stated a material fact (price, policy, date, product detail) contradicted by, or absent from, its instructions. " +
-        "Only judge this when the instructions are provided.",
-    },
-    {
-      code: "IGNORED_STOP_REQUEST",
-      label: "Ignored a request to stop or for a human",
-      definition: "The customer clearly asked to end the call or to speak to a human, and the agent kept going.",
-    },
-    {
-      code: "UNAUTHORIZED_PROMISE",
-      label: "Made a promise it cannot make",
-      definition: "The agent promised something outside its authority (discounts, guarantees, outcomes).",
-    },
-    {
-      code: "UNPROFESSIONAL_CONDUCT",
-      label: "Rude or unprofessional",
-      definition: "The agent was rude, dismissive, argumentative, or used inappropriate language.",
-    },
-    {
-      code: "AGENT_LOOP",
-      label: "Stuck in a loop",
-      definition: "The agent repeated the same question or statement three or more times without making progress.",
-    },
-  ],
+  failure_conditions: COMMON_FAILURES,
   fail_on_ended_reasons: ["connection_error", "system_error"],
-  dimensions: [
-    {
-      key: "intent_understanding",
-      label: "Intent understanding",
-      weight: 20,
-      checks: "Grasped what the customer wanted, without answering a different question.",
-      anchors: { 0: "Repeatedly misunderstood.", 2: "One clear misread.", 4: "Understood every turn." },
+  categories: {
+    opening: {
+      checks:
+        "Greeted the other party, introduced itself and the organisation, and set up the call: stated the purpose (outbound) or " +
+        "asked how it could help (inbound); checked it was a good time on outbound calls.",
+      not_applicable_when: "Never — every connected call has an opening.",
+      anchors: {
+        0: "No greeting or introduction; launched straight in, or the opening confused the other party.",
+        5: "Greeted and introduced, but missed the purpose or the good-time check, or the opening was clumsy.",
+        10: "Warm greeting, clear introduction, purpose or offer of help stated, good-time check where needed.",
+      },
     },
-    {
-      key: "accuracy_completeness",
-      label: "Accuracy and completeness",
-      weight: 20,
-      checks: "Information given was correct and nothing important was missed.",
-      anchors: { 0: "Wrong or badly incomplete.", 2: "Mostly right; one omission.", 4: "Correct and complete." },
+    communication: {
+      checks:
+        "Clarity and conciseness suited to a phone call, polite and empathetic tone adapted to the other party's mood, active " +
+        "listening (no re-asking information already given), and speaking the other party's language.",
+      not_applicable_when: "Never.",
+      anchors: {
+        0: "Confusing, robotic or tone-deaf; re-asked information two or more times, or ignored what was said.",
+        5: "Generally clear and polite, with one clear lapse (a long rambling turn, one re-ask, a missed emotional cue).",
+        10: "Clear, concise and warm throughout; listened and adapted; never repeated a question needlessly.",
+      },
     },
-    {
-      key: "clarity_conciseness",
-      label: "Clarity and conciseness",
-      weight: 15,
-      checks: "Easy to follow by ear, no rambling, no jargon.",
-      anchors: { 0: "Confusing throughout.", 2: "Some long or confusing turns.", 4: "Clear and concise throughout." },
+    troubleshooting: {
+      checks:
+        "When something went wrong — confusion, a misunderstanding, a mis-hearing or garbled answer, an objection, a complaint or " +
+        "a problem to solve — the agent noticed it, asked clarifying questions, and resolved or recovered from it.",
+      not_applicable_when: "Nothing in the call needed troubleshooting: no confusion, problem, objection or mis-hearing came up.",
+      anchors: {
+        0: "Ignored or worsened the problem; carried on with wrong information or left the other party confused.",
+        5: "Noticed the problem and partly resolved it, or resolved it clumsily.",
+        10: "Spotted the problem quickly, clarified, and fully resolved or recovered from it.",
+      },
     },
-    {
-      key: "active_listening",
-      label: "Active listening",
-      weight: 15,
-      checks: "Did not re-ask known information; acknowledged what was said.",
-      anchors: { 0: "Re-asked two or more times.", 2: "One lapse.", 4: "No lapses." },
+    query_handling: {
+      checks:
+        "Answered the other party's questions accurately and completely (per its instructions, without inventing facts), and " +
+        "gathered the information the call required.",
+      not_applicable_when: "The other party asked nothing and the call required no information to be given or gathered.",
+      anchors: {
+        0: "Questions went unanswered or were answered wrongly; required information was not gathered.",
+        5: "Answered most questions or gathered most information, with a gap or an imprecise answer.",
+        10: "Every question answered accurately and completely; all required information gathered and confirmed.",
+      },
     },
-    {
-      key: "empathy_tone",
-      label: "Empathy and tone",
-      weight: 15,
-      checks: "Appropriate to the customer's emotional state.",
-      anchors: { 0: "Tone-deaf.", 2: "Polite but did not adapt.", 4: "Warm and adaptive." },
+    closure: {
+      checks:
+        "Ended the call well: summarised or confirmed what was agreed, stated next steps, offered further help, closed politely, " +
+        "and ended at the right time (honouring a request to end).",
+      not_applicable_when: "The call dropped or was cut off before any close was possible.",
+      anchors: {
+        0: "Abrupt or missing close; no next steps; or kept talking after the other party wanted to end.",
+        5: "Polite close, but next steps or confirmation were vague or missing.",
+        10: "Clear confirmation and next steps, offer of further help, and a warm, timely goodbye.",
+      },
     },
-    {
-      key: "flow_and_closing",
-      label: "Flow and closing",
-      weight: 15,
-      checks: "Natural progression, clear next steps, proper close.",
-      anchors: { 0: "Abrupt, no close.", 2: "Closed with vague next steps.", 4: "Smooth flow, concrete next steps." },
-    },
-  ],
+  },
   fail_score_cap: 40,
 };

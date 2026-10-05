@@ -2,19 +2,18 @@ import type { Rubric } from "./rubrics";
 import type { MetricResult } from "./types";
 
 /**
- * Weighted 0–100 quality score from 0–4 dimension scores. Non-applicable dimensions drop out and
- * the remaining weights are rescaled; null when none applied.
+ * 0–100 quality score: points earned over points available, counting only applicable categories
+ * (so a call with nothing to troubleshoot is not marked down for it). null when none applied.
  */
-export function qualityScore(rubric: Rubric, metrics: Record<string, MetricResult>): number | null {
-  let total = 0;
-  let weights = 0;
-  for (const d of rubric.dimensions) {
-    const m = metrics[d.key];
-    if (!m || !m.applicable || m.score === null) continue;
-    total += d.weight * (m.score / 4);
-    weights += d.weight;
+export function qualityScore(metrics: Record<string, MetricResult>): number | null {
+  let earned = 0;
+  let available = 0;
+  for (const m of Object.values(metrics)) {
+    if (!m.applicable || m.score === null) continue;
+    earned += m.score;
+    available += m.max;
   }
-  return weights === 0 ? null : Math.round((total / weights) * 100);
+  return available === 0 ? null : Math.round((earned / available) * 100);
 }
 
 /** A failed call cannot score above the rubric's cap, however well the rest went. */

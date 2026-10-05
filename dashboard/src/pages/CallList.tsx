@@ -27,14 +27,12 @@ export function CallList({ search }: { search: string }) {
   const page = Number(filters.page ?? 1);
   const update = (patch: Filters) => setFilters({ ...filters, ...patch, page: patch.page ?? "" });
 
-  const rubrics = useQuery({ queryKey: ["rubrics"], queryFn: api.rubrics, staleTime: Infinity });
+  const agents = useQuery({ queryKey: ["agents"], queryFn: api.agents, staleTime: Infinity });
   const list = useQuery({ queryKey: ["audits", filters], queryFn: () => api.list(filters), placeholderData: keepPreviousData });
   const stats = useQuery({ queryKey: ["stats", filters.agent_code], queryFn: () => api.stats({ agent_code: filters.agent_code }) });
 
-  const agentOptions: [string, string][] = [
-    ["", "All agents"],
-    ...(rubrics.data ?? []).flatMap((r) => r.agent_codes.slice(0, 1).map((c): [string, string] => [c, r.agent_label])),
-  ];
+  const agentOptions: [string, string][] = [["", "All agents"], ...(agents.data?.agents ?? []).map((a): [string, string] => [a.code, a.label])];
+  const agentLabel = (code: string | null) => agents.data?.agents.find((a) => a.code === code)?.label ?? code ?? "—";
   const s = stats.data;
   const totalPages = list.data ? Math.max(1, Math.ceil(list.data.total / PAGE_SIZE)) : 1;
 
@@ -129,7 +127,7 @@ export function CallList({ search }: { search: string }) {
                   >
                     <td className="px-4 py-2.5 font-medium tabular">#{row.call_id}</td>
                     <td className="px-3 py-2.5 text-ink-2 whitespace-nowrap">{formatDate(row.call_created_at)}</td>
-                    <td className="px-3 py-2.5 text-ink-2">{row.agent_code ?? "—"}</td>
+                    <td className="px-3 py-2.5 text-ink-2 whitespace-nowrap">{agentLabel(row.agent_code)}</td>
                     <td className="px-3 py-2.5 text-ink-2 tabular">{formatDuration(row.duration)}</td>
                     <td className="px-3 py-2.5">{row.status === "completed" ? <ScorePill score={row.overall_score} /> : <StatusBadge status={row.status} reason={row.skip_reason} />}</td>
                     <td className="px-3 py-2.5">

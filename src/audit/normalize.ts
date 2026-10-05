@@ -13,6 +13,12 @@ function parseJson<T>(value: unknown, fallback: T): T {
   return value as T;
 }
 
+/**
+ * Lines the voice platform injects into the transcript as if the caller said them, e.g. Ultravox's
+ * "(New Call) Respond as if you are answering the phone." at the start of inbound calls.
+ */
+const INJECTED_LINE = /^\((new call|system)\)/i;
+
 function toTurns(raw: unknown): Turn[] {
   const items = parseJson<unknown[]>(raw, []);
   if (!Array.isArray(items)) return [];
@@ -21,7 +27,7 @@ function toTurns(raw: unknown): Turn[] {
       speaker: String(item?.speaker ?? item?.role ?? "unknown").toLowerCase(),
       text: String(item?.text ?? item?.content ?? "").trim(),
     }))
-    .filter((t) => t.text.length > 0)
+    .filter((t) => t.text.length > 0 && !INJECTED_LINE.test(t.text))
     .map((t, i) => ({ turn: i + 1, ...t }));
 }
 

@@ -3,6 +3,7 @@ import { buildJudgeMessages } from "./judge/prompt";
 import { judgeJsonSchema, judgeOutputSchema } from "./judge/schema";
 import { ruleFailures } from "./rules";
 import type { Rubric } from "./rubrics";
+import { JUDGE_SCALE, POINTS_PER_CATEGORY, SCORECARD } from "./rubrics/types";
 import { auditorConfidence, overallScore, qualityScore } from "./score";
 import type { AgentPrompt, AuditInput, AuditResult, FailureReason, MetricResult } from "./types";
 
@@ -22,29 +23,33 @@ export type AuditOutcome = { result: AuditResult; usage: JudgeResponse["usage"] 
  */
 export async function auditCall(
   input: AuditInput,
-  deps: { judge: Judge; rubric: Rubric; agentPrompt: AgentPrompt | null; reviewThreshold: number },
+  deps: { judge: Judge; rubric: Rubric; agentPrompt: AgentPrompt | null; reviewThreshold: number; agentLabel?: string | null },
 ): Promise<AuditOutcome> {
   const { rubric, agentPrompt } = deps;
+  const agentLabel = deps.agentLabel ?? null;
 
   const response = await deps.judge({
-    messages: buildJudgeMessages(input, rubric, agentPrompt),
+    messages: buildJudgeMessages(input, rubric, agentPrompt, agentLabel),
     schema: judgeJsonSchema(rubric),
   });
   const output = judgeOutputSchema.parse(response.output);
 
-  // Every rubric dimension must be scored exactly once, or the weighted score is meaningless.
+  // Every scorecard category must be scored exactly once, or the total is meaningless.
   const metrics: Record<string, MetricResult> = {};
-  for (const d of output.dimensions) {
-    if (!rubric.dimensions.some((r) => r.key === d.key)) continue;
-    metrics[d.key] = {
-      applicable: d.applicable,
-      score: d.applicable ? d.score : null,
-      reasoning: d.reasoning,
-      evidence: d.evidence.map((e) => ({ ...e })),
+  for (const { key, label } of SCORECARD) {
+    const c = output.scorecard.find((s) => s.key === key);
+    if (!c) continue;
+    metrics[key] = {
+      label,
+      applicable: c.applicable,
+      score: c.applicable ? Math.round((c.score / JUDGE_SCALE) * POINTS_PER_CATEGORY) : null,
+      max: POINTS_PER_CATEGORY,
+      reasoning: c.reasoning,
+      evidence: c.evidence.map((e) => ({ ...e })),
     };
   }
-  const missing = rubric.dimensions.filter((d) => !metrics[d.key]).map((d) => d.key);
-  if (missing.length > 0) throw new Error(`judge did not score dimensions: ${missing.join(", ")}`);
+  const missing = SCORECARD.filter((c) => !metrics[c.key]).map((c) => c.key);
+  if (missing.length > 0) throw new Error(`judge did not score categories: ${missing.join(", ")}`);
 
   const knownFailureCodes = new Set(rubric.failure_conditions.map((f) => f.code));
   const llmFailures: FailureReason[] = output.failures
@@ -56,14 +61,14 @@ export async function auditCall(
 
   const goalEvidence = output.goal.evidence.map((e) => ({ ...e }));
   const wentWell = output.went_well.map((w) => ({ ...w }));
-  const wentWrong = output.went_wrong.map((w) => ({ ...w }));
+  const improvements = output.improvements.map((w) => ({ ...w }));
   const llmFailureEvidence = failures.filter((f) => f.source === "llm" && f.quote) as { turn: number; quote: string }[];
 
   const cited = [
     ...Object.values(metrics).flatMap((m) => m.evidence),
     ...goalEvidence,
     ...wentWell,
-    ...wentWrong,
+    ...improvements,
     ...llmFailureEvidence,
   ];
   const evidenceValidity = validateEvidence(input.transcript, cited);
@@ -74,7 +79,7 @@ export async function auditCall(
   const reasonCode = bucket.includes(output.goal.reason_code) ? output.goal.reason_code : bucket[0];
 
   const failed = failures.length > 0;
-  const quality = qualityScore(rubric, metrics);
+  const quality = qualityScore(metrics);
   const confidence = auditorConfidence({
     selfConfidence: output.confidence,
     evidenceValidity,
@@ -88,13 +93,15 @@ export async function auditCall(
     call_success: { result: failed ? "FAIL" : "PASS", failure_reasons: failures },
     call_goal: { result: output.goal.result, reason_code: reasonCode, explanation: output.goal.explanation, evidence: goalEvidence },
     metrics,
+    call_summary: output.call_summary,
     went_well: wentWell,
-    went_wrong: wentWrong,
+    improvements,
     sentiment: output.sentiment,
-    verdict: output.verdict,
+    conclusion: output.conclusion,
     auditor_confidence: confidence,
     needs_review: confidence < deps.reviewThreshold,
     rubric_version: rubric.version,
+    agent_label: agentLabel,
     judge: {
       model: response.model,
       prompt_used: agentPrompt ? { prompt_code: agentPrompt.prompt_code, version: agentPrompt.version } : null,

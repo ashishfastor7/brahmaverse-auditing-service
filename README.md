@@ -5,22 +5,37 @@ on a dashboard: a score out of 100, whether the call passed, whether it achieved
 well, what went wrong, and evidence for each point.
 
 ```
-call ends → integration-service publishes "voicecall.ended"
+call ends → voice_call_logs row (integration-service)
+          → picked up by the sync job (polls the table, read-only) or the voicecall.ended event
           → audit worker: rule checks + LLM judge (transcript + agent's prompt + goal config)
           → saves an audit_results row → dashboard reads it
 ```
 
-It is its own service with its own database. It never writes to another service's database.
+It is its own service with its own database. It only ever reads other services' data.
+
+## Agents
+
+`agent_code` is empty on most call rows (inbound calls and older outbound calls have no queued
+payload), so agents are matched on `agent_id` too (`src/audit/rubrics/index.ts`):
+
+| agent_id | Agent | Rubric |
+|---|---|---|
+| 1 | Hansa (HR) | `hansa-v2` |
+| 4 | Project manager | `default-v2` |
+| 9 | Caller | `default-v2` |
 
 ## What each call gets
 
 | Field | Meaning |
 |---|---|
-| `overall_score` | 0–100. The quality score, capped at 40 if the call failed. `null` if nothing could be scored (e.g. wrong person picked up). |
+| `overall_score` | 0–100: scorecard points over points available (applicable categories only), capped at 40 if the call failed. `null` if nothing could be scored. |
 | `call_success` | `PASS`, or `FAIL` with the reason codes that triggered it. One failure condition is enough to fail. |
 | `call_goal` | `ACHIEVED` / `NOT_ACHIEVED` / `NOT_APPLICABLE`, with a reason code. Not-applicable calls are left out of the goal rate. |
-| `metrics` | Each rubric dimension scored 0–4 against written anchors, with reasoning and transcript quotes. A dimension the call never reached (e.g. questions after a callback request) is marked not applicable and left out of the score. |
-| `went_well` / `went_wrong` | The most useful points for a reviewer, each tied to a transcript turn. |
+| `metrics` | The scorecard: **Opening, Communication, Troubleshooting, Query handling, Closure**, 20 points each. The judge scores each 0–10 against written anchors (×2 = points), with reasoning and transcript quotes. A category the call never needed (nothing to troubleshoot, no question asked) is **N/A** and left out of the total rather than scored 0. |
+| `call_summary` | What happened on the call, in a few sentences. |
+| `went_well` | What the agent did well, each tied to a transcript turn. |
+| `improvements` | What can be improved, each with a concrete suggestion of what to do instead. |
+| `conclusion` | The auditor's overall judgement of the call. |
 | `sentiment` | The other party's mood at the start and end. |
 | `auditor_confidence` | How far to trust this audit. Below `AUDIT_REVIEW_THRESHOLD`, the call is flagged for human review. |
 | `rubric_version` | Which rubric produced the score. Bump it when the rubric changes so old and new scores aren't mixed. |
@@ -75,8 +90,8 @@ git apply ../Brahmaverse-auditing-service/patches/ai-service-prompt-rpc.patch
 
 | Patch | What it adds | Without it |
 |---|---|---|
-| integration-service | Publishes `voicecall.ended` from `finalizeCallEnd` (fire-and-forget, never blocks quota or callbacks), plus `query.voicecall.recording-url` so the dashboard can play recordings. Unit tests included. | No automatic audits (use `replay`); no audio in the dashboard. |
-| ai-service | `query.realtime-call.prompt`: the agent's system prompt rendered with the call's variables. | Calls are graded without the agent's instructions. Made-up job facts can't be detected, and confidence drops by 0.05. |
+| integration-service | Publishes `voicecall.ended` from `finalizeCallEnd` (fire-and-forget, never blocks quota or callbacks), plus `query.voicecall.recording-url`. Unit tests included. | Calls arrive through the sync job instead (up to one interval later). Recordings still play when `AWS_*` is set. |
+| ai-service | `query.realtime-call.prompt`: the agent's system prompt rendered with the call's variables. | Calls are graded without the agent's instructions. The judge then only flags facts that contradict the call variables, so some invented facts get through, and confidence drops by 0.05. |
 
 ## Testing
 
@@ -88,20 +103,36 @@ bun run eval:planted            # real judge on 10 planted-defect Hansa calls; e
 `eval:planted` needs only `OPENAI_API_KEY`, with no database or bus. Re-run it before changing the
 rubric, the judge prompt or the model. Full judge output is written to `eval-output/`.
 
-To audit real calls without the event:
+## Getting calls in
+
+**Straight from `voice_call_logs` (recommended).** Set `SOURCE_DB_*` in `.env` to a login with read
+access to `brainey-integration`. The service only runs SELECTs, and never selects phone numbers,
+tokens or join URLs.
 
 ```bash
-# from a DataGrip export of voice_call_logs rows (JSON array)
-bun run replay --file calls.json --limit 20
-
-# or through integration-service's existing query.voicecall.list RPC
-bun run replay --rpc --business-id 10 --agent-code hrms --limit 20
+bun run replay --db --call-id 3507                    # one call
+bun run replay --db --agent-id 9 --limit 20           # the 20 most recent Caller calls
+bun run replay --db --agent-id 1 --from 2026-09-01 --to 2026-10-01 --limit 50
+bun run replay --db --call-id 3507 --force            # re-grade a call already audited
 ```
+
+**Automatically.** Set `AUDIT_SYNC_ENABLED=true`. Every `AUDIT_SYNC_INTERVAL_MINUTES` the service
+audits calls for `AUDIT_SYNC_AGENT_IDS` that ended within `AUDIT_SYNC_LOOKBACK_HOURS` and haven't been
+audited yet, at most `AUDIT_SYNC_MAX_PER_RUN` per run. Each audit is one OpenAI call, so start with
+one agent.
+
+**Other sources:** `--file calls.json` (a JSON array of rows) or `--rpc` (integration-service's
+`query.voicecall.list`). Once the integration-service patch is applied, the `voicecall.ended` event
+audits calls the moment they end.
+
+**Recordings** play in the dashboard when `AWS_*` is set: the service presigns the private-bucket URL
+itself (serving it as `audio/wav`, since archived files were stored with the wrong content type).
 
 ## Known limits
 
 - **Prompt versions aren't pinned per call.** ai-service edits prompt rows in place, so an old call is graded against the current prompt. The version used is recorded on each result.
 - **Ultravox transcripts have no timestamps**, so evidence points to a turn, not a moment in the audio.
+- **The judge varies on borderline calls.** Re-running the same call can flip a borderline failure. Treat single borderline failures as "check this", and use the transcript links.
 - **The dashboard uses one shared token.** It's an internal tool for now; per-business access would reuse the existing user JWTs.
 - **The planted cases are synthetic.** They prove the judge catches each defect, not that it agrees with your reviewers. Next step: hand-score ~30 real Hansa calls and compare.
 - **One judge call per audit.** Scores vary a little between runs; re-running and comparing (self-consistency) would tighten confidence.

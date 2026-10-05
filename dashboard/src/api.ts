@@ -33,7 +33,8 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export type Evidence = { turn: number; quote: string; valid?: boolean };
-export type Metric = { applicable: boolean; score: number | null; reasoning: string; evidence: Evidence[] };
+/** One scorecard category: points out of `max` (20), null when not applicable. */
+export type Metric = { label: string; applicable: boolean; score: number | null; max: number; reasoning: string; evidence: Evidence[] };
 export type Failure = { code: string; source: "rule" | "llm"; explanation: string; turn: number | null; quote: string | null };
 export type Turn = { turn: number; speaker: string; text: string };
 
@@ -43,13 +44,15 @@ export type AuditResult = {
   call_success: { result: "PASS" | "FAIL"; failure_reasons: Failure[] };
   call_goal: { result: "ACHIEVED" | "NOT_ACHIEVED" | "NOT_APPLICABLE"; reason_code: string; explanation: string; evidence: Evidence[] };
   metrics: Record<string, Metric>;
+  call_summary: string;
   went_well: { point: string; turn: number; quote: string; valid?: boolean }[];
-  went_wrong: { point: string; turn: number; quote: string; severity: "low" | "medium" | "high"; valid?: boolean }[];
+  improvements: { point: string; suggestion: string; turn: number; quote: string; severity: "low" | "medium" | "high"; valid?: boolean }[];
   sentiment: { start: string; end: string; note: string };
-  verdict: string;
+  conclusion: string;
   auditor_confidence: number;
   needs_review: boolean;
   rubric_version: string;
+  agent_label: string | null;
   judge: {
     model: string;
     prompt_used: { prompt_code: string; version: number } | null;
@@ -66,6 +69,8 @@ export type AuditCall = {
   prompt_code: string | null;
   status: string;
   call_type: string | null;
+  agent_id: number | null;
+  recording_url: string | null;
   duration: number | null;
   ended_reason: string | null;
   summary: string | null;
@@ -117,12 +122,9 @@ export type Stats = {
   top_failures: { code: string; count: number }[];
 };
 
-export type Rubric = {
-  version: string;
-  agent_label: string;
-  agent_codes: string[];
-  dimensions: { key: string; label: string; weight: number }[];
-  failure_conditions: { code: string; label: string }[];
+export type Agents = {
+  agents: { code: string; label: string; agent_ids: number[]; rubric_version: string }[];
+  scorecard: { key: string; label: string; max: number }[];
 };
 
 export type Filters = Partial<{
@@ -151,5 +153,5 @@ export const api = {
   get: (id: number) => call<{ data: AuditDetail }>(`/audits/${id}`).then((r) => r.data),
   recording: (id: number) => call<{ data: { url: string | null; reason?: string } }>(`/audits/${id}/recording`).then((r) => r.data),
   reaudit: (id: number) => call<{ data: AuditDetail }>(`/audits/${id}/reaudit`, { method: "POST" }).then((r) => r.data),
-  rubrics: () => call<{ data: Rubric[] }>(`/rubrics`).then((r) => r.data),
+  agents: () => call<{ data: Agents }>(`/agents`).then((r) => r.data),
 };

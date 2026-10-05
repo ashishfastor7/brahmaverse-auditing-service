@@ -11,6 +11,8 @@
     "test": "bun test src"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.826.0",
+    "@aws-sdk/s3-request-presigner": "^3.826.0",
     "@fastor7/message-bus": "^0.0.19",
     "@t3-oss/env-core": "^0.13.11",
     "dotenv": "^16.6.1",

@@ -5,7 +5,7 @@ import { fetchAgentPrompt } from "@/services/prompt.service";
 import { auditCall, type Judge } from "./audit-call";
 import { createOpenAIJudge } from "./judge/openai-judge";
 import { skipReason } from "./rules";
-import { rubricFor } from "./rubrics";
+import { agentFor, rubricFor } from "./rubrics";
 import type { AuditInput } from "./types";
 
 let judge: Judge | null = null;
@@ -33,8 +33,11 @@ const headline = (input: AuditInput) => ({
  * audited under the current rubric is left alone unless `force`, so a redelivered event is free.
  * Throws when the judge fails, after recording the failure, so a bus consumer retries.
  */
-export async function runAudit(input: AuditInput, opts: { force?: boolean; judge?: Judge } = {}): Promise<AuditResultRow> {
-  const rubric = rubricFor(input.agent_code);
+export async function runAudit(rawInput: AuditInput, opts: { force?: boolean; judge?: Judge } = {}): Promise<AuditResultRow> {
+  // agent_code is missing on many call rows; resolve it from agent_id so filters and rubrics work.
+  const agent = agentFor(rawInput.agent_code, rawInput.agent_id);
+  const input: AuditInput = { ...rawInput, agent_code: agent?.code ?? rawInput.agent_code };
+  const rubric = rubricFor(input.agent_code, input.agent_id);
   const key = { source: input.source, call_id: input.call_id, rubric_version: rubric.version };
   let row = await tables.AuditResult.findOne({ where: key });
 
@@ -57,6 +60,7 @@ export async function runAudit(input: AuditInput, opts: { force?: boolean; judge
       judge: opts.judge ?? defaultJudge(),
       rubric,
       agentPrompt,
+      agentLabel: agent?.label ?? null,
       reviewThreshold: env.AUDIT_REVIEW_THRESHOLD,
     });
     await row.update({

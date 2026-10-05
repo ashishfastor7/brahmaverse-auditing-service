@@ -64,7 +64,7 @@ const results = await Promise.all(
     );
     const started = Date.now();
     try {
-      const { result } = await auditCall(input, { judge, rubric: hansaRubric, agentPrompt, reviewThreshold: env.AUDIT_REVIEW_THRESHOLD });
+      const { result } = await auditCall(input, { judge, rubric: hansaRubric, agentPrompt, agentLabel: "Hansa (HR)", reviewThreshold: env.AUDIT_REVIEW_THRESHOLD });
       writeFileSync(`eval-output/${c.name}.json`, JSON.stringify(result, null, 2));
       return { c, result, misses: check(c, result), ms: Date.now() - started };
     } catch (e) {

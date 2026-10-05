@@ -28,9 +28,11 @@ export type AgentPrompt = { prompt_id: number; prompt_code: string; version: num
 
 export type Evidence = { turn: number; quote: string; valid?: boolean };
 
-/** `applicable: false` when the call never reached what this dimension measures (e.g. the candidate
- * asked for a callback before any question); such a dimension is left out of the weighted score. */
-export type MetricResult = { applicable: boolean; score: number | null; reasoning: string; evidence: Evidence[] };
+/**
+ * One scorecard category. `score` is in points out of `max` (20). `applicable: false` when the call
+ * never needed this category (e.g. nothing to troubleshoot); it is then left out of the total.
+ */
+export type MetricResult = { label: string; applicable: boolean; score: number | null; max: number; reasoning: string; evidence: Evidence[] };
 
 export type FailureReason = {
   code: string;
@@ -46,19 +48,25 @@ export type Sentiment = "positive" | "neutral" | "negative" | "frustrated" | "co
 
 /** The audit result — the shape the dashboard reads. */
 export type AuditResult = {
-  /** null when no quality dimension applied (e.g. wrong person picked up) — nothing to score. */
+  /** Sum of applicable category points, scaled to 100 (capped if the call failed).
+   * null when no quality dimension applied (e.g. wrong person picked up) — nothing to score. */
   overall_score: number | null;
   quality_score: number | null;
   call_success: { result: SuccessResult; failure_reasons: FailureReason[] };
   call_goal: { result: GoalResult; reason_code: string; explanation: string; evidence: Evidence[] };
   metrics: Record<string, MetricResult>;
+  /** What happened on the call, in a few sentences. */
+  call_summary: string;
   went_well: { point: string; turn: number; quote: string; valid?: boolean }[];
-  went_wrong: { point: string; turn: number; quote: string; severity: "low" | "medium" | "high"; valid?: boolean }[];
+  /** What the agent should do differently, each with a concrete suggestion. */
+  improvements: { point: string; suggestion: string; turn: number; quote: string; severity: "low" | "medium" | "high"; valid?: boolean }[];
   sentiment: { start: Sentiment; end: Sentiment; note: string };
-  verdict: string;
+  /** The auditor's overall judgement of the call. */
+  conclusion: string;
   auditor_confidence: number;
   needs_review: boolean;
   rubric_version: string;
+  agent_label: string | null;
   judge: {
     model: string;
     prompt_used: { prompt_code: string; version: number } | null;

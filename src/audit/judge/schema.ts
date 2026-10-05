@@ -1,14 +1,15 @@
 import { z } from "zod";
-import type { Rubric } from "../rubrics";
+import { JUDGE_SCALE, SCORECARD, type Rubric } from "../rubrics/types";
 
 const SENTIMENTS = ["positive", "neutral", "negative", "frustrated", "confused"] as const;
 const SEVERITIES = ["low", "medium", "high"] as const;
 const TRANSCRIPT_QUALITY = ["good", "fair", "poor"] as const;
 const GOAL_RESULTS = ["ACHIEVED", "NOT_ACHIEVED", "NOT_APPLICABLE"] as const;
+const SCORES = Array.from({ length: JUDGE_SCALE + 1 }, (_, i) => i);
 
 // Strict structured output requires every property listed in `required` and no extra properties,
 // at every level. Property order matters too: models generate in schema order, so reasoning and
-// evidence come before the score they justify.
+// evidence come before the score they justify, and the summary before the judgement.
 const obj = (properties: Record<string, unknown>) => ({
   type: "object",
   properties,
@@ -25,6 +26,7 @@ const evidenceList = {
 export function judgeJsonSchema(rubric: Rubric) {
   const reasonCodes = [...new Set(Object.values(rubric.goal.reason_codes).flat())];
   return obj({
+    call_summary: str("Two to four sentences: who called whom, why, what happened, and how it ended"),
     transcript_quality: obj({
       rating: { type: "string", enum: TRANSCRIPT_QUALITY },
       note: str("What, if anything, about the transcript makes judging harder"),
@@ -45,31 +47,37 @@ export function judgeJsonSchema(rubric: Rubric) {
       result: { type: "string", enum: GOAL_RESULTS },
       reason_code: { type: "string", enum: reasonCodes },
     }),
-    dimensions: {
+    scorecard: {
       type: "array",
-      description: "Exactly one entry per rubric dimension.",
+      description: "Exactly one entry per scorecard category, in order.",
       items: obj({
-        key: { type: "string", enum: rubric.dimensions.map((d) => d.key) },
-        applicable: { type: "boolean", description: "false only when the call never reached what this dimension measures" },
+        key: { type: "string", enum: SCORECARD.map((c) => c.key) },
+        applicable: { type: "boolean", description: "false only when this category's 'not applicable' condition holds" },
         reasoning: str(),
         evidence: evidenceList,
-        score: { type: "integer", enum: [0, 1, 2, 3, 4] },
+        score: { type: "integer", enum: SCORES, description: `0 to ${JUDGE_SCALE} against the anchors; 0 if not applicable` },
       }),
     },
     went_well: {
       type: "array",
       items: obj({ point: str(), turn: { type: "integer" }, quote: str() }),
     },
-    went_wrong: {
+    improvements: {
       type: "array",
-      items: obj({ point: str(), turn: { type: "integer" }, quote: str(), severity: { type: "string", enum: SEVERITIES } }),
+      items: obj({
+        point: str("What the agent did wrong or could have done better"),
+        suggestion: str("What the agent should do instead, concretely"),
+        turn: { type: "integer" },
+        quote: str(),
+        severity: { type: "string", enum: SEVERITIES },
+      }),
     },
     sentiment: obj({
       start: { type: "string", enum: SENTIMENTS },
       end: { type: "string", enum: SENTIMENTS },
       note: str("How the other party's mood moved during the call"),
     }),
-    verdict: str("Two or three sentences summarising the call's quality for a reviewer"),
+    conclusion: str("Two or three sentences: the overall judgement of how the agent handled this call"),
     confidence: { type: "number", description: "0 to 1: how sure you are of this assessment" },
   });
 }
@@ -78,16 +86,19 @@ const evidence = z.array(z.object({ turn: z.number().int(), quote: z.string() })
 
 /** Runtime check of the judge's response — strict mode is trusted, but not blindly. */
 export const judgeOutputSchema = z.object({
+  call_summary: z.string(),
   transcript_quality: z.object({ rating: z.enum(TRANSCRIPT_QUALITY), note: z.string() }),
   failures: z.array(z.object({ code: z.string(), explanation: z.string(), turn: z.number().int(), quote: z.string() })),
   goal: z.object({ explanation: z.string(), evidence, result: z.enum(GOAL_RESULTS), reason_code: z.string() }),
-  dimensions: z.array(
-    z.object({ key: z.string(), applicable: z.boolean(), reasoning: z.string(), evidence, score: z.number().int().min(0).max(4) }),
+  scorecard: z.array(
+    z.object({ key: z.string(), applicable: z.boolean(), reasoning: z.string(), evidence, score: z.number().int().min(0).max(JUDGE_SCALE) }),
   ),
   went_well: z.array(z.object({ point: z.string(), turn: z.number().int(), quote: z.string() })),
-  went_wrong: z.array(z.object({ point: z.string(), turn: z.number().int(), quote: z.string(), severity: z.enum(SEVERITIES) })),
+  improvements: z.array(
+    z.object({ point: z.string(), suggestion: z.string(), turn: z.number().int(), quote: z.string(), severity: z.enum(SEVERITIES) }),
+  ),
   sentiment: z.object({ start: z.enum(SENTIMENTS), end: z.enum(SENTIMENTS), note: z.string() }),
-  verdict: z.string(),
+  conclusion: z.string(),
   confidence: z.number(),
 });
 

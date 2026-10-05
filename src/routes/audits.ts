@@ -1,8 +1,8 @@
 import { runAudit } from "@/audit/run-audit";
-import { rubrics } from "@/audit/rubrics";
+import { agents } from "@/audit/rubrics";
+import { POINTS_PER_CATEGORY, SCORECARD } from "@/audit/rubrics/types";
 import { tables } from "@/db";
-import { recordingUrl } from "@/services/call-source.service";
-import { isNoResponders } from "@/services/bus";
+import { playableRecordingUrl } from "@/services/recording.service";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { Op, type WhereOptions } from "sequelize";
@@ -134,14 +134,9 @@ router.get("/audits/:id", async (c) => {
 });
 
 router.get("/audits/:id/recording", async (c) => {
-  const row = await tables.AuditResult.findByPk(Number(c.req.param("id")), { attributes: ["call_id", "business_id"], raw: true });
+  const row = await tables.AuditResult.findByPk(Number(c.req.param("id")), { attributes: ["call_id", "business_id", "call"], raw: true });
   if (!row) throw new HTTPException(404, { message: "Audit not found" });
-  try {
-    return c.json({ data: { url: await recordingUrl(row.call_id, row.business_id) } });
-  } catch (e) {
-    const reason = isNoResponders(e) ? "integration-service has no recording-url handler yet" : (e as Error).message;
-    return c.json({ data: { url: null, reason } });
-  }
+  return c.json({ data: await playableRecordingUrl({ call_id: row.call_id, business_id: row.business_id, recording_url: row.call.recording_url }) });
 });
 
 /** Re-runs the judge on the stored call snapshot, e.g. after a rubric or prompt change. */
@@ -154,15 +149,13 @@ router.post("/audits/:id/reaudit", async (c) => {
   return c.json({ data: updated });
 });
 
-router.get("/rubrics", (c) =>
+/** The agents the dashboard can filter by, and the scorecard they are graded on. */
+router.get("/agents", (c) =>
   c.json({
-    data: rubrics.map((r) => ({
-      version: r.version,
-      agent_label: r.agent_label,
-      agent_codes: r.agent_codes,
-      dimensions: r.dimensions.map(({ key, label, weight }) => ({ key, label, weight })),
-      failure_conditions: r.failure_conditions.map(({ code, label }) => ({ code, label })),
-    })),
+    data: {
+      agents: agents.map((a) => ({ code: a.code, label: a.label, agent_ids: a.agent_ids, rubric_version: a.rubric.version })),
+      scorecard: SCORECARD.map((s) => ({ ...s, max: POINTS_PER_CATEGORY })),
+    },
   }),
 );
 

@@ -3,7 +3,8 @@ import { auditCall, type Judge } from "./audit-call";
 import { locateQuote, validateEvidence } from "./evidence";
 import { normalizeCall } from "./normalize";
 import { ruleFailures, skipReason } from "./rules";
-import { rubricFor } from "./rubrics";
+import { agentFor, rubricFor } from "./rubrics";
+import { SCORECARD } from "./rubrics/types";
 import { hansaRubric } from "./rubrics/hansa";
 import { auditorConfidence, overallScore, qualityScore } from "./score";
 
@@ -51,17 +52,36 @@ describe("normalizeCall", () => {
     expect(input.transcript).toHaveLength(5);
   });
 
+  it("drops lines the voice platform injects as if the caller said them", () => {
+    const input = call({
+      transcriptions: [
+        { speaker: "user", text: "(New Call) Respond as if you are answering the phone." },
+        { speaker: "agent", text: "\nNamaste, thanks for calling." },
+        { speaker: "agent", text: "\n" },
+      ],
+    });
+    expect(input.transcript).toEqual([{ turn: 1, speaker: "agent", text: "Namaste, thanks for calling." }]);
+  });
+
   it("lets overrides fill what a listing row lacks", () => {
     expect(normalizeCall({ id: 1, business_id: 2, status: "completed" }, { agent_code: "hrms" }).agent_code).toBe("hrms");
   });
 });
 
-describe("rubricFor", () => {
-  it("maps hrms to Hansa and anything else to the default rubric", () => {
-    expect(rubricFor("hrms").version).toBe("hansa-v1");
-    expect(rubricFor("HRMS").version).toBe("hansa-v1");
-    expect(rubricFor("varuna").version).toBe("default-v1");
-    expect(rubricFor(null).version).toBe("default-v1");
+describe("agentFor / rubricFor", () => {
+  it("resolves the agent from agent_code, or from agent_id when the code is missing", () => {
+    expect(agentFor("hrms", null)?.label).toBe("Hansa (HR)");
+    expect(agentFor(null, 1)?.code).toBe("hrms");
+    expect(agentFor(null, 9)?.code).toBe("caller");
+    expect(agentFor("project-manager", 1)?.code).toBe("project-manager");
+    expect(agentFor(null, 999)).toBeNull();
+  });
+
+  it("uses the Hansa rubric for Hansa and the default rubric for everyone else", () => {
+    expect(rubricFor("HRMS").version).toBe("hansa-v2");
+    expect(rubricFor(null, 1).version).toBe("hansa-v2");
+    expect(rubricFor(null, 9).version).toBe("default-v2");
+    expect(rubricFor(null).version).toBe("default-v2");
   });
 });
 
@@ -139,20 +159,20 @@ describe("evidence", () => {
 });
 
 describe("scores", () => {
-  const all = (score: number) =>
-    Object.fromEntries(hansaRubric.dimensions.map((d) => [d.key, { applicable: true, score, reasoning: "", evidence: [] }]));
+  const cat = (score: number | null, applicable = true) => ({ label: "", applicable, score, max: 20, reasoning: "", evidence: [] });
+  const all = (score: number) => Object.fromEntries(SCORECARD.map((c) => [c.key, cat(score)]));
 
-  it("maps 0–4 dimension scores to 0–100 by weight", () => {
-    expect(qualityScore(hansaRubric, all(4))).toBe(100);
-    expect(qualityScore(hansaRubric, all(2))).toBe(50);
-    expect(qualityScore(hansaRubric, { ...all(4), question_coverage: { applicable: true, score: 0, reasoning: "", evidence: [] } })).toBe(80);
+  it("adds category points out of 20 each, scaled to 100", () => {
+    expect(qualityScore(all(20))).toBe(100);
+    expect(qualityScore(all(10))).toBe(50);
+    expect(qualityScore({ ...all(20), closure: cat(18), troubleshooting: cat(0) })).toBe(78);
   });
 
-  it("leaves non-applicable dimensions out instead of scoring them 0", () => {
-    const na = { applicable: false, score: null, reasoning: "", evidence: [] };
-    expect(qualityScore(hansaRubric, { ...all(4), question_coverage: na, answer_confirmation: na })).toBe(100);
-    const none = Object.fromEntries(hansaRubric.dimensions.map((d) => [d.key, na]));
-    expect(qualityScore(hansaRubric, none)).toBeNull();
+  it("leaves not-applicable categories out instead of scoring them 0", () => {
+    // Opening 20, Communication 20, Closure 18, nothing to troubleshoot or query: 58 of 60.
+    const metrics = { ...all(20), closure: cat(18), troubleshooting: cat(null, false), query_handling: cat(null, false) };
+    expect(qualityScore(metrics)).toBe(97);
+    expect(qualityScore(Object.fromEntries(SCORECARD.map((c) => [c.key, cat(null, false)])))).toBeNull();
     expect(overallScore(hansaRubric, null, false)).toBeNull();
     expect(overallScore(hansaRubric, null, true)).toBe(0);
   });
@@ -173,26 +193,29 @@ describe("scores", () => {
 });
 
 describe("auditCall", () => {
+  const scorecard = (score = 10, overrides: Record<string, { applicable?: boolean; score?: number }> = {}) =>
+    SCORECARD.map((c) => ({
+      key: c.key,
+      applicable: overrides[c.key]?.applicable ?? true,
+      reasoning: "ok",
+      evidence: [{ turn: 3, quote: "notice period" }],
+      score: overrides[c.key]?.score ?? score,
+    }));
   const judgeOutput = (overrides: Record<string, unknown> = {}) => ({
+    call_summary: "Hansa screened the candidate.",
     transcript_quality: { rating: "good", note: "" },
     failures: [],
     goal: { explanation: "Screening done.", evidence: [{ turn: 4, quote: "Thirty days" }], result: "ACHIEVED", reason_code: "SCREENING_COMPLETED" },
-    dimensions: hansaRubric.dimensions.map((d) => ({
-      key: d.key,
-      applicable: true,
-      reasoning: "ok",
-      evidence: [{ turn: 3, quote: "notice period" }],
-      score: 4,
-    })),
+    scorecard: scorecard(),
     went_well: [{ point: "Confirmed the notice period", turn: 5, quote: "Thirty days, noted" }],
-    went_wrong: [],
+    improvements: [],
     sentiment: { start: "neutral", end: "positive", note: "" },
-    verdict: "Clean screening.",
+    conclusion: "Clean screening.",
     confidence: 0.9,
     ...overrides,
   });
   const stub = (output: unknown): Judge => async () => ({ output, model: "stub", usage: { input_tokens: 1, output_tokens: 1 } });
-  const deps = (output: unknown) => ({ judge: stub(output), rubric: hansaRubric, agentPrompt: null, reviewThreshold: 0.7 });
+  const deps = (output: unknown) => ({ judge: stub(output), rubric: hansaRubric, agentPrompt: null, reviewThreshold: 0.7, agentLabel: "Hansa (HR)" });
 
   it("produces the dashboard result shape", async () => {
     const { result } = await auditCall(call(), deps(judgeOutput()));
@@ -200,12 +223,24 @@ describe("auditCall", () => {
     expect(result.call_success).toEqual({ result: "PASS", failure_reasons: [] });
     expect(result.call_goal.result).toBe("ACHIEVED");
     expect(result.call_goal.reason_code).toBe("SCREENING_COMPLETED");
-    expect(Object.keys(result.metrics)).toEqual(hansaRubric.dimensions.map((d) => d.key));
-    expect(result.metrics.active_listening.evidence[0].valid).toBe(true);
+    expect(Object.keys(result.metrics)).toEqual(["opening", "communication", "troubleshooting", "query_handling", "closure"]);
+    expect(result.metrics.opening).toMatchObject({ label: "Opening", applicable: true, score: 20, max: 20 });
+    expect(result.metrics.communication.evidence[0].valid).toBe(true);
+    expect(result.call_summary).toBe("Hansa screened the candidate.");
+    expect(result.conclusion).toBe("Clean screening.");
     expect(result.went_well[0]).toMatchObject({ turn: 5, valid: true });
     expect(result.sentiment).toMatchObject({ start: "neutral", end: "positive" });
-    expect(result.rubric_version).toBe("hansa-v1");
+    expect(result.rubric_version).toBe("hansa-v2");
+    expect(result.agent_label).toBe("Hansa (HR)");
     expect(result.judge.evidence_validity).toBe(1);
+  });
+
+  it("converts 0–10 judge scores to points out of 20", async () => {
+    const output = judgeOutput({ scorecard: scorecard(10, { closure: { score: 9 }, troubleshooting: { applicable: false, score: 0 } }) });
+    const { result } = await auditCall(call(), deps(output));
+    expect(result.metrics.closure.score).toBe(18);
+    expect(result.metrics.troubleshooting).toMatchObject({ applicable: false, score: null });
+    expect(result.quality_score).toBe(98); // 78 of 80
   });
 
   it("fails the call and caps the score on an LLM-reported failure", async () => {
@@ -243,39 +278,25 @@ describe("auditCall", () => {
     expect(result.call_goal.reason_code).toBe("SCREENING_COMPLETED");
   });
 
-  it("flags invented evidence and lowers confidence into review", async () => {
+  it("keeps the suggestion with each improvement and flags invented evidence", async () => {
     const output = judgeOutput({
-      went_wrong: [
-        { point: "Asked about marriage", turn: 3, quote: "Are you married?", severity: "high" },
-        { point: "Asked about age", turn: 3, quote: "How old are you?", severity: "high" },
+      improvements: [
+        { point: "Asked about marriage", suggestion: "Never ask about marital status.", turn: 3, quote: "Are you married?", severity: "high" },
+        { point: "Asked about age", suggestion: "Do not ask about age.", turn: 3, quote: "How old are you?", severity: "high" },
       ],
-      dimensions: hansaRubric.dimensions.map((d) => ({ key: d.key, applicable: true, reasoning: "", evidence: [{ turn: 1, quote: "never said" }], score: 3 })),
+      scorecard: SCORECARD.map((c) => ({ key: c.key, applicable: true, reasoning: "", evidence: [{ turn: 1, quote: "never said" }], score: 7 })),
       confidence: 0.6,
     });
     const { result } = await auditCall(call(), deps(output));
-    expect(result.went_wrong.every((w) => w.valid === false)).toBe(true);
+    expect(result.improvements[0].suggestion).toBe("Never ask about marital status.");
+    expect(result.improvements.every((w) => w.valid === false)).toBe(true);
     expect(result.judge.evidence_validity).toBeLessThan(0.5);
     expect(result.needs_review).toBe(true);
   });
 
-  it("rejects output that leaves a dimension unscored", async () => {
-    const output = judgeOutput({ dimensions: [{ key: "intent_understanding", applicable: true, reasoning: "", evidence: [], score: 4 }] });
-    expect(auditCall(call(), deps(output))).rejects.toThrow("did not score dimensions");
-  });
-
-  it("nulls the score of a non-applicable dimension whatever the judge put there", async () => {
-    const output = judgeOutput({
-      dimensions: hansaRubric.dimensions.map((d) => ({
-        key: d.key,
-        applicable: d.key !== "question_coverage",
-        reasoning: "",
-        evidence: [],
-        score: d.key === "question_coverage" ? 0 : 4,
-      })),
-    });
-    const { result } = await auditCall(call(), deps(output));
-    expect(result.metrics.question_coverage).toMatchObject({ applicable: false, score: null });
-    expect(result.quality_score).toBe(100);
+  it("rejects output that leaves a category unscored", async () => {
+    const output = judgeOutput({ scorecard: [{ key: "opening", applicable: true, reasoning: "", evidence: [], score: 10 }] });
+    expect(auditCall(call(), deps(output))).rejects.toThrow("did not score categories");
   });
 
   it("rejects malformed output", async () => {

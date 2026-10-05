@@ -12,7 +12,7 @@ export function Login({ onLogin }: { onLogin: () => void }) {
     setError(null);
     tokenStore.set(token.trim());
     try {
-      await api.rubrics();
+      await api.agents();
       onLogin();
     } catch (err) {
       tokenStore.set(null);
