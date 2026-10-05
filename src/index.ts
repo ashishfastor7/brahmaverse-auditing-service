@@ -36,5 +36,7 @@ if (env.AUDIT_SUBSCRIBE) {
 
 if (env.AUDIT_SYNC_ENABLED) startSyncJob();
 
-export default { port: env.PORT, fetch: app.fetch };
+// An on-demand audit holds the request open for the judge call (~15–30 s). Bun closes connections
+// idle for 10 s by default, which the browser reports as "Failed to fetch"; 255 s is Bun's maximum.
+export default { port: env.PORT, fetch: app.fetch, idleTimeout: 255 };
 console.log(`auditing service on :${env.PORT}`);
