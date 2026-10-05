@@ -54,7 +54,10 @@ export async function auditCall(
   const knownFailureCodes = new Set(rubric.failure_conditions.map((f) => f.code));
   const llmFailures: FailureReason[] = output.failures
     .filter((f, i, all) => knownFailureCodes.has(f.code) && all.findIndex((g) => g.code === f.code) === i)
-    .map((f) => ({ code: f.code, source: "llm", explanation: f.explanation, turn: f.turn, quote: f.quote }));
+    .map((f) => {
+      const evidence = [...f.evidence].sort((x, y) => x.turn - y.turn).map((e) => ({ ...e }));
+      return { code: f.code, source: "llm", explanation: f.explanation, evidence, turn: evidence[0]?.turn ?? null, quote: evidence[0]?.quote ?? null };
+    });
   // A rule hit wins over the LLM reporting the same code: it is deterministic.
   const rules = ruleFailures(input, rubric);
   const failures = [...rules, ...llmFailures.filter((f) => !rules.some((r) => r.code === f.code))];
@@ -62,7 +65,7 @@ export async function auditCall(
   const goalEvidence = output.goal.evidence.map((e) => ({ ...e }));
   const wentWell = output.went_well.map((w) => ({ ...w }));
   const improvements = output.improvements.map((w) => ({ ...w }));
-  const llmFailureEvidence = failures.filter((f) => f.source === "llm" && f.quote) as { turn: number; quote: string }[];
+  const llmFailureEvidence = failures.filter((f) => f.source === "llm").flatMap((f) => f.evidence);
 
   const cited = [
     ...Object.values(metrics).flatMap((m) => m.evidence),
@@ -72,6 +75,8 @@ export async function auditCall(
     ...llmFailureEvidence,
   ];
   const evidenceValidity = validateEvidence(input.transcript, cited);
+  // Keep the first-evidence shortcut in step with any turn the validator corrected.
+  for (const f of failures) if (f.evidence[0]) ((f.turn = f.evidence[0].turn), (f.quote = f.evidence[0].quote));
 
   // A goal reason code from the wrong bucket (e.g. CALLBACK_REQUESTED with ACHIEVED) is replaced
   // by that bucket's first code rather than stored inconsistent.

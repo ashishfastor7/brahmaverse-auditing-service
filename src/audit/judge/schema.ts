@@ -37,8 +37,7 @@ export function judgeJsonSchema(rubric: Rubric) {
       items: obj({
         code: { type: "string", enum: rubric.failure_conditions.map((f) => f.code) },
         explanation: str(),
-        turn: { type: "integer" },
-        quote: str(),
+        evidence: { ...evidenceList, description: "Every turn involved — e.g. each repetition of a loop — in turn order" },
       }),
     },
     goal: obj({
@@ -88,7 +87,7 @@ const evidence = z.array(z.object({ turn: z.number().int(), quote: z.string() })
 export const judgeOutputSchema = z.object({
   call_summary: z.string(),
   transcript_quality: z.object({ rating: z.enum(TRANSCRIPT_QUALITY), note: z.string() }),
-  failures: z.array(z.object({ code: z.string(), explanation: z.string(), turn: z.number().int(), quote: z.string() })),
+  failures: z.array(z.object({ code: z.string(), explanation: z.string(), evidence })),
   goal: z.object({ explanation: z.string(), evidence, result: z.enum(GOAL_RESULTS), reason_code: z.string() }),
   scorecard: z.array(
     z.object({ key: z.string(), applicable: z.boolean(), reasoning: z.string(), evidence, score: z.number().int().min(0).max(JUDGE_SCALE) }),

@@ -78,10 +78,10 @@ describe("agentFor / rubricFor", () => {
   });
 
   it("uses the Hansa rubric for Hansa and the default rubric for everyone else", () => {
-    expect(rubricFor("HRMS").version).toBe("hansa-v2");
-    expect(rubricFor(null, 1).version).toBe("hansa-v2");
-    expect(rubricFor(null, 9).version).toBe("default-v2");
-    expect(rubricFor(null).version).toBe("default-v2");
+    expect(rubricFor("HRMS").version).toBe("hansa-v3");
+    expect(rubricFor(null, 1).version).toBe("hansa-v3");
+    expect(rubricFor(null, 9).version).toBe("default-v3");
+    expect(rubricFor(null).version).toBe("default-v3");
   });
 });
 
@@ -115,6 +115,8 @@ describe("ruleFailures", () => {
     const failures = ruleFailures(call({ transcriptions: looped }), hansaRubric);
     expect(failures.map((f) => f.code)).toEqual(["AGENT_LOOP"]);
     expect(failures[0].turn).toBe(1);
+    // every repetition is cited, not just the first
+    expect(failures[0].evidence.map((e) => e.turn)).toEqual([1, 3, 5]);
   });
 
   it("does not count short acknowledgements as a loop", () => {
@@ -230,7 +232,7 @@ describe("auditCall", () => {
     expect(result.conclusion).toBe("Clean screening.");
     expect(result.went_well[0]).toMatchObject({ turn: 5, valid: true });
     expect(result.sentiment).toMatchObject({ start: "neutral", end: "positive" });
-    expect(result.rubric_version).toBe("hansa-v2");
+    expect(result.rubric_version).toBe("hansa-v3");
     expect(result.agent_label).toBe("Hansa (HR)");
     expect(result.judge.evidence_validity).toBe(1);
   });
@@ -245,7 +247,7 @@ describe("auditCall", () => {
 
   it("fails the call and caps the score on an LLM-reported failure", async () => {
     const output = judgeOutput({
-      failures: [{ code: "UNAUTHORIZED_PROMISE", explanation: "Promised an offer.", turn: 5, quote: "Our team will email you" }],
+      failures: [{ code: "UNAUTHORIZED_PROMISE", explanation: "Promised an offer.", evidence: [{ turn: 5, quote: "Our team will email you" }] }],
     });
     const { result } = await auditCall(call(), deps(output));
     expect(result.call_success.result).toBe("FAIL");
@@ -255,19 +257,40 @@ describe("auditCall", () => {
   });
 
   it("merges rule failures and does not double-report a code both found", async () => {
-    const output = judgeOutput({ failures: [{ code: "AGENT_LOOP", explanation: "Looped.", turn: 1, quote: "x" }] });
+    const output = judgeOutput({ failures: [{ code: "AGENT_LOOP", explanation: "Looped.", evidence: [{ turn: 1, quote: "x" }] }] });
     const { result } = await auditCall(call({ ended_reason: "connection_error" }), deps(output));
     expect(result.call_success.failure_reasons.map((f) => `${f.source}:${f.code}`)).toEqual(["rule:CALL_ERROR", "llm:AGENT_LOOP"]);
   });
 
+  it("keeps every turn a failure cites, in turn order, each verified", async () => {
+    const output = judgeOutput({
+      failures: [
+        {
+          code: "AGENT_LOOP",
+          explanation: "Asked the notice period again and again.",
+          evidence: [
+            { turn: 5, quote: "Our team will email you" },
+            { turn: 3, quote: "What is your notice period?" },
+            { turn: 1, quote: "a line nobody said" },
+          ],
+        },
+      ],
+    });
+    const { result } = await auditCall(call(), deps(output));
+    const f = result.call_success.failure_reasons[0];
+    expect(f.evidence.map((e) => e.turn)).toEqual([1, 3, 5]);
+    expect(f.evidence.map((e) => e.valid)).toEqual([false, true, true]);
+    expect(f).toMatchObject({ turn: 1, quote: "a line nobody said" });
+  });
+
   it("reports each failure code once even if the judge repeats it", async () => {
-    const twice = { code: "IGNORED_STOP_REQUEST", explanation: "", turn: 1, quote: "x" };
+    const twice = { code: "IGNORED_STOP_REQUEST", explanation: "", evidence: [{ turn: 1, quote: "x" }] };
     const { result } = await auditCall(call(), deps(judgeOutput({ failures: [twice, { ...twice, turn: 3 }] })));
     expect(result.call_success.failure_reasons).toHaveLength(1);
   });
 
   it("drops failure codes that are not in the rubric", async () => {
-    const output = judgeOutput({ failures: [{ code: "MADE_UP", explanation: "", turn: 1, quote: "" }] });
+    const output = judgeOutput({ failures: [{ code: "MADE_UP", explanation: "", evidence: [{ turn: 1, quote: "" }] }] });
     const { result } = await auditCall(call(), deps(output));
     expect(result.call_success.result).toBe("PASS");
   });

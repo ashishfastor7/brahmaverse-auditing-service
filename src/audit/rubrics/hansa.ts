@@ -7,7 +7,7 @@ import type { Rubric } from "./types";
  * call's purpose from the instructions.
  */
 export const hansaRubric: Rubric = {
-  version: "hansa-v2",
+  version: "hansa-v3",
   context:
     "Hansa is an AI recruiter that phones job candidates. On a screening call it introduces the role, asks a fixed set of " +
     "screening questions (e.g. experience, current CTC, expected CTC, notice period, location), confirms each answer back, and " +

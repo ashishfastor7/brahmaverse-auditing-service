@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, ArrowRight, CheckCircle2, Play, RefreshCw, XCircle } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { callsApi, type AuditResult, type CallFull, type Evidence, type Turn } from "../api";
+import { callsApi, failureEvidence, type AuditResult, type CallFull, type Evidence, type Turn } from "../api";
 import { Badge, Card, formatDate, formatDuration, GoalBadge, humanize, Meter, ReviewBadge, StatusBadge, SuccessBadge } from "../components/ui";
 import { STATUS_LABEL } from "./CallList";
 
@@ -254,7 +254,9 @@ function AuditSections({ r, onJump }: { r: AuditResult; onJump: (turn: number) =
                   <span className="text-xs text-muted">{f.source === "rule" ? "rule check" : "LLM judge"}</span>
                 </div>
                 <p className="mt-1 text-ink-2">{f.explanation}</p>
-                {f.turn !== null && f.quote && <TurnLink e={{ turn: f.turn, quote: f.quote, valid: (f as Evidence).valid }} onJump={onJump} />}
+                {failureEvidence(f).map((e, j) => (
+                  <TurnLink key={j} e={e} onJump={onJump} />
+                ))}
               </li>
             ))}
           </ul>
@@ -386,7 +388,7 @@ export function CallDetail({ id }: { id: number }) {
       ? [
           ...r.went_well.map((w) => w.turn),
           ...r.improvements.map((w) => w.turn),
-          ...r.call_success.failure_reasons.flatMap((f) => (f.turn ? [f.turn] : [])),
+          ...r.call_success.failure_reasons.flatMap((f) => failureEvidence(f).map((e) => e.turn)),
         ]
       : [],
   );

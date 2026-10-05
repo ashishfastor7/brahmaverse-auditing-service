@@ -32,6 +32,7 @@ export function ruleFailures(input: AuditInput, rubric: Rubric): FailureReason[]
       code: "CALL_ERROR",
       source: "rule",
       explanation: `The call ended with a technical error (${input.ended_reason}).`,
+      evidence: [],
       turn: null,
       quote: null,
     });
@@ -39,25 +40,25 @@ export function ruleFailures(input: AuditInput, rubric: Rubric): FailureReason[]
 
   const agentTurns = input.transcript.filter((t) => t.speaker === "agent");
   if (agentTurns.length === 0) {
-    failures.push({ code: "NO_AGENT_SPEECH", source: "rule", explanation: "The agent never spoke.", turn: null, quote: null });
+    failures.push({ code: "NO_AGENT_SPEECH", source: "rule", explanation: "The agent never spoke.", evidence: [], turn: null, quote: null });
   }
 
-  const seen = new Map<string, { count: number; first: (typeof agentTurns)[number] }>();
+  const seen = new Map<string, (typeof agentTurns)[number][]>();
   for (const t of agentTurns) {
     const key = normalizeLine(t.text);
     if (key.length < LOOP_MIN_CHARS) continue;
-    const entry = seen.get(key);
-    if (entry) entry.count++;
-    else seen.set(key, { count: 1, first: t });
+    seen.set(key, [...(seen.get(key) ?? []), t]);
   }
-  for (const { count, first } of seen.values()) {
-    if (count >= LOOP_MIN_REPEATS) {
+  for (const repeats of seen.values()) {
+    if (repeats.length >= LOOP_MIN_REPEATS) {
+      const evidence = repeats.map((t) => ({ turn: t.turn, quote: t.text }));
       failures.push({
         code: "AGENT_LOOP",
         source: "rule",
-        explanation: `The agent said the same line ${count} times.`,
-        turn: first.turn,
-        quote: first.text,
+        explanation: `The agent said the same line ${repeats.length} times (turns ${repeats.map((t) => t.turn).join(", ")}).`,
+        evidence,
+        turn: evidence[0].turn,
+        quote: evidence[0].quote,
       });
       break;
     }

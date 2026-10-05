@@ -43,7 +43,7 @@ How to judge:
 - For every scorecard category, write the reasoning and cite evidence FIRST, then give the score. Apply the anchors literally and count occurrences (two re-asked questions is "two or more", not "one lapse"). When torn between two levels, choose the lower one.
 - Mark a category applicable=false only when its "not applicable when" condition holds. If the agent itself skipped or cut short something it should have done, the category IS applicable and scores low.
 - Every quote must be copied exactly from the transcript line with that turn number. Never paraphrase inside a quote and never cite a turn that does not exist. Keep quotes short (the key words).
-- Only report a failure condition when it clearly happened, with the turn where it happened. If the agent's instructions or the outcome are not provided, do not report failures that depend on them.
+- Only report a failure condition when it clearly happened. Cite EVERY turn involved (for a loop, each repetition), each with an exact quote. If the agent's instructions or the outcome are not provided, do not report failures that depend on them.
 - went_well and improvements: the most useful specific points for a reviewer (usually 1–4 each), each tied to a turn. Every improvement needs a concrete suggestion of what to do instead. A good call may need no improvements; return an empty list rather than inventing faults.
 - confidence: lower it when the transcript is garbled, very short, or when key context is missing.`;
 

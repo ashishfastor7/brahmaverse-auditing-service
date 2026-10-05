@@ -118,8 +118,8 @@ A call **fails if any single failure condition occurs**, and passes otherwise. P
 derived from the score.
 
 - **Rule checks** (deterministic): `CALL_ERROR` (ended with `connection_error` / `system_error`),
-  `NO_AGENT_SPEECH`, `AGENT_LOOP` (the same line of 15+ characters said 3+ times).
-- **Judge checks** (must cite the turn): `CRITICAL_HALLUCINATION`, `IGNORED_STOP_REQUEST`,
+  `NO_AGENT_SPEECH`, `AGENT_LOOP` (the same line of 15+ characters said 3+ times; every repetition is cited).
+- **Judge checks** (must cite every turn involved): `CRITICAL_HALLUCINATION`, `IGNORED_STOP_REQUEST`,
   `UNAUTHORIZED_PROMISE`, `UNPROFESSIONAL_CONDUCT`, `AGENT_LOOP`, plus `DISCRIMINATORY_QUESTION` and
   `OUTCOME_MISMATCH` for Hansa.
 
@@ -159,3 +159,7 @@ itself (serving it as `audio/wav`, since archived files were stored with the wro
 - **The dashboard uses one shared token.** It's an internal tool for now; per-business access would reuse the existing user JWTs.
 - **The planted cases are synthetic.** They prove the judge catches each defect, not that it agrees with your reviewers. Next step: hand-score ~30 real Hansa calls and compare.
 - **One judge call per audit.** Scores vary a little between runs; re-running and comparing (self-consistency) would tighten confidence.
+
+**What counts as a loop.** Repeating a question 3+ times only fails the call when the agent ignored
+a clear answer or repeated itself mechanically. Re-asking because the reply was missing, unclear,
+garbled or a request to repeat ("sorry?", silence) is good recovery, not a loop.

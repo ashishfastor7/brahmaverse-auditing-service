@@ -35,7 +35,19 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
 export type Evidence = { turn: number; quote: string; valid?: boolean };
 /** One scorecard category: points out of `max` (20), null when not applicable. */
 export type Metric = { label: string; applicable: boolean; score: number | null; max: number; reasoning: string; evidence: Evidence[] };
-export type Failure = { code: string; source: "rule" | "llm"; explanation: string; turn: number | null; quote: string | null };
+export type Failure = {
+  code: string;
+  source: "rule" | "llm";
+  explanation: string;
+  /** Every turn involved; absent on audits made before rubric v3. */
+  evidence?: Evidence[];
+  turn: number | null;
+  quote: string | null;
+};
+
+/** All the turns a failure cites (older audits only stored one). */
+export const failureEvidence = (f: Failure): Evidence[] =>
+  f.evidence?.length ? f.evidence : f.turn !== null && f.quote ? [{ turn: f.turn, quote: f.quote, valid: (f as Evidence).valid }] : [];
 export type Turn = { turn: number; speaker: string; text: string };
 
 export type AuditResult = {

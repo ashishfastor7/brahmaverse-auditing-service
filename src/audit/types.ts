@@ -38,6 +38,9 @@ export type FailureReason = {
   code: string;
   source: "rule" | "llm";
   explanation: string;
+  /** Every turn involved (e.g. each repetition of a loop). Empty for call-level failures. */
+  evidence: Evidence[];
+  /** The first evidence item, kept for older readers. */
   turn: number | null;
   quote: string | null;
 };

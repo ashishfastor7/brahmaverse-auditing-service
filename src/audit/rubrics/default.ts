@@ -29,13 +29,18 @@ export const COMMON_FAILURES: FailureCondition[] = [
   {
     code: "AGENT_LOOP",
     label: "Stuck in a loop",
-    definition: "The agent repeated the same question or statement three or more times without making progress.",
+    definition:
+      "The agent got stuck: it asked the same question or made the same statement three or more times without the conversation " +
+      "moving forward, because it ignored a clear answer it had already received or repeated itself mechanically. It is NOT a " +
+      "loop when the agent re-asks because the other party's reply was missing, unclear, garbled or a request to repeat " +
+      "(\"sorry?\", \"what?\", silence, an off-topic remark) — especially when the agent rephrases or adds context and the " +
+      "conversation then moves on. Count only repetitions that came after a clear answer or that ignored what was said.",
   },
 ];
 
 /** Used for any agent without its own rubric, and as the base the agent rubrics adapt. */
 export const defaultRubric: Rubric = {
-  version: "default-v2",
+  version: "default-v3",
   context:
     "An AI voice agent on a phone call (inbound or outbound) with a customer or other party. Its purpose is described by its " +
     "instructions when provided; otherwise infer it from the call.",
