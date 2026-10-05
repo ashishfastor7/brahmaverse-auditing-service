@@ -1,0 +1,96 @@
+@import "tailwindcss";
+
+/* Tokens. Status colours are the reserved good/warning/serious/critical steps and always ship with
+   an icon + label; text never wears a status colour. */
+:root {
+  --bg: #f7f7f5;
+  --surface: #ffffff;
+  --surface-sunken: #f1f1ee;
+  --border: #e4e4df;
+  --ink: #1b1b19;
+  --ink-2: #4a4a45;
+  --ink-muted: #75756e;
+  --accent: #2a6fdb;
+  --accent-track: #d9e6fa;
+  --highlight: #fff4cc;
+  --good: #0ca30c;
+  --warning: #fab219;
+  --serious: #ec835a;
+  --critical: #d03b3b;
+  --good-soft: #e3f5e3;
+  --warning-soft: #fdf1d6;
+  --serious-soft: #fcebe3;
+  --critical-soft: #f9e2e2;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121211;
+    --surface: #1a1a19;
+    --surface-sunken: #222220;
+    --border: #33332f;
+    --ink: #eeeeea;
+    --ink-2: #c4c4bd;
+    --ink-muted: #94948c;
+    --accent: #6ea2f2;
+    --accent-track: #253552;
+    --highlight: #3d3517;
+    --good-soft: #17301a;
+    --warning-soft: #352a12;
+    --serious-soft: #3a2419;
+    --critical-soft: #3b1c1c;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #121211;
+  --surface: #1a1a19;
+  --surface-sunken: #222220;
+  --border: #33332f;
+  --ink: #eeeeea;
+  --ink-2: #c4c4bd;
+  --ink-muted: #94948c;
+  --accent: #6ea2f2;
+  --accent-track: #253552;
+  --highlight: #3d3517;
+  --good-soft: #17301a;
+  --warning-soft: #352a12;
+  --serious-soft: #3a2419;
+  --critical-soft: #3b1c1c;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-sunken: var(--surface-sunken);
+  --color-line: var(--border);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--ink-muted);
+  --color-accent: var(--accent);
+  --color-accent-track: var(--accent-track);
+  --color-highlight: var(--highlight);
+  --color-good: var(--good);
+  --color-warning: var(--warning);
+  --color-serious: var(--serious);
+  --color-critical: var(--critical);
+  --color-good-soft: var(--good-soft);
+  --color-warning-soft: var(--warning-soft);
+  --color-serious-soft: var(--serious-soft);
+  --color-critical-soft: var(--critical-soft);
+  --font-sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}

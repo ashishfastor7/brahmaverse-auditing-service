@@ -1,0 +1,208 @@
+diff --git a/src/background/voice-call/voice-call.rpc.ts b/src/background/voice-call/voice-call.rpc.ts
+index 34da573..91834a0 100644
+--- a/src/background/voice-call/voice-call.rpc.ts
++++ b/src/background/voice-call/voice-call.rpc.ts
+@@ -2,6 +2,7 @@ import { tables } from "@/db";
+ import { dialedCalls } from "@/utils/voice-call";
+ import { logCallError, toErrorDetail } from "@/utils/voice-call-error";
+ import { voiceCallInputSchema } from "@/schema/voice-call.schema";
++import fileService from "@/service/file.service";
+ import quotaService from "@/service/quota.service";
+ import voiceCallService from "@/service/voice-call.service";
+ import { rpc } from "@fastor7/message-bus";
+@@ -121,6 +122,22 @@ rpc.handle("query.voicecall.list" as any, async (data: any) => {
+   return callsData;
+ });
+ 
++/**
++ * A short-lived playable url for one call's recording, for internal consumers that only hold the
++ * stored bucket url (the auditing dashboard). Looked up by id + business_id, never by a
++ * caller-supplied url, so it can only presign a recording this service itself archived.
++ */
++rpc.handle("query.voicecall.recording-url" as any, async (data: any) => {
++  const { id, business_id } = data || {};
++  if (!id || !business_id) throw new Error("id and business_id are required");
++  const log = await tables.VoiceCallLogs.findOne({
++    attributes: ["recording_url"],
++    where: { id, business_id },
++    raw: true,
++  });
++  if (!log?.recording_url) return { url: null };
++  return { url: await fileService.generateDownloadPresignedUrl({ url: log.recording_url, prefix: business_id }) };
++});
+ 
+ rpc.handle("process.voicecall.create" as any, async (_data) => {
+   const { data, error } = await voiceCallInputSchema.safeParseAsync(_data);
+diff --git a/src/controller/voice-call/voice-call.controller.ts b/src/controller/voice-call/voice-call.controller.ts
+index 3df0482..88fc14f 100644
+--- a/src/controller/voice-call/voice-call.controller.ts
++++ b/src/controller/voice-call/voice-call.controller.ts
+@@ -7,6 +7,7 @@ import quotaService from "@/service/quota.service";
+ import voiceCallService from "@/service/voice-call.service";
+ import { createController, createMiddleware, validator } from "@/utils/openapi";
+ import { toE164 } from "@/utils/phone";
++import { buildCallEndedEvent, VOICECALL_ENDED_SUBJECT } from "@/utils/voice-call";
+ import { CallErrorDetail, logCall, logCallError, messageOf, toErrorDetail } from "@/utils/voice-call-error";
+ import { publish, rpc } from "@fastor7/message-bus";
+ import axios from "axios";
+@@ -251,6 +252,13 @@ async function finalizeCallEnd(callId: string, data: CallEndData) {
+     ...(failure ? { error: failure } : {}),
+   });
+ 
++  // For the auditing service. Fire-and-forget like the callbacks below: a bus failure must not stop
++  // quota or callbacks. Keyed on the row id, so a repeated end webhook is deduplicated by JetStream.
++  publish(VOICECALL_ENDED_SUBJECT, {
++    msgID: VOICECALL_ENDED_SUBJECT + "_" + voiceCallLog.id,
++    payload: buildCallEndedEvent(voiceCallLog.get({ plain: true })),
++  }).catch((e) => logCallError("call_ended_publish_failed", { call_id: voiceCallLog.id, business_id: voiceCallLog.business_id, reason: messageOf(e) }));
++
+   // only platform-subscribed Plivo calls consume quota (flagged at makeCall time)
+   if (voiceCallLog.meta_data?.consume_quota) {
+     await quotaService.consumeQuota({
+diff --git a/src/utils/voice-call.test.ts b/src/utils/voice-call.test.ts
+index 5c34ce2..f6adcb7 100644
+--- a/src/utils/voice-call.test.ts
++++ b/src/utils/voice-call.test.ts
+@@ -1,5 +1,5 @@
+ import { describe, expect, it } from "bun:test";
+-import { interleaveByAgent } from "./voice-call";
++import { buildCallEndedEvent, interleaveByAgent } from "./voice-call";
+ 
+ type Row = { id: number; agent_id: number };
+ 
+@@ -50,3 +50,55 @@ describe("interleaveByAgent", () => {
+     expect(interleaveByAgent([], 10)).toEqual([]);
+   });
+ });
++
++describe("buildCallEndedEvent", () => {
++  const log = {
++    id: 42,
++    business_id: 10,
++    agent_id: 3,
++    status: "completed",
++    call_type: "outbound",
++    voice_provider: "brahmaverse",
++    is_playground: false,
++    data: {
++      agent_code: "hrms",
++      config: { prompt_code: "screening_v2", channel: "plivo", variables: { job_title: "QA Engineer", ctc_range: "6-8 LPA" } },
++      metadata: { phone: "+919999999999" },
++      on_success: "hrms.call.success",
++    },
++    duration: 95,
++    ended_reason: "hangup",
++    recording_url: "https://bucket/private/10/recodings/a.wav",
++    summary: "Candidate screened.",
++    transcriptions: [
++      { speaker: "agent", text: "Hi, this is Hansa." },
++      { speaker: "user", text: "Hello." },
++    ],
++    outcome: { notice_period: "30" },
++  };
++
++  it("lifts agent_code, prompt_code and variables out of the queued payload", () => {
++    const event = buildCallEndedEvent(log);
++    expect(event.agent_code).toBe("hrms");
++    expect(event.prompt_code).toBe("screening_v2");
++    expect(event.variables).toEqual({ job_title: "QA Engineer", ctc_range: "6-8 LPA" });
++    expect(event.transcriptions).toHaveLength(2);
++    expect(event.outcome).toEqual({ notice_period: "30" });
++  });
++
++  it("does not leak the rest of the queued payload (phone, callback subjects)", () => {
++    const event = buildCallEndedEvent(log) as Record<string, unknown>;
++    expect(event.data).toBeUndefined();
++    expect(JSON.stringify(event)).not.toContain("+919999999999");
++    expect(JSON.stringify(event)).not.toContain("hrms.call.success");
++  });
++
++  it("fills missing optional fields with null / empty defaults", () => {
++    const event = buildCallEndedEvent({ id: 1, business_id: 1, agent_id: 1, status: "no_answer", call_type: "outbound" });
++    expect(event.agent_code).toBeNull();
++    expect(event.variables).toEqual({});
++    expect(event.transcriptions).toEqual([]);
++    expect(event.is_playground).toBe(false);
++    expect(event.recording_url).toBeNull();
++  });
++});
+diff --git a/src/utils/voice-call.ts b/src/utils/voice-call.ts
+index e8a7ba2..1caaada 100644
+--- a/src/utils/voice-call.ts
++++ b/src/utils/voice-call.ts
+@@ -17,6 +17,75 @@ export const IN_FLIGHT_STATUSES = ["dialing", "ongoing"];
+  */
+ export const FALLBACK_VOICE_PROVIDER = { provider: "ultravox", concurrency: 5 };
+ 
++/** Subject published once per finalized call, for consumers that analyse finished calls (e.g. the auditing service). */
++export const VOICECALL_ENDED_SUBJECT = "voicecall.ended";
++
++type CallEndedSource = {
++  id: number;
++  business_id: number;
++  agent_id: number;
++  status: string;
++  call_type: string;
++  provider?: string | null;
++  voice_provider?: string | null;
++  provider_call_id?: string | null;
++  is_playground?: boolean | null;
++  data?: any;
++  picked_at?: string | null;
++  ends_at?: string | null;
++  duration?: number | null;
++  ended_reason?: string | null;
++  recording_url?: string | null;
++  summary?: string | null;
++  transcriptions?: { speaker: string; text: string }[] | null;
++  outcome?: Record<string, string | number> | null;
++  meta_data?: any;
++  tags?: string[] | null;
++  system_ref_id?: string | null;
++  conversation_ref?: string | null;
++  created_at?: string | Date | null;
++};
++
++/**
++ * The `voicecall.ended` payload: everything about a finished call that is useful without reading
++ * this service's DB. `agent_code`, `prompt_code` and the prompt's template `variables` (job
++ * details, screening questions — what an auditor checks the agent's claims against) only live
++ * inside the queued `data` payload, so they are lifted out here; the rest of `data` (phone
++ * numbers, tool config, callback subjects) is deliberately left out.
++ */
++export function buildCallEndedEvent(log: CallEndedSource) {
++  return {
++    id: log.id,
++    business_id: log.business_id,
++    agent_id: log.agent_id,
++    agent_code: (log.data?.agent_code as string | undefined) ?? null,
++    prompt_code: (log.data?.config?.prompt_code as string | undefined) ?? null,
++    callflow_id: (log.data?.config?.callflow_id as number | undefined) ?? null,
++    variables: (log.data?.config?.variables as Record<string, string | number | boolean> | undefined) ?? {},
++    status: log.status,
++    call_type: log.call_type,
++    provider: log.provider ?? null,
++    voice_provider: log.voice_provider ?? null,
++    provider_call_id: log.provider_call_id ?? null,
++    is_playground: Boolean(log.is_playground),
++    picked_at: log.picked_at ?? null,
++    ends_at: log.ends_at ?? null,
++    duration: log.duration ?? null,
++    ended_reason: log.ended_reason ?? null,
++    recording_url: log.recording_url ?? null,
++    summary: log.summary ?? null,
++    transcriptions: log.transcriptions ?? [],
++    outcome: log.outcome ?? null,
++    meta_data: log.meta_data ?? null,
++    tags: log.tags ?? [],
++    system_ref_id: log.system_ref_id ?? null,
++    conversation_ref: log.conversation_ref ?? null,
++    created_at: log.created_at ?? null,
++  };
++}
++
++export type CallEndedEvent = ReturnType<typeof buildCallEndedEvent>;
++
+ /**
+  * One agent monopolising a provider's queue must not push every other agent's calls to the back
+  * of it indefinitely — a campaign that floods 50 rows in ahead of another agent's 3 would

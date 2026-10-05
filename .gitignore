@@ -1,0 +1,10 @@
+node_modules/
+.env
+.npmrc
+dist/
+*.log
+eval-output/
+dashboard/node_modules/
+dashboard/dist/
+dashboard/.env
+*.tsbuildinfo

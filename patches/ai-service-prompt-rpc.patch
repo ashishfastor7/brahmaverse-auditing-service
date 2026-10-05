@@ -1,0 +1,38 @@
+diff --git a/src/background/realtime/voice-call.rpc.ts b/src/background/realtime/voice-call.rpc.ts
+index 5eba54d..501ba7a 100644
+--- a/src/background/realtime/voice-call.rpc.ts
++++ b/src/background/realtime/voice-call.rpc.ts
+@@ -144,3 +144,33 @@ rpc.handle("query.realtime-call.provider", async (_data) => {
+   const { provider, concurrency } = resolveVoiceProvider(prompt?.model);
+   return { provider, concurrency };
+ });
++
++/**
++ * The system prompt a call's agent was given, rendered with that call's variables, for consumers
++ * that grade finished calls against the agent's instructions (the auditing service). Resolved the
++ * same way `process.realtime-call.initiate` resolves it, so a business override wins.
++ *
++ * This is the prompt row as it is NOW: rows are edited in place, so a call made before an edit is
++ * graded against the newer text. `version` is returned so the consumer can record which one it used.
++ */
++rpc.handle("query.realtime-call.prompt", async (_data) => {
++  const { data, error } = await z
++    .object({
++      agent_code: z.string(),
++      business_id: z.number(),
++      prompt_code: z.string(),
++      call_type: z.enum(["outbound", "inbound"]).optional(),
++      variables: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional().default({}),
++    })
++    .safeParseAsync(_data);
++  if (error) throw new Error(error.issues[0].path.join(".") + ": " + error.issues[0].message);
++
++  const prompt = await findPrompt(data);
++  if (!prompt) return null;
++  return {
++    prompt_id: prompt.id,
++    prompt_code: prompt.prompt_code,
++    version: prompt.version,
++    system_prompt: renderTemplate(prompt.system_prompt, { call_type: data.call_type, ...data.variables }),
++  };
++});

@@ -1,0 +1,4 @@
+# @fastor7/* packages come from GitHub Packages. The token is read from the environment so it is
+# never committed: set NPM_TOKEN (a GitHub PAT with read:packages) before `bun install`.
+[install.scopes]
+"@fastor7" = { token = "$NPM_TOKEN", url = "https://npm.pkg.github.com/" }
