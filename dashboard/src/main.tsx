@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { api, tokenStore, UnauthorizedError } from "./api";
 import "./index.css";
+import { applyInitialTheme, ThemeToggle } from "./components/theme";
 import { CallDetail } from "./pages/CallDetail";
 import { CallList } from "./pages/CallList";
 import { Login } from "./pages/Login";
@@ -50,15 +51,18 @@ function App() {
         <a href="#/" className="text-base font-semibold text-ink">
           Call audits
         </a>
-        <button
-          className="text-sm text-muted hover:text-ink"
-          onClick={() => {
-            tokenStore.set(null);
-            setAuthed(false);
-          }}
-        >
-          Sign out
-        </button>
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+          <button
+            className="text-sm text-muted hover:text-ink"
+            onClick={() => {
+              tokenStore.set(null);
+              setAuthed(false);
+            }}
+          >
+            Sign out
+          </button>
+        </div>
       </header>
       {call ? (
         <CallDetail key={call[1]} id={Number(call[1])} />
@@ -70,6 +74,8 @@ function App() {
     </div>
   );
 }
+
+applyInitialTheme();
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: (n, e) => !(e instanceof UnauthorizedError) && n < 2, refetchOnWindowFocus: false } },
