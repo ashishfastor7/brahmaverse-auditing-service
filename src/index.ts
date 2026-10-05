@@ -4,6 +4,7 @@ import { sequelize } from "@/db";
 import { env } from "@/env";
 import { requireToken } from "@/middleware/auth";
 import audits from "@/routes/audits";
+import calls from "@/routes/calls";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
@@ -24,6 +25,7 @@ app.onError((err, c) => {
 app.get("/v1/audit/health", (c) => c.json({ status: true }));
 app.use("/v1/audit/*", requireToken);
 app.route("/v1/audit", audits);
+app.route("/v1/audit", calls);
 
 await sequelize.authenticate();
 console.log("database connected");

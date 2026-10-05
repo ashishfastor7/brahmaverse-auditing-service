@@ -1,13 +1,13 @@
 import { QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { tokenStore, UnauthorizedError } from "./api";
+import { api, tokenStore, UnauthorizedError } from "./api";
 import "./index.css";
 import { CallDetail } from "./pages/CallDetail";
 import { CallList } from "./pages/CallList";
 import { Login } from "./pages/Login";
 
-/** Hash routes: #/ (list, with filters in the query string) and #/audits/:id. */
+/** Hash routes: #/ (all calls, filters in the query string), #/calls/:id, and old #/audits/:id links. */
 function useHashRoute() {
   const [hash, setHash] = useState(() => window.location.hash.slice(1) || "/");
   useEffect(() => {
@@ -16,6 +16,17 @@ function useHashRoute() {
     return () => window.removeEventListener("hashchange", onChange);
   }, []);
   return hash;
+}
+
+/** Old audit links (#/audits/:id) open the call they belong to. */
+function AuditRedirect({ id }: { id: number }) {
+  useEffect(() => {
+    api
+      .get(id)
+      .then((a) => window.location.replace(`#/calls/${a.call_id}`))
+      .catch(() => window.location.replace("#/"));
+  }, [id]);
+  return <p className="text-sm text-muted">Opening call…</p>;
 }
 
 function App() {
@@ -31,7 +42,8 @@ function App() {
   if (!authed) return <Login onLogin={() => setAuthed(true)} />;
 
   const [path, search = ""] = route.split("?");
-  const detail = path.match(/^\/audits\/(\d+)$/);
+  const call = path.match(/^\/calls\/(\d+)$/);
+  const oldAudit = path.match(/^\/audits\/(\d+)$/);
   return (
     <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6">
       <header className="mb-5 flex items-center justify-between gap-3">
@@ -48,7 +60,13 @@ function App() {
           Sign out
         </button>
       </header>
-      {detail ? <CallDetail id={Number(detail[1])} /> : <CallList search={search} />}
+      {call ? (
+        <CallDetail key={call[1]} id={Number(call[1])} />
+      ) : oldAudit ? (
+        <AuditRedirect id={Number(oldAudit[1])} />
+      ) : (
+        <CallList search={search} />
+      )}
     </div>
   );
 }

@@ -140,7 +140,7 @@ export type Filters = Partial<{
   page: string;
 }>;
 
-const qs = (f: Filters) => {
+const qs = (f: Record<string, string | undefined>) => {
   const p = new URLSearchParams();
   for (const [k, v] of Object.entries(f)) if (v) p.set(k, v);
   const s = p.toString();
@@ -154,4 +154,92 @@ export const api = {
   recording: (id: number) => call<{ data: { url: string | null; reason?: string } }>(`/audits/${id}/recording`).then((r) => r.data),
   reaudit: (id: number) => call<{ data: AuditDetail }>(`/audits/${id}/reaudit`, { method: "POST" }).then((r) => r.data),
   agents: () => call<{ data: Agents }>(`/agents`).then((r) => r.data),
+};
+
+// ---- Calls: every row in voice_call_logs, with its audit when it has one ----
+
+export type CallAuditSummary = Pick<
+  AuditListRow,
+  "id" | "status" | "skip_reason" | "overall_score" | "success_result" | "goal_result" | "goal_reason_code" | "failure_codes" | "auditor_confidence" | "needs_review" | "rubric_version"
+>;
+
+export type CallRow = {
+  id: number;
+  business_id: number;
+  agent_id: number | null;
+  agent_code: string | null;
+  agent_label: string | null;
+  status: string;
+  call_type: string | null;
+  provider: string | null;
+  voice_provider: string | null;
+  is_playground: boolean | null;
+  duration: number | null;
+  ended_reason: string | null;
+  created_at: string;
+  turns: number;
+  has_recording: boolean;
+  has_summary: boolean;
+  contact_name: string | null;
+  audit: CallAuditSummary | null;
+};
+
+export type CallStats = {
+  total_calls: number;
+  calls_by_status: Record<string, number>;
+  audited: number;
+  avg_score: number | null;
+  success_rate: number | null;
+  goal_rate: number | null;
+  needs_review: number;
+  top_failures: { code: string; count: number }[];
+};
+
+export type CallFull = AuditCall & {
+  agent_id: number | null;
+  agent_label: string | null;
+  voice_provider: string | null;
+  is_playground: boolean;
+  phone_number: string | null;
+  source_phone_number: string | null;
+  provider: string | null;
+  provider_call_id: string | null;
+  error_detail: Record<string, unknown> | null;
+  meta_data: Record<string, unknown> | null;
+  tags: string[];
+  system_ref_id: string | null;
+  conversation_ref: string | null;
+  retries: number | null;
+  scheduled_at: string | null;
+  initiated_at: string | null;
+  picked_at: string | null;
+  ends_at: string | null;
+  updated_at: string | null;
+  contact: Record<string, unknown> | null;
+  channel: string | null;
+  voice: string | null;
+};
+
+export type CallDetailData = { call: CallFull; audit: AuditDetail | null };
+
+export type CallFilters = Partial<{
+  agent_code: string;
+  status: string;
+  call_type: string;
+  audit: string;
+  success: string;
+  goal: string;
+  needs_review: string;
+  failure_code: string;
+  search: string;
+  sort: string;
+  page: string;
+}>;
+
+export const callsApi = {
+  list: (f: CallFilters) => call<{ data: CallRow[]; page: number; page_size: number; total: number }>(`/calls${qs(f)}`),
+  stats: (agent_code?: string) => call<{ data: CallStats }>(`/calls/stats${qs({ agent_code })}`).then((r) => r.data),
+  get: (id: number) => call<{ data: CallDetailData }>(`/calls/${id}`).then((r) => r.data),
+  recording: (id: number) => call<{ data: { url: string | null; reason?: string } }>(`/calls/${id}/recording`).then((r) => r.data),
+  audit: (id: number) => call<{ data: AuditDetail }>(`/calls/${id}/audit`, { method: "POST" }).then((r) => r.data),
 };

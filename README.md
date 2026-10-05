@@ -103,6 +103,29 @@ bun run eval:planted            # real judge on 10 planted-defect Hansa calls; e
 `eval:planted` needs only `OPENAI_API_KEY`, with no database or bus. Re-run it before changing the
 rubric, the judge prompt or the model. Full judge output is written to `eval-output/`.
 
+## Dashboard
+
+The call list shows **every call in `voice_call_logs`** (any status, audited or not), read live from
+the source table, with each call's latest audit alongside. Filter by agent, call status, direction,
+audit state, pass/fail and goal; search by call id, contact name or summary; sort by date or score.
+A call's page shows the full call record (timings, provider, error detail, variables, outcome,
+metadata, recording, transcript) and, when audited, the audit. "Audit this call" grades a completed
+call on demand.
+
+## How Pass/Fail is decided
+
+A call **fails if any single failure condition occurs**, and passes otherwise. Pass/Fail is not
+derived from the score.
+
+- **Rule checks** (deterministic): `CALL_ERROR` (ended with `connection_error` / `system_error`),
+  `NO_AGENT_SPEECH`, `AGENT_LOOP` (the same line of 15+ characters said 3+ times).
+- **Judge checks** (must cite the turn): `CRITICAL_HALLUCINATION`, `IGNORED_STOP_REQUEST`,
+  `UNAUTHORIZED_PROMISE`, `UNPROFESSIONAL_CONDUCT`, `AGENT_LOOP`, plus `DISCRIMINATORY_QUESTION` and
+  `OUTCOME_MISMATCH` for Hansa.
+
+A failed call's overall score is capped at 40. A passing call can still score low; the score
+measures how well the call was handled, and Pass/Fail measures whether anything unacceptable happened.
+
 ## Getting calls in
 
 **Straight from `voice_call_logs` (recommended).** Set `SOURCE_DB_*` in `.env` to a login with read
