@@ -8,3 +8,6 @@ dashboard/node_modules/
 dashboard/dist/
 dashboard/.env
 *.tsbuildinfo
+docs/v2-playbook.md
+HANDOFF.md
+fixtures/real/
