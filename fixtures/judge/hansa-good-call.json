@@ -1,0 +1,183 @@
+{
+  "name": "hansa-good-call",
+  "case": "good-call",
+  "rubric_version": "hansa-v3",
+  "judge_model": "gpt-5.6-luna",
+  "recorded_at": "2026-10-22T10:36:38.236Z",
+  "response": {
+    "output": {
+      "call_summary": "Hansa called Rahul on behalf of Acme Tech to screen him for the QA Engineer role. Rahul answered all required screening questions, confirmed interest in the Bengaluru hybrid arrangement, and the call ended politely after next steps were explained.",
+      "transcript_quality": {
+        "rating": "good",
+        "note": "The transcript is clear and complete, with no material garbling or missing context."
+      },
+      "failures": [],
+      "goal": {
+        "explanation": "The screening goal was achieved: the agent asked all required questions, confirmed the key answers, and Rahul indicated interest by agreeing to proceed and confirming the hybrid arrangement.",
+        "evidence": [
+          {
+            "turn": 4,
+            "quote": "Yes sure, go ahead."
+          },
+          {
+            "turn": 10,
+            "quote": "Yes correct."
+          },
+          {
+            "turn": 16,
+            "quote": "Yes, that works for me."
+          },
+          {
+            "turn": 17,
+            "quote": "Our recruitment team will email you the next steps within two working days."
+          }
+        ],
+        "result": "ACHIEVED",
+        "reason_code": "SCREENING_COMPLETED"
+      },
+      "scorecard": [
+        {
+          "key": "opening",
+          "applicable": true,
+          "reasoning": "The agent greeted Rahul, identified itself as Hansa and an AI recruiter from Acme Tech, named the QA Engineer role, stated the call purpose, and checked whether it was a good time.",
+          "evidence": [
+            {
+              "turn": 3,
+              "quote": "Hi Rahul, this is Hansa, an AI recruiter from Acme Tech."
+            },
+            {
+              "turn": 3,
+              "quote": "I'm calling about the QA Engineer role you applied for."
+            },
+            {
+              "turn": 3,
+              "quote": "Is this a good time for a five minute chat?"
+            }
+          ],
+          "score": 10
+        },
+        {
+          "key": "communication",
+          "applicable": true,
+          "reasoning": "The agent was clear, concise, polite, and did not unnecessarily re-ask questions. It listened to and confirmed Rahul's answers throughout the screening.",
+          "evidence": [
+            {
+              "turn": 9,
+              "quote": "So your current CTC is five point five lakh per annum, is that correct?"
+            },
+            {
+              "turn": 13,
+              "quote": "Expected CTC of seven lakh, noted."
+            },
+            {
+              "turn": 17,
+              "quote": "To confirm: four years experience, current CTC five point five lakh, expected seven lakh, thirty days notice"
+            }
+          ],
+          "score": 10
+        },
+        {
+          "key": "troubleshooting",
+          "applicable": false,
+          "reasoning": "Nothing in the call required troubleshooting: there were no objections, unclear answers, confusion, mis-hearings, or rescheduling requests.",
+          "evidence": [],
+          "score": 0
+        },
+        {
+          "key": "query_handling",
+          "applicable": true,
+          "reasoning": "The agent asked all five required screening questions one at a time and confirmed the key values, including experience, CTC figures, notice period, and hybrid-work comfort. No candidate question required an answer.",
+          "evidence": [
+            {
+              "turn": 5,
+              "quote": "How many years of total experience do you have?"
+            },
+            {
+              "turn": 7,
+              "quote": "What is your current CTC?"
+            },
+            {
+              "turn": 9,
+              "quote": "So your current CTC is five point five lakh per annum, is that correct?"
+            },
+            {
+              "turn": 11,
+              "quote": "And what is your expected CTC?"
+            },
+            {
+              "turn": 13,
+              "quote": "Expected CTC of seven lakh, noted."
+            },
+            {
+              "turn": 13,
+              "quote": "What is your notice period?"
+            },
+            {
+              "turn": 15,
+              "quote": "Are you comfortable working from the Bengaluru office three days a week?"
+            },
+            {
+              "turn": 17,
+              "quote": "four years experience, current CTC five point five lakh, expected seven lakh, thirty days notice, and comfortable with hybrid in Bengaluru"
+            }
+          ],
+          "score": 10
+        },
+        {
+          "key": "closure",
+          "applicable": true,
+          "reasoning": "The agent recapped all screening answers, explained that next steps would be emailed within two working days, asked whether Rahul had questions, and closed politely.",
+          "evidence": [
+            {
+              "turn": 17,
+              "quote": "To confirm: four years experience, current CTC five point five lakh, expected seven lakh, thirty days notice, and comfortable with hybrid in Bengaluru."
+            },
+            {
+              "turn": 17,
+              "quote": "Our recruitment team will email you the next steps within two working days."
+            },
+            {
+              "turn": 17,
+              "quote": "Do you have any questions?"
+            },
+            {
+              "turn": 19,
+              "quote": "Thank you Rahul, have a great day!"
+            }
+          ],
+          "score": 10
+        }
+      ],
+      "went_well": [
+        {
+          "point": "The opening clearly identified the recruiter, company, role, purpose, and timing check.",
+          "turn": 3,
+          "quote": "Hi Rahul, this is Hansa, an AI recruiter from Acme Tech. I'm calling about the QA Engineer role you applied for. Is this a good time for a five minute chat?"
+        },
+        {
+          "point": "The agent confirmed the candidate's key numerical answers and work-location preference rather than relying on unverified interpretation.",
+          "turn": 17,
+          "quote": "To confirm: four years experience, current CTC five point five lakh, expected seven lakh, thirty days notice, and comfortable with hybrid in Bengaluru."
+        },
+        {
+          "point": "The close provided a specific next-step timeline and ended courteously.",
+          "turn": 17,
+          "quote": "Our recruitment team will email you the next steps within two working days."
+        }
+      ],
+      "improvements": [],
+      "sentiment": {
+        "start": "neutral",
+        "end": "positive",
+        "note": "Rahul was initially neutral but cooperative, agreed to continue, answered all questions, and ended the call positively and politely."
+      },
+      "conclusion": "This was a complete and well-structured screening call. Hansa followed the required flow, captured and confirmed all screening information, established Rahul's interest, and gave accurate next steps without making unsupported promises.",
+      "confidence": 0.99
+    },
+    "model": "gpt-5.6-luna",
+    "usage": {
+      "input_tokens": 3465,
+      "output_tokens": 1222
+    }
+  }
+}

@@ -60,6 +60,7 @@ src/background/       voicecall.ended subscriber
 src/routes/           dashboard API (/v1/audit/...)
 src/scripts/          replay (audit past calls), eval-planted (test the judge)
 fixtures/planted/     synthetic Hansa calls, each with one planted defect
+fixtures/judge/       recorded judge outputs on planted calls, replayed in tests by fixtureJudge(name)
 patches/              changes the other services need (see below)
 dashboard/            Vite + React dashboard (call list, call detail)
 ```
@@ -78,6 +79,9 @@ cd dashboard && cp .env.example .env && npm install && npm run dev   # dashboard
 ```
 
 Sign in to the dashboard with the value of `AUDIT_API_TOKEN`.
+
+v2 (`docs/prd-v2.md`) is off until `AUDIT_V2_ENABLED=true`. While it is off, every existing route returns
+exactly what it did before v2. The dashboard reads the flag from `GET /v1/audit/config` (`{ "data": { "v2_enabled": false } }`).
 
 ## Changes needed in the other services
 
@@ -99,11 +103,18 @@ git apply ../Brahmaverse-auditing-service/patches/ai-service-prompt-rpc.patch
 ## Testing
 
 ```bash
-bun test                        # unit tests: rules, evidence checks, scoring, result shape (stub judge)
-bun run test:db                 # migrations up -> down -> up, and v1 routes ignoring v2 rows, on a throwaway database
+bun test                        # unit tests: rules, evidence checks, scoring, result shape (stub or recorded judge)
+bun run test:db                 # migrations up -> down -> up, a snapshot of every v1 GET route (flag off), and v1 routes
+                                # ignoring v2 rows, on a throwaway database
                                 # (created and dropped on the DB_* server)
 bun run eval:planted            # real judge on 10 planted-defect Hansa calls; exits 1 on any miss
+bun run record:fixture --case wrong-salary   # real judge on one planted case -> fixtures/judge/hansa-wrong-salary.json
 ```
+
+Tests never call OpenAI: `src/test-preload.ts` (loaded by `bunfig.toml`) makes creating the OpenAI client throw
+under `bun test`. Use `fixtureJudge(name)` to replay a recorded judge output instead. `record:fixture` is manual
+(one OpenAI call) and takes planted cases only, so fixtures never hold a real call. It exits 1 and says so if the
+recording misses its case's expectations; re-record it after changing the rubric, judge prompt or model.
 
 `eval:planted` needs only `OPENAI_API_KEY`, with no database or bus. Re-run it before changing the
 rubric, the judge prompt or the model. Full judge output is written to `eval-output/`.

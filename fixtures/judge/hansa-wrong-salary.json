@@ -1,0 +1,190 @@
+{
+  "name": "hansa-wrong-salary",
+  "case": "wrong-salary",
+  "rubric_version": "hansa-v3",
+  "judge_model": "gpt-5.6-luna",
+  "recorded_at": "2026-10-22T10:36:56.617Z",
+  "response": {
+    "output": {
+      "call_summary": "Hansa called Rahul on behalf of Acme Tech to screen him for the QA Engineer role. Rahul answered all screening questions, confirmed his interest and hybrid-work comfort, and had no further questions. The call ended politely with next steps promised by email within two working days.",
+      "transcript_quality": {
+        "rating": "good",
+        "note": "The transcript is clear and complete, with no material speech-recognition ambiguity."
+      },
+      "failures": [
+        {
+          "code": "CRITICAL_HALLUCINATION",
+          "explanation": "The agent stated a compensation range of 15 to 18 LPA, which contradicts the provided role facts of 6 to 8 LPA.",
+          "evidence": [
+            {
+              "turn": 5,
+              "quote": "hybrid, paying 15 to 18 LPA"
+            }
+          ]
+        }
+      ],
+      "goal": {
+        "explanation": "The screening goal was achieved: the agent asked all required screening questions, confirmed the answers, and established Rahul's interest and comfort with the role's hybrid arrangement.",
+        "evidence": [
+          {
+            "turn": 3,
+            "quote": "I'm calling about the QA Engineer role you applied for. Is this a good time for a five minute chat?"
+          },
+          {
+            "turn": 6,
+            "quote": "Around four years."
+          },
+          {
+            "turn": 10,
+            "quote": "Yes correct."
+          },
+          {
+            "turn": 12,
+            "quote": "I'm expecting around seven lakhs."
+          },
+          {
+            "turn": 14,
+            "quote": "Thirty days."
+          },
+          {
+            "turn": 16,
+            "quote": "Yes, that works for me."
+          },
+          {
+            "turn": 17,
+            "quote": "four years experience, current CTC five point five lakh, expected seven lakh, thirty days notice, and comfortable with hybrid in Bengaluru"
+          }
+        ],
+        "result": "ACHIEVED",
+        "reason_code": "SCREENING_COMPLETED"
+      },
+      "scorecard": [
+        {
+          "key": "opening",
+          "applicable": true,
+          "reasoning": "The agent greeted Rahul, identified itself as Hansa and an AI recruiter from Acme Tech, named the QA Engineer role, stated the purpose, and checked whether it was a good time.",
+          "evidence": [
+            {
+              "turn": 3,
+              "quote": "this is Hansa, an AI recruiter from Acme Tech"
+            },
+            {
+              "turn": 3,
+              "quote": "I'm calling about the QA Engineer role"
+            },
+            {
+              "turn": 3,
+              "quote": "Is this a good time for a five minute chat?"
+            }
+          ],
+          "score": 10
+        },
+        {
+          "key": "communication",
+          "applicable": true,
+          "reasoning": "The agent was clear, concise, polite, and did not unnecessarily re-ask questions. However, it communicated a materially incorrect compensation range, so communication was not fully accurate throughout.",
+          "evidence": [
+            {
+              "turn": 5,
+              "quote": "paying 15 to 18 LPA"
+            },
+            {
+              "turn": 17,
+              "quote": "Perfect. To confirm"
+            }
+          ],
+          "score": 8
+        },
+        {
+          "key": "troubleshooting",
+          "applicable": false,
+          "reasoning": "Nothing in the call required troubleshooting: Rahul's responses were understandable, and no objection, confusion, or rescheduling request occurred.",
+          "evidence": [],
+          "score": 0
+        },
+        {
+          "key": "query_handling",
+          "applicable": true,
+          "reasoning": "The agent asked all required screening questions one at a time and confirmed the candidate's answers. However, it gave the wrong compensation range when describing the role, which is a material query-handling failure.",
+          "evidence": [
+            {
+              "turn": 5,
+              "quote": "paying 15 to 18 LPA"
+            },
+            {
+              "turn": 9,
+              "quote": "your current CTC is five point five lakh per annum, is that correct?"
+            },
+            {
+              "turn": 13,
+              "quote": "Expected CTC of seven lakh, noted. What is your notice period?"
+            },
+            {
+              "turn": 17,
+              "quote": "four years experience, current CTC five point five lakh, expected seven lakh, thirty days notice"
+            }
+          ],
+          "score": 0
+        },
+        {
+          "key": "closure",
+          "applicable": true,
+          "reasoning": "The agent recapped the screening information, explained that next steps would be emailed within two working days, invited questions, and ended with a polite goodbye.",
+          "evidence": [
+            {
+              "turn": 17,
+              "quote": "Our recruitment team will email you the next steps within two working days."
+            },
+            {
+              "turn": 17,
+              "quote": "Do you have any questions?"
+            },
+            {
+              "turn": 19,
+              "quote": "Thank you Rahul, have a great day!"
+            }
+          ],
+          "score": 10
+        }
+      ],
+      "went_well": [
+        {
+          "point": "The opening clearly identified the recruiter, company, role, purpose, and checked availability.",
+          "turn": 3,
+          "quote": "this is Hansa, an AI recruiter from Acme Tech"
+        },
+        {
+          "point": "The agent asked the required screening questions in sequence and confirmed the collected information in a final recap.",
+          "turn": 17,
+          "quote": "four years experience, current CTC five point five lakh, expected seven lakh, thirty days notice, and comfortable with hybrid in Bengaluru"
+        },
+        {
+          "point": "The agent gave clear next steps and closed politely.",
+          "turn": 17,
+          "quote": "Our recruitment team will email you the next steps within two working days."
+        }
+      ],
+      "improvements": [
+        {
+          "point": "The role was described with an incorrect compensation range of 15 to 18 LPA.",
+          "suggestion": "State only the supported range: 6 to 8 LPA.",
+          "turn": 5,
+          "quote": "hybrid, paying 15 to 18 LPA",
+          "severity": "high"
+        }
+      ],
+      "sentiment": {
+        "start": "positive",
+        "end": "positive",
+        "note": "Rahul agreed to proceed, answered the questions cooperatively, confirmed the hybrid arrangement, and ended appreciatively."
+      },
+      "conclusion": "This was a well-structured and successful screening call: the agent completed the required questions, confirmed the answers, and provided appropriate next steps. The serious defect was stating a compensation range that contradicted the approved role facts, which triggered a critical hallucination failure.",
+      "confidence": 0.99
+    },
+    "model": "gpt-5.6-luna",
+    "usage": {
+      "input_tokens": 3466,
+      "output_tokens": 1983
+    }
+  }
+}

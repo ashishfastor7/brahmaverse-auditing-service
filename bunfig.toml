@@ -2,3 +2,7 @@
 # never committed: set NPM_TOKEN (a GitHub PAT with read:packages) before `bun install`.
 [install.scopes]
 "@fastor7" = { token = "$NPM_TOKEN", url = "https://npm.pkg.github.com/" }
+
+# Tests must never reach OpenAI: the preload makes creating its client throw.
+[test]
+preload = ["./src/test-preload.ts"]

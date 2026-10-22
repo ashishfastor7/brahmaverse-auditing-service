@@ -168,6 +168,13 @@ export const api = {
   agents: () => call<{ data: Agents }>(`/agents`).then((r) => r.data),
 };
 
+/** Server settings the dashboard needs: `v2_enabled` is AUDIT_V2_ENABLED. */
+export type Config = { v2_enabled: boolean };
+
+export const configApi = {
+  get: () => call<{ data: Config }>(`/config`).then((r) => r.data),
+};
+
 // ---- Calls: every row in voice_call_logs, with its audit when it has one ----
 
 export type CallAuditSummary = Pick<
