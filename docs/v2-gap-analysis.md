@@ -376,8 +376,8 @@ Found by reading the sibling repos in `Brahmaverse Oneverse/`.
   pointing at missing turns) and then sets `needs_review`.
 - The evidence shape gains `ts_start` / `ts_end`. There are no timestamps to fill them yet.
 - Re-audit inserts a new row and marks the old one superseded. Weight-only changes re-score without a new row.
-- Schema changes go through reversible migrations (CLAUDE.md). Today `bun run migrate` is
-  `sequelize.sync({ alter: true })` (`src/db/migrate.ts`): no files, no rollback.
+- Schema changes go through reversible migrations (CLAUDE.md). Done in P0-1: `bun run migrate` applies the
+  numbered Umzug files in `src/db/migrations/`, and `bun run migrate:down` reverts the last one.
 - The judge prompt needs a version. The system rules in `prompt.ts` change without one today; only the rubric is
   versioned.
 
@@ -391,7 +391,9 @@ Found by reading the sibling repos in `Brahmaverse Oneverse/`.
 
 **Risks**
 - The v1 code reads "the latest audit per call" by `updated_at` (`latestAudits` in `src/routes/calls.ts`,
-  `/calls/:id`). v2 rows would appear on the v1 page unless rows record which engine wrote them.
+  `/calls/:id`). v2 rows would appear on the v1 page unless rows record which engine wrote them. Handled in P0-4:
+  `audit_results.engine`, and every v1 query reads only `engine = 'v1'`. The unique key
+  `(source, call_id, rubric_version)` still spans both engines, so v2 must use its own versions or change the key (P1-8).
 - `audit_results.call` copies the transcript and variables into every audit row, so PII is duplicated.
 - The judge model env value is an alias (`AUDIT_JUDGE_MODEL` default in `src/env.ts`). It must be pinned to a
   dated version for "pinned model version".

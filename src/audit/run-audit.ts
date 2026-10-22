@@ -1,5 +1,5 @@
 import { tables } from "@/db";
-import type { AuditResultRow } from "@/db/models/audit-result";
+import { type AuditResultRow, V1 } from "@/db/models/audit-result";
 import { env } from "@/env";
 import { fetchAgentPrompt } from "@/services/prompt.service";
 import { auditCall, type Judge } from "./audit-call";
@@ -38,7 +38,7 @@ export async function runAudit(rawInput: AuditInput, opts: { force?: boolean; ju
   const agent = agentFor(rawInput.agent_code, rawInput.agent_id);
   const input: AuditInput = { ...rawInput, agent_code: agent?.code ?? rawInput.agent_code };
   const rubric = rubricFor(input.agent_code, input.agent_id);
-  const key = { source: input.source, call_id: input.call_id, rubric_version: rubric.version };
+  const key = { ...V1, source: input.source, call_id: input.call_id, rubric_version: rubric.version };
   let row = await tables.AuditResult.findOne({ where: key });
 
   if (row && row.status === "completed" && !opts.force) return row.get({ plain: true });

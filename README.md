@@ -39,6 +39,7 @@ payload), so agents are matched on `agent_id` too (`src/audit/rubrics/index.ts`)
 | `sentiment` | The other party's mood at the start and end. |
 | `auditor_confidence` | How far to trust this audit. Below `AUDIT_REVIEW_THRESHOLD`, the call is flagged for human review. |
 | `rubric_version` | Which rubric produced the score. Bump it when the rubric changes so old and new scores aren't mixed. |
+| `engine` (column) | `v1` (this audit) or `v2` (the upcoming engine). The current API and dashboard only read `v1` rows, so a v2 audit never changes them. |
 
 Every quote the judge cites is checked against the transcript. Quotes that aren't found are marked
 in the result and lower the confidence.
@@ -54,6 +55,7 @@ src/audit/            the auditor (no I/O except the judge call)
   score.ts            weighted score, fail cap, auditor confidence
   audit-call.ts       rules + judge → result
   run-audit.ts        fetches the agent prompt, runs the audit, saves it (idempotent per call + rubric version)
+src/db/               audit_results model; migrations/ holds the numbered up/down schema changes
 src/background/       voicecall.ended subscriber
 src/routes/           dashboard API (/v1/audit/...)
 src/scripts/          replay (audit past calls), eval-planted (test the judge)
@@ -68,7 +70,8 @@ dashboard/            Vite + React dashboard (call list, call detail)
 cp .env.example .env            # fill in DB_PASSWORD, MESSAGE_BUS_PASSWORD, OPENAI_API_KEY, AUDIT_API_TOKEN
 export NPM_TOKEN=<GitHub PAT with read:packages>   # for @fastor7/message-bus
 bun install
-bun run migrate                 # creates the database and the audit_results table
+bun run migrate                 # creates the database, then applies pending migrations (src/db/migrations/)
+                                # `bun run migrate:down` reverts the last one; the API won't start while any are pending
 bun run dev                     # API on :8095, subscribes to voicecall.ended
 
 cd dashboard && cp .env.example .env && npm install && npm run dev   # dashboard on :5175
@@ -97,6 +100,8 @@ git apply ../Brahmaverse-auditing-service/patches/ai-service-prompt-rpc.patch
 
 ```bash
 bun test                        # unit tests: rules, evidence checks, scoring, result shape (stub judge)
+bun run test:db                 # migrations up -> down -> up, and v1 routes ignoring v2 rows, on a throwaway database
+                                # (created and dropped on the DB_* server)
 bun run eval:planted            # real judge on 10 planted-defect Hansa calls; exits 1 on any miss
 ```
 

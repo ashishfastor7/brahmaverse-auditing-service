@@ -2,6 +2,7 @@ import { runAudit } from "@/audit/run-audit";
 import { agents } from "@/audit/rubrics";
 import { POINTS_PER_CATEGORY, SCORECARD } from "@/audit/rubrics/types";
 import { tables } from "@/db";
+import { V1 } from "@/db/models/audit-result";
 import { playableRecordingUrl } from "@/services/recording.service";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
@@ -28,7 +29,7 @@ const listQuery = z.object({
 });
 
 function whereFor(q: z.infer<typeof listQuery>) {
-  const where: Record<string | symbol, unknown> = {};
+  const where: Record<string | symbol, unknown> = { ...V1 };
   if (q.agent_code) where.agent_code = q.agent_code;
   if (q.business_id) where.business_id = q.business_id;
   if (q.status) where.status = q.status;
@@ -127,21 +128,32 @@ router.get("/audits/stats", async (c) => {
   });
 });
 
+/** v1 audits only: a v2 audit's id is a 404 here. */
+const auditId = (raw: string) => {
+  const id = Number(raw);
+  if (!Number.isInteger(id)) throw new HTTPException(404, { message: "Audit not found" });
+  return id;
+};
+
 router.get("/audits/:id", async (c) => {
-  const row = await tables.AuditResult.findByPk(Number(c.req.param("id")), { raw: true });
+  const row = await tables.AuditResult.findOne({ attributes: { exclude: ["engine"] }, where: { ...V1, id: auditId(c.req.param("id")) }, raw: true });
   if (!row) throw new HTTPException(404, { message: "Audit not found" });
   return c.json({ data: row });
 });
 
 router.get("/audits/:id/recording", async (c) => {
-  const row = await tables.AuditResult.findByPk(Number(c.req.param("id")), { attributes: ["call_id", "business_id", "call"], raw: true });
+  const row = await tables.AuditResult.findOne({
+    attributes: ["call_id", "business_id", "call"],
+    where: { ...V1, id: auditId(c.req.param("id")) },
+    raw: true,
+  });
   if (!row) throw new HTTPException(404, { message: "Audit not found" });
   return c.json({ data: await playableRecordingUrl({ call_id: row.call_id, business_id: row.business_id, recording_url: row.call.recording_url }) });
 });
 
 /** Re-runs the judge on the stored call snapshot, e.g. after a rubric or prompt change. */
 router.post("/audits/:id/reaudit", async (c) => {
-  const row = await tables.AuditResult.findByPk(Number(c.req.param("id")));
+  const row = await tables.AuditResult.findOne({ where: { ...V1, id: auditId(c.req.param("id")) } });
   if (!row) throw new HTTPException(404, { message: "Audit not found" });
   const updated = await runAudit(row.call, { force: true }).catch((e) => {
     throw new HTTPException(502, { message: `Re-audit failed: ${(e as Error).message}` });

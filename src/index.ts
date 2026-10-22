@@ -1,6 +1,7 @@
 import { startSyncJob } from "@/background/sync.job";
 import { subscribeToCallEnded } from "@/background/voicecall-ended.event";
 import { sequelize } from "@/db";
+import { pendingMigrations } from "@/db/migrator";
 import { env } from "@/env";
 import { requireToken } from "@/middleware/auth";
 import audits from "@/routes/audits";
@@ -29,6 +30,13 @@ app.route("/v1/audit", calls);
 
 await sequelize.authenticate();
 console.log("database connected");
+
+// Migrations never run on startup; refuse to serve against a schema older than the code.
+const pending = await pendingMigrations(sequelize);
+if (pending.length) {
+  console.error(`pending migrations: ${pending.join(", ")}. Run \`bun run migrate\`, then start again.`);
+  process.exit(1);
+}
 
 if (env.AUDIT_SUBSCRIBE) {
   subscribeToCallEnded().catch((e) => console.error("could not subscribe to voicecall.ended:", e.message));
