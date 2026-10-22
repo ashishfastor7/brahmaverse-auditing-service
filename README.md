@@ -70,7 +70,7 @@ cp .env.example .env            # fill in DB_PASSWORD, MESSAGE_BUS_PASSWORD, OPE
 export NPM_TOKEN=<GitHub PAT with read:packages>   # for @fastor7/message-bus
 bun install
 bun run migrate                 # creates the database, then applies pending migrations (src/db/migrations/)
-                                # `bun run migrate:down` reverts the last one
+                                # `bun run migrate:down` reverts the last one; the API won't start while any are pending
 bun run dev                     # API on :8095, subscribes to voicecall.ended
 
 cd dashboard && cp .env.example .env && npm install && npm run dev   # dashboard on :5175

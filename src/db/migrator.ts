@@ -1,4 +1,4 @@
-import type { Sequelize } from "sequelize";
+import { QueryTypes, type Sequelize } from "sequelize";
 import { type MigrationFn, SequelizeStorage, Umzug } from "umzug";
 import { migrations } from "./migrations";
 
@@ -18,3 +18,17 @@ export const createMigrator = (sequelize: Sequelize, opts: { quiet?: boolean } =
     storage: new SequelizeStorage({ sequelize }),
     logger: opts.quiet ? undefined : console,
   });
+
+/**
+ * Names of migrations not yet applied, read without writing anything (Umzug's own `pending()` creates
+ * SequelizeMeta when it is missing). The API checks this on startup.
+ */
+export async function pendingMigrations(sequelize: Sequelize): Promise<string[]> {
+  const [{ exists }] = await sequelize.query<{ exists: boolean }>(`SELECT to_regclass('public."SequelizeMeta"') IS NOT NULL AS exists`, {
+    type: QueryTypes.SELECT,
+  });
+  const applied = exists
+    ? new Set((await sequelize.query<{ name: string }>(`SELECT name FROM "SequelizeMeta"`, { type: QueryTypes.SELECT })).map((r) => r.name))
+    : new Set<string>();
+  return migrations.map((m) => m.name).filter((name) => !applied.has(name));
+}

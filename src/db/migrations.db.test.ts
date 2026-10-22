@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { QueryTypes, type Sequelize } from "sequelize";
-import { createMigrator } from "./migrator";
+import { createMigrator, pendingMigrations } from "./migrator";
 import { dbTestsEnabled, withTestDb } from "./test-db";
 
 /** audit_results as `sequelize.sync()` created it before migrations (pg_dump of the dev database). */
@@ -124,4 +124,18 @@ describe.skipIf(!dbTestsEnabled)("migrations", () => {
       const error = await insert("v3").then(() => null, (e: Error) => e.message);
       expect(error).toContain("audit_results_engine_check");
     }));
+
+  it("pendingMigrations (the startup check) lists what migrate would apply, without writing", () =>
+    withTestDb(async (sequelize) => {
+      expect(await pendingMigrations(sequelize)).toEqual(["0001-baseline", "0002-audit-results-engine"]);
+      const tables = await sequelize.query("SELECT 1 FROM information_schema.tables WHERE table_schema = 'public'", { type: QueryTypes.SELECT });
+      expect(tables).toEqual([]);
+
+      const migrator = createMigrator(sequelize, { quiet: true });
+      await migrator.up({ to: "0001-baseline" });
+      expect(await pendingMigrations(sequelize)).toEqual(["0002-audit-results-engine"]);
+      await migrator.up();
+      expect(await pendingMigrations(sequelize)).toEqual([]);
+    }));
+
 });
