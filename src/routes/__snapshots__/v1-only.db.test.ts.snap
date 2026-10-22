@@ -1,0 +1,994 @@
+// Bun Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`v1 routes match the pre-v2 snapshot, and ignore a newer engine = 'v2' audit 1`] = `
+{
+  "/agents": {
+    "body": {
+      "data": {
+        "agents": [
+          {
+            "agent_ids": [
+              1,
+            ],
+            "code": "hrms",
+            "label": "Hansa (HR)",
+            "rubric_version": "hansa-v3",
+          },
+          {
+            "agent_ids": [
+              4,
+            ],
+            "code": "project-manager",
+            "label": "Project manager",
+            "rubric_version": "default-v3",
+          },
+          {
+            "agent_ids": [
+              9,
+            ],
+            "code": "caller",
+            "label": "Caller",
+            "rubric_version": "default-v3",
+          },
+        ],
+        "scorecard": [
+          {
+            "key": "opening",
+            "label": "Opening",
+            "max": 20,
+          },
+          {
+            "key": "communication",
+            "label": "Communication",
+            "max": 20,
+          },
+          {
+            "key": "troubleshooting",
+            "label": "Troubleshooting",
+            "max": 20,
+          },
+          {
+            "key": "query_handling",
+            "label": "Query handling",
+            "max": 20,
+          },
+          {
+            "key": "closure",
+            "label": "Closure",
+            "max": 20,
+          },
+        ],
+      },
+    },
+    "status": 200,
+  },
+  "/audits": {
+    "body": {
+      "data": [
+        {
+          "agent_code": null,
+          "agent_id": 1,
+          "audited_at": "2026-10-12T12:30:00.000Z",
+          "auditor_confidence": null,
+          "business_id": 7,
+          "call_created_at": "2026-10-12T12:10:00.000Z",
+          "call_id": 5001,
+          "duration": null,
+          "error": null,
+          "failure_codes": [],
+          "goal_reason_code": null,
+          "goal_result": "ACHIEVED",
+          "id": 1,
+          "needs_review": false,
+          "overall_score": 82,
+          "quality_score": null,
+          "rubric_version": "hansa-v3",
+          "skip_reason": null,
+          "status": "completed",
+          "success_result": "PASS",
+        },
+      ],
+      "page": 1,
+      "page_size": 25,
+      "total": 1,
+    },
+    "status": 200,
+  },
+  "/audits/1": {
+    "body": {
+      "data": {
+        "agent_code": null,
+        "agent_id": 1,
+        "audited_at": "2026-10-12T12:30:00.000Z",
+        "auditor_confidence": null,
+        "business_id": 7,
+        "call": {
+          "call_id": 5001,
+        },
+        "call_created_at": "2026-10-12T12:10:00.000Z",
+        "call_id": 5001,
+        "created_at": "2026-10-12T12:30:00.000Z",
+        "error": null,
+        "failure_codes": [],
+        "goal_reason_code": null,
+        "goal_result": "ACHIEVED",
+        "id": 1,
+        "input_tokens": null,
+        "judge_model": null,
+        "latency_ms": null,
+        "needs_review": false,
+        "output_tokens": null,
+        "overall_score": 82,
+        "quality_score": null,
+        "result": null,
+        "rubric_version": "hansa-v3",
+        "skip_reason": null,
+        "source": "voice_call_logs",
+        "status": "completed",
+        "success_result": "PASS",
+        "updated_at": "2026-10-12T12:30:00.000Z",
+      },
+    },
+    "status": 200,
+  },
+  "/audits/1/recording": {
+    "body": {
+      "data": {
+        "url": "https://signed.example/5001.wav",
+      },
+    },
+    "status": 200,
+  },
+  "/audits/999999": {
+    "body": {
+      "message": "Audit not found",
+      "status": false,
+    },
+    "status": 404,
+  },
+  "/audits/stats": {
+    "body": {
+      "data": {
+        "audited": 1,
+        "avg_score": 82,
+        "failed_audits": 0,
+        "goal_rate": 100,
+        "needs_review": 0,
+        "skipped": 0,
+        "success_rate": 100,
+        "top_failures": [],
+        "total": 1,
+      },
+    },
+    "status": 200,
+  },
+  "/calls": {
+    "body": {
+      "data": [
+        {
+          "agent_code": "hrms",
+          "agent_id": 1,
+          "agent_label": "Hansa (HR)",
+          "audit": {
+            "auditor_confidence": null,
+            "call_id": 5001,
+            "failure_codes": [],
+            "goal_reason_code": null,
+            "goal_result": "ACHIEVED",
+            "id": 1,
+            "needs_review": false,
+            "overall_score": 82,
+            "rubric_version": "hansa-v3",
+            "skip_reason": null,
+            "status": "completed",
+            "success_result": "PASS",
+            "updated_at": "2026-10-12T12:30:00.000Z",
+          },
+          "business_id": 7,
+          "call_type": "outbound",
+          "contact_name": "Rahul",
+          "created_at": "2026-10-12T12:10:00.000Z",
+          "data": {
+            "config": {
+              "is_playground": false,
+              "prompt_code": "fixture_screening",
+              "variables": {
+                "candidate_name": "Rahul",
+                "company": "Acme Tech",
+                "ctc_range": "6 to 8 LPA",
+                "job_title": "QA Engineer",
+                "location": "Bengaluru (hybrid, 3 days in office)",
+              },
+            },
+            "metadata": {
+              "name": "Rahul",
+            },
+          },
+          "duration": 120,
+          "ended_reason": "hangup",
+          "ends_at": "2026-10-12T12:12:14.000Z",
+          "has_recording": true,
+          "has_summary": true,
+          "id": 5001,
+          "is_playground": false,
+          "outcome": {
+            "current_ctc": 550000,
+            "expected_ctc": 700000,
+            "experience_years": 4,
+            "hybrid_ok": "yes",
+            "notice_period_days": 30,
+          },
+          "picked_at": "2026-10-12T12:10:14.000Z",
+          "prompt_code": "fixture_screening",
+          "provider": "plivo",
+          "recording_url": "https://recordings.example/5001.wav",
+          "status": "completed",
+          "summary": "Screening for the QA Engineer role, all questions answered.",
+          "transcriptions": [
+            {
+              "speaker": "agent",
+              "text": "Hi, am I speaking with Rahul?",
+            },
+            {
+              "speaker": "user",
+              "text": "Yes, speaking.",
+            },
+            {
+              "speaker": "agent",
+              "text": "Hi Rahul, this is Hansa, an AI recruiter from Acme Tech. I'm calling about the QA Engineer role you applied for. Is this a good time for a five minute chat?",
+            },
+            {
+              "speaker": "user",
+              "text": "Yes sure, go ahead.",
+            },
+            {
+              "speaker": "agent",
+              "text": "Great. The role is a QA Engineer position in Bengaluru, hybrid, with three days a week in office. How many years of total experience do you have?",
+            },
+            {
+              "speaker": "user",
+              "text": "Around four years.",
+            },
+            {
+              "speaker": "agent",
+              "text": "Four years, got it. What is your current CTC?",
+            },
+            {
+              "speaker": "user",
+              "text": "Five point five lakhs.",
+            },
+            {
+              "speaker": "agent",
+              "text": "So your current CTC is five point five lakh per annum, is that correct?",
+            },
+            {
+              "speaker": "user",
+              "text": "Yes correct.",
+            },
+            {
+              "speaker": "agent",
+              "text": "And what is your expected CTC?",
+            },
+            {
+              "speaker": "user",
+              "text": "I'm expecting around seven lakhs.",
+            },
+            {
+              "speaker": "agent",
+              "text": "Expected CTC of seven lakh, noted. What is your notice period?",
+            },
+            {
+              "speaker": "user",
+              "text": "Thirty days.",
+            },
+            {
+              "speaker": "agent",
+              "text": "Thirty days notice, thank you. Are you comfortable working from the Bengaluru office three days a week?",
+            },
+            {
+              "speaker": "user",
+              "text": "Yes, that works for me.",
+            },
+            {
+              "speaker": "agent",
+              "text": "Perfect. To confirm: four years experience, current CTC five point five lakh, expected seven lakh, thirty days notice, and comfortable with hybrid in Bengaluru. Our recruitment team will email you the next steps within two working days. Do you have any questions?",
+            },
+            {
+              "speaker": "user",
+              "text": "No, that's all. Thank you.",
+            },
+            {
+              "speaker": "agent",
+              "text": "Thank you Rahul, have a great day!",
+            },
+          ],
+          "turns": 19,
+          "voice_provider": "brahmaverse",
+        },
+      ],
+      "page": 1,
+      "page_size": 25,
+      "total": 1,
+    },
+    "status": 200,
+  },
+  "/calls/5001": {
+    "body": {
+      "data": {
+        "audit": {
+          "agent_code": null,
+          "agent_id": 1,
+          "audited_at": "2026-10-12T12:30:00.000Z",
+          "auditor_confidence": null,
+          "business_id": 7,
+          "call": {
+            "call_id": 5001,
+          },
+          "call_created_at": "2026-10-12T12:10:00.000Z",
+          "call_id": 5001,
+          "created_at": "2026-10-12T12:30:00.000Z",
+          "error": null,
+          "failure_codes": [],
+          "goal_reason_code": null,
+          "goal_result": "ACHIEVED",
+          "id": 1,
+          "input_tokens": null,
+          "judge_model": null,
+          "latency_ms": null,
+          "needs_review": false,
+          "output_tokens": null,
+          "overall_score": 82,
+          "quality_score": null,
+          "result": null,
+          "rubric_version": "hansa-v3",
+          "skip_reason": null,
+          "source": "voice_call_logs",
+          "status": "completed",
+          "success_result": "PASS",
+          "updated_at": "2026-10-12T12:30:00.000Z",
+        },
+        "call": {
+          "agent_code": "hrms",
+          "agent_id": 1,
+          "agent_label": "Hansa (HR)",
+          "business_id": 7,
+          "call_created_at": "2026-10-12T12:10:00.000Z",
+          "call_id": 5001,
+          "call_type": "outbound",
+          "channel": null,
+          "contact": {
+            "name": "Rahul",
+          },
+          "duration": 120,
+          "ended_reason": "hangup",
+          "ends_at": "2026-10-12T12:12:14.000Z",
+          "is_playground": false,
+          "outcome": {
+            "current_ctc": 550000,
+            "expected_ctc": 700000,
+            "experience_years": 4,
+            "hybrid_ok": "yes",
+            "notice_period_days": 30,
+          },
+          "picked_at": "2026-10-12T12:10:14.000Z",
+          "prompt_code": "fixture_screening",
+          "provider": "plivo",
+          "recording_url": "https://recordings.example/5001.wav",
+          "source": "voice_call_logs",
+          "status": "completed",
+          "summary": "Screening for the QA Engineer role, all questions answered.",
+          "tags": [],
+          "transcript": [
+            {
+              "speaker": "agent",
+              "text": "Hi, am I speaking with Rahul?",
+              "turn": 1,
+            },
+            {
+              "speaker": "user",
+              "text": "Yes, speaking.",
+              "turn": 2,
+            },
+            {
+              "speaker": "agent",
+              "text": "Hi Rahul, this is Hansa, an AI recruiter from Acme Tech. I'm calling about the QA Engineer role you applied for. Is this a good time for a five minute chat?",
+              "turn": 3,
+            },
+            {
+              "speaker": "user",
+              "text": "Yes sure, go ahead.",
+              "turn": 4,
+            },
+            {
+              "speaker": "agent",
+              "text": "Great. The role is a QA Engineer position in Bengaluru, hybrid, with three days a week in office. How many years of total experience do you have?",
+              "turn": 5,
+            },
+            {
+              "speaker": "user",
+              "text": "Around four years.",
+              "turn": 6,
+            },
+            {
+              "speaker": "agent",
+              "text": "Four years, got it. What is your current CTC?",
+              "turn": 7,
+            },
+            {
+              "speaker": "user",
+              "text": "Five point five lakhs.",
+              "turn": 8,
+            },
+            {
+              "speaker": "agent",
+              "text": "So your current CTC is five point five lakh per annum, is that correct?",
+              "turn": 9,
+            },
+            {
+              "speaker": "user",
+              "text": "Yes correct.",
+              "turn": 10,
+            },
+            {
+              "speaker": "agent",
+              "text": "And what is your expected CTC?",
+              "turn": 11,
+            },
+            {
+              "speaker": "user",
+              "text": "I'm expecting around seven lakhs.",
+              "turn": 12,
+            },
+            {
+              "speaker": "agent",
+              "text": "Expected CTC of seven lakh, noted. What is your notice period?",
+              "turn": 13,
+            },
+            {
+              "speaker": "user",
+              "text": "Thirty days.",
+              "turn": 14,
+            },
+            {
+              "speaker": "agent",
+              "text": "Thirty days notice, thank you. Are you comfortable working from the Bengaluru office three days a week?",
+              "turn": 15,
+            },
+            {
+              "speaker": "user",
+              "text": "Yes, that works for me.",
+              "turn": 16,
+            },
+            {
+              "speaker": "agent",
+              "text": "Perfect. To confirm: four years experience, current CTC five point five lakh, expected seven lakh, thirty days notice, and comfortable with hybrid in Bengaluru. Our recruitment team will email you the next steps within two working days. Do you have any questions?",
+              "turn": 17,
+            },
+            {
+              "speaker": "user",
+              "text": "No, that's all. Thank you.",
+              "turn": 18,
+            },
+            {
+              "speaker": "agent",
+              "text": "Thank you Rahul, have a great day!",
+              "turn": 19,
+            },
+          ],
+          "variables": {
+            "candidate_name": "Rahul",
+            "company": "Acme Tech",
+            "ctc_range": "6 to 8 LPA",
+            "job_title": "QA Engineer",
+            "location": "Bengaluru (hybrid, 3 days in office)",
+          },
+          "voice": null,
+          "voice_provider": "brahmaverse",
+        },
+      },
+    },
+    "status": 200,
+  },
+  "/calls/5001/recording": {
+    "body": {
+      "data": {
+        "url": "https://signed.example/5001.wav",
+      },
+    },
+    "status": 200,
+  },
+  "/calls/999999": {
+    "body": {
+      "message": "Call not found",
+      "status": false,
+    },
+    "status": 404,
+  },
+  "/calls/stats": {
+    "body": {
+      "data": {
+        "audited": 1,
+        "avg_score": 82,
+        "calls_by_status": {
+          "completed": 1,
+        },
+        "goal_rate": 100,
+        "needs_review": 0,
+        "success_rate": 100,
+        "top_failures": [],
+        "total_calls": 1,
+      },
+    },
+    "status": 200,
+  },
+  "/calls?audit=audited": {
+    "body": {
+      "data": [
+        {
+          "agent_code": "hrms",
+          "agent_id": 1,
+          "agent_label": "Hansa (HR)",
+          "audit": {
+            "auditor_confidence": null,
+            "call_id": 5001,
+            "failure_codes": [],
+            "goal_reason_code": null,
+            "goal_result": "ACHIEVED",
+            "id": 1,
+            "needs_review": false,
+            "overall_score": 82,
+            "rubric_version": "hansa-v3",
+            "skip_reason": null,
+            "status": "completed",
+            "success_result": "PASS",
+            "updated_at": "2026-10-12T12:30:00.000Z",
+          },
+          "business_id": 7,
+          "call_type": "outbound",
+          "contact_name": "Rahul",
+          "created_at": "2026-10-12T12:10:00.000Z",
+          "data": {
+            "config": {
+              "is_playground": false,
+              "prompt_code": "fixture_screening",
+              "variables": {
+                "candidate_name": "Rahul",
+                "company": "Acme Tech",
+                "ctc_range": "6 to 8 LPA",
+                "job_title": "QA Engineer",
+                "location": "Bengaluru (hybrid, 3 days in office)",
+              },
+            },
+            "metadata": {
+              "name": "Rahul",
+            },
+          },
+          "duration": 120,
+          "ended_reason": "hangup",
+          "ends_at": "2026-10-12T12:12:14.000Z",
+          "has_recording": true,
+          "has_summary": true,
+          "id": 5001,
+          "is_playground": false,
+          "outcome": {
+            "current_ctc": 550000,
+            "expected_ctc": 700000,
+            "experience_years": 4,
+            "hybrid_ok": "yes",
+            "notice_period_days": 30,
+          },
+          "picked_at": "2026-10-12T12:10:14.000Z",
+          "prompt_code": "fixture_screening",
+          "provider": "plivo",
+          "recording_url": "https://recordings.example/5001.wav",
+          "status": "completed",
+          "summary": "Screening for the QA Engineer role, all questions answered.",
+          "transcriptions": [
+            {
+              "speaker": "agent",
+              "text": "Hi, am I speaking with Rahul?",
+            },
+            {
+              "speaker": "user",
+              "text": "Yes, speaking.",
+            },
+            {
+              "speaker": "agent",
+              "text": "Hi Rahul, this is Hansa, an AI recruiter from Acme Tech. I'm calling about the QA Engineer role you applied for. Is this a good time for a five minute chat?",
+            },
+            {
+              "speaker": "user",
+              "text": "Yes sure, go ahead.",
+            },
+            {
+              "speaker": "agent",
+              "text": "Great. The role is a QA Engineer position in Bengaluru, hybrid, with three days a week in office. How many years of total experience do you have?",
+            },
+            {
+              "speaker": "user",
+              "text": "Around four years.",
+            },
+            {
+              "speaker": "agent",
+              "text": "Four years, got it. What is your current CTC?",
+            },
+            {
+              "speaker": "user",
+              "text": "Five point five lakhs.",
+            },
+            {
+              "speaker": "agent",
+              "text": "So your current CTC is five point five lakh per annum, is that correct?",
+            },
+            {
+              "speaker": "user",
+              "text": "Yes correct.",
+            },
+            {
+              "speaker": "agent",
+              "text": "And what is your expected CTC?",
+            },
+            {
+              "speaker": "user",
+              "text": "I'm expecting around seven lakhs.",
+            },
+            {
+              "speaker": "agent",
+              "text": "Expected CTC of seven lakh, noted. What is your notice period?",
+            },
+            {
+              "speaker": "user",
+              "text": "Thirty days.",
+            },
+            {
+              "speaker": "agent",
+              "text": "Thirty days notice, thank you. Are you comfortable working from the Bengaluru office three days a week?",
+            },
+            {
+              "speaker": "user",
+              "text": "Yes, that works for me.",
+            },
+            {
+              "speaker": "agent",
+              "text": "Perfect. To confirm: four years experience, current CTC five point five lakh, expected seven lakh, thirty days notice, and comfortable with hybrid in Bengaluru. Our recruitment team will email you the next steps within two working days. Do you have any questions?",
+            },
+            {
+              "speaker": "user",
+              "text": "No, that's all. Thank you.",
+            },
+            {
+              "speaker": "agent",
+              "text": "Thank you Rahul, have a great day!",
+            },
+          ],
+          "turns": 19,
+          "voice_provider": "brahmaverse",
+        },
+      ],
+      "page": 1,
+      "page_size": 25,
+      "total": 1,
+    },
+    "status": 200,
+  },
+  "/calls?audit=not_audited": {
+    "body": {
+      "data": [],
+      "page": 1,
+      "page_size": 25,
+      "total": 0,
+    },
+    "status": 200,
+  },
+  "/calls?sort=score_desc": {
+    "body": {
+      "data": [
+        {
+          "agent_code": "hrms",
+          "agent_id": 1,
+          "agent_label": "Hansa (HR)",
+          "audit": {
+            "auditor_confidence": null,
+            "call_id": 5001,
+            "failure_codes": [],
+            "goal_reason_code": null,
+            "goal_result": "ACHIEVED",
+            "id": 1,
+            "needs_review": false,
+            "overall_score": 82,
+            "rubric_version": "hansa-v3",
+            "skip_reason": null,
+            "status": "completed",
+            "success_result": "PASS",
+            "updated_at": "2026-10-12T12:30:00.000Z",
+          },
+          "business_id": 7,
+          "call_type": "outbound",
+          "contact_name": "Rahul",
+          "created_at": "2026-10-12T12:10:00.000Z",
+          "data": {
+            "config": {
+              "is_playground": false,
+              "prompt_code": "fixture_screening",
+              "variables": {
+                "candidate_name": "Rahul",
+                "company": "Acme Tech",
+                "ctc_range": "6 to 8 LPA",
+                "job_title": "QA Engineer",
+                "location": "Bengaluru (hybrid, 3 days in office)",
+              },
+            },
+            "metadata": {
+              "name": "Rahul",
+            },
+          },
+          "duration": 120,
+          "ended_reason": "hangup",
+          "ends_at": "2026-10-12T12:12:14.000Z",
+          "has_recording": true,
+          "has_summary": true,
+          "id": 5001,
+          "is_playground": false,
+          "outcome": {
+            "current_ctc": 550000,
+            "expected_ctc": 700000,
+            "experience_years": 4,
+            "hybrid_ok": "yes",
+            "notice_period_days": 30,
+          },
+          "picked_at": "2026-10-12T12:10:14.000Z",
+          "prompt_code": "fixture_screening",
+          "provider": "plivo",
+          "recording_url": "https://recordings.example/5001.wav",
+          "status": "completed",
+          "summary": "Screening for the QA Engineer role, all questions answered.",
+          "transcriptions": [
+            {
+              "speaker": "agent",
+              "text": "Hi, am I speaking with Rahul?",
+            },
+            {
+              "speaker": "user",
+              "text": "Yes, speaking.",
+            },
+            {
+              "speaker": "agent",
+              "text": "Hi Rahul, this is Hansa, an AI recruiter from Acme Tech. I'm calling about the QA Engineer role you applied for. Is this a good time for a five minute chat?",
+            },
+            {
+              "speaker": "user",
+              "text": "Yes sure, go ahead.",
+            },
+            {
+              "speaker": "agent",
+              "text": "Great. The role is a QA Engineer position in Bengaluru, hybrid, with three days a week in office. How many years of total experience do you have?",
+            },
+            {
+              "speaker": "user",
+              "text": "Around four years.",
+            },
+            {
+              "speaker": "agent",
+              "text": "Four years, got it. What is your current CTC?",
+            },
+            {
+              "speaker": "user",
+              "text": "Five point five lakhs.",
+            },
+            {
+              "speaker": "agent",
+              "text": "So your current CTC is five point five lakh per annum, is that correct?",
+            },
+            {
+              "speaker": "user",
+              "text": "Yes correct.",
+            },
+            {
+              "speaker": "agent",
+              "text": "And what is your expected CTC?",
+            },
+            {
+              "speaker": "user",
+              "text": "I'm expecting around seven lakhs.",
+            },
+            {
+              "speaker": "agent",
+              "text": "Expected CTC of seven lakh, noted. What is your notice period?",
+            },
+            {
+              "speaker": "user",
+              "text": "Thirty days.",
+            },
+            {
+              "speaker": "agent",
+              "text": "Thirty days notice, thank you. Are you comfortable working from the Bengaluru office three days a week?",
+            },
+            {
+              "speaker": "user",
+              "text": "Yes, that works for me.",
+            },
+            {
+              "speaker": "agent",
+              "text": "Perfect. To confirm: four years experience, current CTC five point five lakh, expected seven lakh, thirty days notice, and comfortable with hybrid in Bengaluru. Our recruitment team will email you the next steps within two working days. Do you have any questions?",
+            },
+            {
+              "speaker": "user",
+              "text": "No, that's all. Thank you.",
+            },
+            {
+              "speaker": "agent",
+              "text": "Thank you Rahul, have a great day!",
+            },
+          ],
+          "turns": 19,
+          "voice_provider": "brahmaverse",
+        },
+      ],
+      "page": 1,
+      "page_size": 25,
+      "total": 1,
+    },
+    "status": 200,
+  },
+  "/calls?success=PASS": {
+    "body": {
+      "data": [
+        {
+          "agent_code": "hrms",
+          "agent_id": 1,
+          "agent_label": "Hansa (HR)",
+          "audit": {
+            "auditor_confidence": null,
+            "call_id": 5001,
+            "failure_codes": [],
+            "goal_reason_code": null,
+            "goal_result": "ACHIEVED",
+            "id": 1,
+            "needs_review": false,
+            "overall_score": 82,
+            "rubric_version": "hansa-v3",
+            "skip_reason": null,
+            "status": "completed",
+            "success_result": "PASS",
+            "updated_at": "2026-10-12T12:30:00.000Z",
+          },
+          "business_id": 7,
+          "call_type": "outbound",
+          "contact_name": "Rahul",
+          "created_at": "2026-10-12T12:10:00.000Z",
+          "data": {
+            "config": {
+              "is_playground": false,
+              "prompt_code": "fixture_screening",
+              "variables": {
+                "candidate_name": "Rahul",
+                "company": "Acme Tech",
+                "ctc_range": "6 to 8 LPA",
+                "job_title": "QA Engineer",
+                "location": "Bengaluru (hybrid, 3 days in office)",
+              },
+            },
+            "metadata": {
+              "name": "Rahul",
+            },
+          },
+          "duration": 120,
+          "ended_reason": "hangup",
+          "ends_at": "2026-10-12T12:12:14.000Z",
+          "has_recording": true,
+          "has_summary": true,
+          "id": 5001,
+          "is_playground": false,
+          "outcome": {
+            "current_ctc": 550000,
+            "expected_ctc": 700000,
+            "experience_years": 4,
+            "hybrid_ok": "yes",
+            "notice_period_days": 30,
+          },
+          "picked_at": "2026-10-12T12:10:14.000Z",
+          "prompt_code": "fixture_screening",
+          "provider": "plivo",
+          "recording_url": "https://recordings.example/5001.wav",
+          "status": "completed",
+          "summary": "Screening for the QA Engineer role, all questions answered.",
+          "transcriptions": [
+            {
+              "speaker": "agent",
+              "text": "Hi, am I speaking with Rahul?",
+            },
+            {
+              "speaker": "user",
+              "text": "Yes, speaking.",
+            },
+            {
+              "speaker": "agent",
+              "text": "Hi Rahul, this is Hansa, an AI recruiter from Acme Tech. I'm calling about the QA Engineer role you applied for. Is this a good time for a five minute chat?",
+            },
+            {
+              "speaker": "user",
+              "text": "Yes sure, go ahead.",
+            },
+            {
+              "speaker": "agent",
+              "text": "Great. The role is a QA Engineer position in Bengaluru, hybrid, with three days a week in office. How many years of total experience do you have?",
+            },
+            {
+              "speaker": "user",
+              "text": "Around four years.",
+            },
+            {
+              "speaker": "agent",
+              "text": "Four years, got it. What is your current CTC?",
+            },
+            {
+              "speaker": "user",
+              "text": "Five point five lakhs.",
+            },
+            {
+              "speaker": "agent",
+              "text": "So your current CTC is five point five lakh per annum, is that correct?",
+            },
+            {
+              "speaker": "user",
+              "text": "Yes correct.",
+            },
+            {
+              "speaker": "agent",
+              "text": "And what is your expected CTC?",
+            },
+            {
+              "speaker": "user",
+              "text": "I'm expecting around seven lakhs.",
+            },
+            {
+              "speaker": "agent",
+              "text": "Expected CTC of seven lakh, noted. What is your notice period?",
+            },
+            {
+              "speaker": "user",
+              "text": "Thirty days.",
+            },
+            {
+              "speaker": "agent",
+              "text": "Thirty days notice, thank you. Are you comfortable working from the Bengaluru office three days a week?",
+            },
+            {
+              "speaker": "user",
+              "text": "Yes, that works for me.",
+            },
+            {
+              "speaker": "agent",
+              "text": "Perfect. To confirm: four years experience, current CTC five point five lakh, expected seven lakh, thirty days notice, and comfortable with hybrid in Bengaluru. Our recruitment team will email you the next steps within two working days. Do you have any questions?",
+            },
+            {
+              "speaker": "user",
+              "text": "No, that's all. Thank you.",
+            },
+            {
+              "speaker": "agent",
+              "text": "Thank you Rahul, have a great day!",
+            },
+          ],
+          "turns": 19,
+          "voice_provider": "brahmaverse",
+        },
+      ],
+      "page": 1,
+      "page_size": 25,
+      "total": 1,
+    },
+    "status": 200,
+  },
+}
+`;
+
+exports[`v1 routes match the pre-v2 snapshot, and ignore a newer engine = 'v2' audit 2`] = `
+{
+  "body": {
+    "message": "Unauthorized",
+    "status": false,
+  },
+  "status": 401,
+}
+`;

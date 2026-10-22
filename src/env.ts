@@ -42,6 +42,8 @@ export const env = createEnv({
     AUDIT_SUBSCRIBE: bool(true),
     AUDIT_INCLUDE_PLAYGROUND: bool(false),
     AUDIT_REVIEW_THRESHOLD: z.coerce.number().min(0).max(1).default(0.7),
+    // v2 engine and pages (docs/prd-v2.md). Off: every v1 route returns exactly what it did before v2.
+    AUDIT_V2_ENABLED: bool(false),
 
     // Sync job: polls voice_call_logs for newly ended calls and audits them (each audit is an LLM call)
     AUDIT_SYNC_ENABLED: bool(false),
