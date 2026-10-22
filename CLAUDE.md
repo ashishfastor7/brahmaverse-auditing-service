@@ -11,9 +11,11 @@ API (Bun, run from repo root; copy `.env.example` to `.env` first):
 
 ```bash
 bun install                     # needs NPM_TOKEN (GitHub PAT, read:packages) for @fastor7/message-bus — see bunfig.toml
-bun run migrate                 # creates DB_NAME if missing, then sequelize.sync({ alter: true }) — no migration files, no down
+bun run migrate                 # creates DB_NAME if missing, then applies pending src/db/migrations/ (Umzug)
+bun run migrate:down            # reverts the last migration; the baseline (drops audit_results) only with --drop-table
 bun run dev                     # API on :8095 (watch mode); `bun run start` without watch
 bun run test                    # = bun test src; unit tests with a stub judge, no DB/network
+bun run test:db                 # *.db.test.ts on a throwaway DB on the DB_* server (created, then dropped)
 bun test src/audit/audit.test.ts -t "ruleFailures"   # single file / test name filter
 bun run eval:planted            # REAL judge on fixtures/planted (needs only OPENAI_API_KEY); exits 1 on any miss; output in eval-output/
 bun run replay --db --call-id 3507 [--force]         # audit past calls from voice_call_logs (also --agent-id, --from/--to, --limit, --file, --rpc)
@@ -30,8 +32,7 @@ sign in with `AUDIT_API_TOKEN`. Re-run `eval:planted` after changing a rubric, t
 
 - `docs/prd-v2.md` is the source of truth for v2; `docs/v2-tasks.md` tracks progress.
 - Scoring, weight rebalancing and failure-condition logic must be pure functions with unit tests.
-- Every schema change ships with a reversible migration (up and down). `bun run migrate` (`sync({ alter })`)
-  can't do that, so v2 needs a real migration runner before its first schema change.
+- Every schema change ships with a reversible up/down migration: a new numbered file in `src/db/migrations/` + `index.ts`.
 - v1 audits and the current call page must keep working until v2 is switched on by a feature flag.
 - Never call the LLM in unit tests; use recorded fixtures.
 - Audits are never triggered automatically; only by a user action: *Audit this call*, *Audit selected* or

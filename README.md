@@ -68,7 +68,8 @@ dashboard/            Vite + React dashboard (call list, call detail)
 cp .env.example .env            # fill in DB_PASSWORD, MESSAGE_BUS_PASSWORD, OPENAI_API_KEY, AUDIT_API_TOKEN
 export NPM_TOKEN=<GitHub PAT with read:packages>   # for @fastor7/message-bus
 bun install
-bun run migrate                 # creates the database and the audit_results table
+bun run migrate                 # creates the database, then applies pending migrations (src/db/migrations/)
+                                # `bun run migrate:down` reverts the last one
 bun run dev                     # API on :8095, subscribes to voicecall.ended
 
 cd dashboard && cp .env.example .env && npm install && npm run dev   # dashboard on :5175
@@ -97,6 +98,7 @@ git apply ../Brahmaverse-auditing-service/patches/ai-service-prompt-rpc.patch
 
 ```bash
 bun test                        # unit tests: rules, evidence checks, scoring, result shape (stub judge)
+bun run test:db                 # migrations up -> down -> up on a throwaway database (created and dropped on the DB_* server)
 bun run eval:planted            # real judge on 10 planted-defect Hansa calls; exits 1 on any miss
 ```
 

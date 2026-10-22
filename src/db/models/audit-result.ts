@@ -8,6 +8,8 @@ import { type CreationOptional, DataTypes, type InferAttributes, type InferCreat
  * version adds a row instead of overwriting the old score.
  *
  * Headline fields are copied out of `result` into columns so the call list can filter and sort on them.
+ *
+ * The table itself is created and changed only by `src/db/migrations/`; keep this definition in step with them.
  */
 interface AuditResultModel extends Model<InferAttributes<AuditResultModel>, InferCreationAttributes<AuditResultModel>> {
   id: CreationOptional<number>;
