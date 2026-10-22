@@ -2,7 +2,7 @@ import { normalizeCall } from "@/audit/normalize";
 import { runAudit } from "@/audit/run-audit";
 import { agentFor, agents } from "@/audit/rubrics";
 import { tables } from "@/db";
-import type { AuditResultRow } from "@/db/models/audit-result";
+import { type AuditResultRow, V1 } from "@/db/models/audit-result";
 import { getSourceCall, listSourceCalls, sourceCallCounts, sourceDbConfigured } from "@/services/call-source.db";
 import { playableRecordingUrl } from "@/services/recording.service";
 import { Hono } from "hono";
@@ -49,7 +49,7 @@ const agentIds = (code?: string) => (code ? (agents.find((a) => a.code === code)
 
 /** Audit-side filters, applied in the audit DB and handed to the source query as an id list. */
 function auditWhere(q: ListQuery): WhereOptions | null {
-  const where: Record<string | symbol, unknown> = { source: "voice_call_logs", status: "completed" };
+  const where: Record<string | symbol, unknown> = { ...V1, source: "voice_call_logs", status: "completed" };
   let any = false;
   if (q.success) ((where.success_result = q.success), (any = true));
   if (q.goal) ((where.goal_result = q.goal), (any = true));
@@ -87,7 +87,7 @@ async function latestAudits(callIds: number[]) {
   if (callIds.length === 0) return new Map<number, Partial<AuditResultRow>>();
   const rows = await tables.AuditResult.findAll({
     attributes: [...AUDIT_SUMMARY],
-    where: { source: "voice_call_logs", call_id: { [Op.in]: callIds } },
+    where: { ...V1, source: "voice_call_logs", call_id: { [Op.in]: callIds } },
     order: [["updated_at", "DESC"]],
     raw: true,
   });
@@ -133,7 +133,7 @@ router.get("/calls", async (c) => {
     if (aw) only_ids = (await tables.AuditResult.findAll({ attributes: ["call_id"], where: aw, raw: true })).map((r) => r.call_id);
     if (q.audit === "not_audited") {
       exclude_ids = (
-        await tables.AuditResult.findAll({ attributes: ["call_id"], where: { source: "voice_call_logs", status: "completed" }, raw: true })
+        await tables.AuditResult.findAll({ attributes: ["call_id"], where: { ...V1, source: "voice_call_logs", status: "completed" }, raw: true })
       ).map((r) => r.call_id);
     }
     ({ rows, total } = await listSourceCalls({
@@ -162,7 +162,7 @@ router.get("/calls/stats", async (c) => {
   const counts = await sourceCallCounts(agentIds(agent_code));
   const audits = await tables.AuditResult.findAll({
     attributes: ["call_id", "status", "overall_score", "success_result", "goal_result", "failure_codes", "needs_review", "updated_at"],
-    where: { source: "voice_call_logs", ...(agent_code ? { agent_code } : {}) },
+    where: { ...V1, source: "voice_call_logs", ...(agent_code ? { agent_code } : {}) },
     order: [["updated_at", "DESC"]],
     raw: true,
   });
@@ -210,7 +210,8 @@ router.get("/calls/:id", async (c) => {
   const agent = agentFor(input.agent_code, input.agent_id);
 
   const audit = await tables.AuditResult.findOne({
-    where: { source: "voice_call_logs", call_id: id },
+    attributes: { exclude: ["engine"] },
+    where: { ...V1, source: "voice_call_logs", call_id: id },
     order: [["updated_at", "DESC"]],
     raw: true,
   });

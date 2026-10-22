@@ -72,13 +72,18 @@ async function schema(sequelize: Sequelize) {
 }
 
 const BASELINE = { columns: BASELINE_COLUMNS, indexes: BASELINE_INDEXES };
+/** After every migration: the baseline plus 0002's engine column. */
+const LATEST = { columns: [...BASELINE_COLUMNS, "engine|character varying|255|NO|'v1'::character varying"], indexes: BASELINE_INDEXES };
 
 describe.skipIf(!dbTestsEnabled)("migrations", () => {
-  it("up -> down -> up on an empty database gives the baseline schema each time", () =>
+  it("up -> down -> up on an empty database", () =>
     withTestDb(async (sequelize) => {
       const migrator = createMigrator(sequelize, { quiet: true });
 
       await migrator.up();
+      expect(await schema(sequelize)).toEqual(LATEST);
+
+      await migrator.down(); // 0002 only
       expect(await schema(sequelize)).toEqual(BASELINE);
 
       await migrator.down({ to: 0 });
@@ -86,21 +91,37 @@ describe.skipIf(!dbTestsEnabled)("migrations", () => {
       expect(await migrator.executed()).toEqual([]);
 
       await migrator.up();
-      expect(await schema(sequelize)).toEqual(BASELINE);
+      expect(await schema(sequelize)).toEqual(LATEST);
       expect(await migrator.pending()).toEqual([]);
     }));
 
-  it("on a database created by sequelize.sync(), records the baseline without touching the table or its rows", () =>
+  it("on a database created by sequelize.sync(), keeps the rows and marks them engine 'v1'", () =>
     withTestDb(async (sequelize) => {
       await sequelize.query(PRE_MIGRATION_DDL);
       await sequelize.query(
         `INSERT INTO audit_results (source, call_id, business_id, rubric_version, call) VALUES ('voice_call_logs', 1, 2, 'hansa@1', '{}')`,
       );
 
-      const applied = await createMigrator(sequelize, { quiet: true }).up();
-      expect(applied.map((m) => m.name)).toContain("0001-baseline");
+      const migrator = createMigrator(sequelize, { quiet: true });
+      await migrator.up({ to: "0001-baseline" });
       expect(await schema(sequelize)).toEqual(BASELINE);
-      const [{ n }] = await sequelize.query<{ n: string }>("SELECT count(*) AS n FROM audit_results", { type: QueryTypes.SELECT });
-      expect(Number(n)).toBe(1);
+
+      await migrator.up();
+      expect(await schema(sequelize)).toEqual(LATEST);
+      const rows = await sequelize.query<{ engine: string }>("SELECT engine FROM audit_results", { type: QueryTypes.SELECT });
+      expect(rows).toEqual([{ engine: "v1" }]);
+    }));
+
+  it("engine accepts only 'v1' and 'v2'", () =>
+    withTestDb(async (sequelize) => {
+      await createMigrator(sequelize, { quiet: true }).up();
+      const insert = (engine: string) =>
+        sequelize.query(
+          `INSERT INTO audit_results (engine, source, call_id, business_id, rubric_version, call) VALUES ('${engine}', 's', 1, 2, '${engine}', '{}')`,
+        );
+      await insert("v2");
+      // (Bun 1.2's `expect(...).rejects` hangs on Sequelize errors, hence the catch.)
+      const error = await insert("v3").then(() => null, (e: Error) => e.message);
+      expect(error).toContain("audit_results_engine_check");
     }));
 });

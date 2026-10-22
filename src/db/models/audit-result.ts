@@ -13,6 +13,7 @@ import { type CreationOptional, DataTypes, type InferAttributes, type InferCreat
  */
 interface AuditResultModel extends Model<InferAttributes<AuditResultModel>, InferCreationAttributes<AuditResultModel>> {
   id: CreationOptional<number>;
+  engine: CreationOptional<"v1" | "v2">;
   source: string;
   call_id: number;
   business_id: number;
@@ -47,10 +48,14 @@ interface AuditResultModel extends Model<InferAttributes<AuditResultModel>, Infe
 
 export type AuditResultRow = AuditResultModel["_model"]["dataValues"];
 
+/** Spread into every v1 query: v1 code never reads or overwrites rows written by the v2 engine. */
+export const V1 = { engine: "v1" } as const;
+
 export const AuditResultTable = sequelize.define<AuditResultModel>(
   "audit_results",
   {
     id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    engine: { type: DataTypes.STRING, allowNull: false, defaultValue: "v1" },
     source: { type: DataTypes.STRING, allowNull: false },
     call_id: { type: DataTypes.INTEGER, allowNull: false },
     business_id: { type: DataTypes.INTEGER, allowNull: false },

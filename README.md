@@ -39,6 +39,7 @@ payload), so agents are matched on `agent_id` too (`src/audit/rubrics/index.ts`)
 | `sentiment` | The other party's mood at the start and end. |
 | `auditor_confidence` | How far to trust this audit. Below `AUDIT_REVIEW_THRESHOLD`, the call is flagged for human review. |
 | `rubric_version` | Which rubric produced the score. Bump it when the rubric changes so old and new scores aren't mixed. |
+| `engine` (column) | `v1` (this audit) or `v2` (the upcoming engine). The current API and dashboard only read `v1` rows, so a v2 audit never changes them. |
 
 Every quote the judge cites is checked against the transcript. Quotes that aren't found are marked
 in the result and lower the confidence.
@@ -98,7 +99,8 @@ git apply ../Brahmaverse-auditing-service/patches/ai-service-prompt-rpc.patch
 
 ```bash
 bun test                        # unit tests: rules, evidence checks, scoring, result shape (stub judge)
-bun run test:db                 # migrations up -> down -> up on a throwaway database (created and dropped on the DB_* server)
+bun run test:db                 # migrations up -> down -> up, and v1 routes ignoring v2 rows, on a throwaway database
+                                # (created and dropped on the DB_* server)
 bun run eval:planted            # real judge on 10 planted-defect Hansa calls; exits 1 on any miss
 ```
 
