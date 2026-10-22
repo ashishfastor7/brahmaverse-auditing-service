@@ -35,7 +35,8 @@ sign in with `AUDIT_API_TOKEN`. Re-run `eval:planted` after changing a rubric, t
 - Every schema change ships with a reversible up/down migration: a new numbered file in `src/db/migrations/` + `index.ts`.
 - v1 audits and the current call page must keep working until v2 is switched on by a feature flag.
 - v1 code reads and writes only `engine = 'v1'` rows: spread `V1` from `db/models/audit-result.ts` into its queries.
-- Never call the LLM in unit tests: use `fixtureJudge(name)` (`fixtures/judge/`, recorded with `bun run record:fixture`).
+- Never call the LLM in unit tests: use `fixtureJudge(name)` (`fixtures/judge/`, recorded with
+  `bun run record:fixture --case <planted>`).
 - Audits are never triggered automatically; only by a user action: *Audit this call*, *Audit selected* or
   *Audit all matching* (current filters, optional random sample of N), as in PRD §7. No auto-audit, schedule or event.
   The sync job and `voicecall.ended` subscriber in `src/background/` still exist; don't use or extend them.
