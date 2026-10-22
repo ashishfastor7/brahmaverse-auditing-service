@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { QueryTypes, type Sequelize } from "sequelize";
-import { createMigrator, pendingMigrations } from "./migrator";
+import { createMigrator, migrateCommand, pendingMigrations } from "./migrator";
 import { dbTestsEnabled, withTestDb } from "./test-db";
 
 /** audit_results as `sequelize.sync()` created it before migrations (pg_dump of the dev database). */
@@ -138,4 +138,19 @@ describe.skipIf(!dbTestsEnabled)("migrations", () => {
       expect(await pendingMigrations(sequelize)).toEqual([]);
     }));
 
+  it("bun run migrate / migrate:down: applies, is a no-op when current, reverts one at a time, guards the baseline", () =>
+    withTestDb(async (sequelize) => {
+      expect(await migrateCommand(sequelize)).toBe("applied 0001-baseline, 0002-audit-results-engine");
+      expect(await migrateCommand(sequelize)).toBe("up to date");
+
+      expect(await migrateCommand(sequelize, { down: true })).toBe("reverted 0002-audit-results-engine");
+      expect(await schema(sequelize)).toEqual(BASELINE);
+
+      const refused = await migrateCommand(sequelize, { down: true }).then(() => null, (e: Error) => e.message);
+      expect(refused).toContain("--drop-table");
+      expect(await schema(sequelize)).toEqual(BASELINE);
+
+      expect(await migrateCommand(sequelize, { down: true, dropTable: true })).toBe("reverted 0001-baseline");
+      expect(await migrateCommand(sequelize, { down: true })).toBe("nothing to revert");
+    }));
 });

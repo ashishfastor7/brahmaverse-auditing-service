@@ -52,6 +52,9 @@ export const env = createEnv({
       .transform((v) => (v ? v.split(",").map((x) => Number(x.trim())).filter(Number.isFinite) : [])),
     AUDIT_SYNC_LOOKBACK_HOURS: z.coerce.number().min(1).default(24),
     AUDIT_SYNC_MAX_PER_RUN: z.coerce.number().int().min(1).default(20),
+
+    // `bun run test:db` sets this: *.db.test.ts create and drop throwaway databases on the DB_* server
+    AUDIT_TEST_DB: bool(false),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: false,

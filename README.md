@@ -55,6 +55,7 @@ src/audit/            the auditor (no I/O except the judge call)
   score.ts            weighted score, fail cap, auditor confidence
   audit-call.ts       rules + judge → result
   run-audit.ts        fetches the agent prompt, runs the audit, saves it (idempotent per call + rubric version)
+src/db/               audit_results model; migrations/ holds the numbered up/down schema changes
 src/background/       voicecall.ended subscriber
 src/routes/           dashboard API (/v1/audit/...)
 src/scripts/          replay (audit past calls), eval-planted (test the judge)

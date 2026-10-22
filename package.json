@@ -10,7 +10,7 @@
     "eval:planted": "bun src/scripts/eval-planted.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test src",
-    "test:db": "AUDIT_TEST_DB=1 bun test .db.test"
+    "test:db": "AUDIT_TEST_DB=true bun test .db.test"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.826.0",

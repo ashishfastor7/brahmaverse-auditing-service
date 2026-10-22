@@ -90,5 +90,17 @@ describe.skipIf(!dbTestsEnabled)("v1 routes ignore engine = 'v2' rows", () => {
       expect((await app.request(`/audits/${v2.id}`)).status).toBe(404);
       expect((await app.request(`/audits/${v2.id}/recording`)).status).toBe(404);
       expect((await app.request(`/audits/${v2.id}/reaudit`, { method: "POST" })).status).toBe(404);
+
+      // runAudit (Audit this call, replay) writes a v1 row and leaves the v2 audit alone. A call that never connected is
+      // skipped before the agent-prompt RPC and the judge, so nothing leaves the process.
+      const { runAudit } = await import("@/audit/run-audit");
+      const { normalizeCall } = await import("@/audit/normalize");
+      const skippedCall = normalizeCall({ ...SOURCE_ROW, id: SOURCE_ROW.id + 1, status: "failed" });
+      const v2Before = (await tables.AuditResult.findByPk(v2.id, { raw: true }))!;
+      const written = await runAudit(skippedCall);
+      expect(written).toMatchObject({ engine: "v1", status: "skipped", call_id: SOURCE_ROW.id + 1 });
+      await tables.AuditResult.create({ ...call, call_id: SOURCE_ROW.id + 1, engine: "v2", rubric_version: "caller@v2-1", status: "completed" });
+      expect((await runAudit(skippedCall)).id).toBe(written.id);
+      expect(await tables.AuditResult.findByPk(v2.id, { raw: true })).toEqual(v2Before);
     }));
 });

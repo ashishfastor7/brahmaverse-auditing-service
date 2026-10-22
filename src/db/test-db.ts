@@ -6,7 +6,7 @@ import { dropDatabase, ensureDatabase } from "./admin";
 export const TEST_DB_PREFIX = "brahmaverse_audit_test_";
 
 /** DB tests run only under `bun run test:db`, so `bun run test` needs no database. */
-export const dbTestsEnabled = Boolean(process.env.AUDIT_TEST_DB);
+export const dbTestsEnabled = env.AUDIT_TEST_DB;
 
 /** Creates an empty database on the DB_* server and connects to it; `drop()` closes and removes it. */
 export async function createTestDb() {
