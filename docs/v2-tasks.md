@@ -20,23 +20,23 @@ Rules for every task (CLAUDE.md "v2 rules"):
 
 ## P0 — Foundations
 
-- [ ] **P0-1 Migration runner** (§7; CLAUDE.md v2 rules)
+- [x] **P0-1 Migration runner** (§7; CLAUDE.md v2 rules)
   - Add Umzug (or sequelize-cli) with numbered `up`/`down` files under `src/db/migrations/`, plus a baseline
     migration that creates today's `audit_results` exactly (columns, indexes, unique key).
   - `bun run migrate` applies pending migrations on a fresh DB and is a no-op on an existing one;
     `bun run migrate:down` reverts the last one. `sequelize.sync({ alter: true })` is gone.
   - CI or a test runs up → down → up on an empty Postgres and the schema matches the baseline.
-- [ ] **P0-2 v2 feature flag** (§9)
+- [x] **P0-2 v2 feature flag** (§9)
   - `AUDIT_V2_ENABLED` (default `false`) in `src/env.ts` and `.env.example`, exposed to the dashboard via an API
     config endpoint.
   - With the flag off, every existing route returns exactly what it returns today (snapshot tests on `/calls`,
     `/calls/:id`, `/calls/stats`, `/audits*`).
-- [ ] **P0-3 Recorded judge fixtures** (§7; CLAUDE.md v2 rules)
+- [x] **P0-3 Recorded judge fixtures** (§7; CLAUDE.md v2 rules)
   - `fixtures/judge/` holds recorded judge outputs. `fixtureJudge(name)` returns them through the existing
     `Judge` type.
   - A script records a fixture from a real run on demand (manual, never in tests).
   - Tests fail if the OpenAI client is constructed under `bun test`.
-- [ ] **P0-4 Engine column, so v1 never reads v2 rows** (§9)
+- [x] **P0-4 Engine column, so v1 never reads v2 rows** (§9)
   - Migration adds `audit_results.engine` (`'v1' | 'v2'`, default `'v1'`, backfilled) with up/down.
   - `latestAudits`, `/calls/:id`, `/calls/stats` and `/audits*` only read `engine = 'v1'` while the flag is off.
     A test inserts a v2 row and shows the v1 page unchanged.
