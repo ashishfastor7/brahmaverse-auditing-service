@@ -1,0 +1,131 @@
+{
+  "name": "hansa-wrong-person",
+  "case": "wrong-person",
+  "rubric_version": "hansa-v3",
+  "judge_model": "gpt-5.6-luna",
+  "recorded_at": "2026-10-22T10:37:13.277Z",
+  "response": {
+    "output": {
+      "call_summary": "Hansa called to reach Rahul regarding the QA Engineer opportunity, but Rahul's father answered and said Rahul was unavailable. The agent apologized, said it would try again later, and ended politely.",
+      "transcript_quality": {
+        "rating": "good",
+        "note": "The transcript is clear and sufficient to judge the interaction."
+      },
+      "failures": [],
+      "goal": {
+        "explanation": "The call reached someone other than the candidate, so screening could not take place. The agent appropriately ended the call after learning Rahul was unavailable.",
+        "evidence": [
+          {
+            "turn": 2,
+            "quote": "No, this is his father. Rahul is not here."
+          },
+          {
+            "turn": 3,
+            "quote": "I'll try again later."
+          }
+        ],
+        "result": "NOT_APPLICABLE",
+        "reason_code": "WRONG_PERSON"
+      },
+      "scorecard": [
+        {
+          "key": "opening",
+          "applicable": true,
+          "reasoning": "The agent greeted the person and checked whether Rahul was on the line, but did not introduce itself, Acme Tech, the role, or the purpose of the call. Because the wrong person answered, it was reasonable not to proceed with the full recruiting introduction.",
+          "evidence": [
+            {
+              "turn": 1,
+              "quote": "Hi, am I speaking with Rahul?"
+            }
+          ],
+          "score": 3
+        },
+        {
+          "key": "communication",
+          "applicable": true,
+          "reasoning": "The agent was concise, polite, and adapted immediately when told Rahul was unavailable. It did not re-ask questions or create confusion.",
+          "evidence": [
+            {
+              "turn": 3,
+              "quote": "No problem, sorry to disturb you."
+            }
+          ],
+          "score": 10
+        },
+        {
+          "key": "troubleshooting",
+          "applicable": true,
+          "reasoning": "The agent recognized that the person answering was not Rahul and handled the situation appropriately by apologizing and ending rather than continuing the screening.",
+          "evidence": [
+            {
+              "turn": 2,
+              "quote": "Rahul is not here."
+            },
+            {
+              "turn": 3,
+              "quote": "I'll try again later."
+            }
+          ],
+          "score": 10
+        },
+        {
+          "key": "query_handling",
+          "applicable": false,
+          "reasoning": "The call ended before any screening question could be asked because the wrong person answered.",
+          "evidence": [
+            {
+              "turn": 2,
+              "quote": "this is his father"
+            }
+          ],
+          "score": 0
+        },
+        {
+          "key": "closure",
+          "applicable": true,
+          "reasoning": "The agent gave a polite, timely close and indicated it would try again later. A candidate-specific recap and recruitment next steps were not applicable because Rahul was not on the call.",
+          "evidence": [
+            {
+              "turn": 3,
+              "quote": "Have a good day!"
+            }
+          ],
+          "score": 8
+        }
+      ],
+      "went_well": [
+        {
+          "point": "The agent immediately respected that the person answering was not Rahul and did not disclose recruiting details or continue screening.",
+          "turn": 3,
+          "quote": "No problem, sorry to disturb you."
+        },
+        {
+          "point": "The call ended courteously and efficiently.",
+          "turn": 3,
+          "quote": "I'll try again later. Have a good day!"
+        }
+      ],
+      "improvements": [
+        {
+          "point": "The opening did not identify Hansa or Acme Tech before checking for Rahul.",
+          "suggestion": "Use a brief identity check first, then introduce Hansa and Acme Tech only if Rahul is confirmed to be on the line.",
+          "turn": 1,
+          "quote": "Hi, am I speaking with Rahul?",
+          "severity": "low"
+        }
+      ],
+      "sentiment": {
+        "start": "neutral",
+        "end": "neutral",
+        "note": "The interaction remained matter-of-fact and courteous, with no sign of frustration or conflict."
+      },
+      "conclusion": "This was correctly treated as a wrong-person call rather than a failed screening. The agent handled the situation politely, avoided unnecessary disclosure, and closed promptly, although the opening did not include the required self-introduction.",
+      "confidence": 0.99
+    },
+    "model": "gpt-5.6-luna",
+    "usage": {
+      "input_tokens": 3119,
+      "output_tokens": 1677
+    }
+  }
+}

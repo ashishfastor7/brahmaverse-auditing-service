@@ -8,6 +8,7 @@
     "migrate:down": "bun src/db/migrate.ts down",
     "replay": "bun src/scripts/replay.ts",
     "eval:planted": "bun src/scripts/eval-planted.ts",
+    "record:fixture": "bun src/scripts/record-judge-fixture.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test src",
     "test:db": "AUDIT_TEST_DB=true bun test .db.test"

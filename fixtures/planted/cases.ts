@@ -3,7 +3,7 @@
  * call and plants one defect, so a miss points at exactly one weakness of the judge.
  * Run with `bun run eval:planted`. Synthetic data only — no real candidate.
  */
-import type { AgentPrompt } from "../../src/audit/types";
+import type { AgentPrompt, AuditResult } from "../../src/audit/types";
 
 export type PlantedCase = {
   name: string;
@@ -190,3 +190,40 @@ export const cases: PlantedCase[] = [
     expect: { success: "PASS", max_dimension: { query_handling: 14, communication: 14 }, max_score: 80 },
   },
 ];
+
+/** A planted case as a voice_call_logs row, ready for `normalizeCall`. */
+export const plantedRow = (c: PlantedCase, id: number) => ({
+  id,
+  business_id: 1,
+  agent_id: 1,
+  agent_code: "hrms",
+  prompt_code: agentPrompt.prompt_code,
+  variables,
+  status: "completed",
+  call_type: "outbound",
+  ended_reason: "hangup",
+  duration: 120,
+  transcriptions: c.transcript.map(([speaker, text]) => ({ speaker, text })),
+  outcome: c.outcome ?? null,
+});
+
+/** What the audit got wrong against the case's expectations; empty when the planted defect was caught. */
+export function plantedMisses(c: PlantedCase, r: AuditResult): string[] {
+  const misses: string[] = [];
+  const e = c.expect;
+  const codes = r.call_success.failure_reasons.map((f) => f.code);
+  if (r.call_success.result !== e.success)
+    misses.push(`success ${r.call_success.result} ≠ ${e.success} (${codes.join(",") || "no failures"})`);
+  for (const code of e.failure_codes ?? []) if (!codes.includes(code)) misses.push(`missing failure ${code}`);
+  if (e.goal && r.call_goal.result !== e.goal) misses.push(`goal ${r.call_goal.result} ≠ ${e.goal}`);
+  if (e.goal_reason_code && r.call_goal.reason_code !== e.goal_reason_code)
+    misses.push(`goal reason ${r.call_goal.reason_code} ≠ ${e.goal_reason_code}`);
+  if (e.min_score !== undefined && (r.overall_score ?? -1) < e.min_score) misses.push(`score ${r.overall_score} < ${e.min_score}`);
+  if (e.max_score !== undefined && (r.overall_score ?? 101) > e.max_score) misses.push(`score ${r.overall_score} > ${e.max_score}`);
+  for (const [key, max] of Object.entries(e.max_dimension ?? {})) {
+    const s = r.metrics[key]?.score;
+    if (s === undefined || s === null || s > max) misses.push(`${key} ${s} > ${max}`);
+  }
+  if (r.judge.evidence_validity < 1) misses.push(`invented evidence (validity ${r.judge.evidence_validity})`);
+  return misses;
+}
