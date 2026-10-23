@@ -54,8 +54,8 @@ Rules for every task (CLAUDE.md "v2 rules"):
     flagged (Decisions, 2026-10-22).
   - Unit tests: all-applicable, some N/A, all N/A (null), weight 0 excluded, auto-fail zero, threshold edge (= 40),
     and a clean call with no failure condition scoring 35 fails.
-  - Step 7: `computeScore(metricResults, weights, scorecard, criticalFlags)` in `src/audit/v2/score.ts` returns
-    `{ score, passed, failedBy }`. The score is rounded to one decimal and the threshold is checked on the rounded
+  - Step 7: `weightedScore` and `passes` as above, and `computeScore(metricResults, weights, scorecard,
+    criticalFlags)` in `src/audit/v2/score.ts`, which uses both and returns `{ score, passed, failedBy }`. The score is rounded to one decimal and the threshold is checked on the rounded
     value; all N/A gives `score: null` and fails (`no_score`).
 - [x] **P0-7 Weight rebalancing, pure** (§4.4)
   - `rebalance(weights, movedKey, newValue, lockedKeys)` follows rules 1–5: proportional absorption, locked
@@ -113,12 +113,12 @@ Rules for every task (CLAUDE.md "v2 rules"):
     their own) and clean calls under 40 (now fail). Those differences are listed in the test.
   - Step 6 (migrations 0003, 0004): every agent is graded on the 10 PRD §4.3 metrics at 10 each: Project manager and
     Caller on `default` v2, Hansa on `hansa` v2 (the same metrics plus `DISCRIMINATORY_QUESTION` and
-    `OUTCOME_MISMATCH`). `hansa` v1 / `default` v1 are the 5 × 20 templates, kept only so v1 audits link to what they
-    were graded on; no agent can use a scorecard with fewer than 10 metrics. Each agent points at one published
+    `OUTCOME_MISMATCH`; Hansa keeps its own copy, decided 2026-10-23). `hansa` v1 / `default` v1 are the 5 × 20
+    templates, kept only so v1 audits link to what they were graded on; no agent can use a scorecard with fewer than 10 metrics. Each agent points at one published
     version in `scorecard_assignment`, so attaching an agent never creates a version; weights change per audit with
     the sliders (`weights_used`). Published versions are immutable (DB triggers). The planted pass/fail comparison
-    above needs P0-6 and P0-8, so it lands with them.
-- [ ] **P1-2 Audit schema for v2** (§7)
+    above needs P0-6 and P0-8, so it lands with them; it is the only part of P1-1 still open.
+- [x] **P1-2 Audit schema for v2** (§7)
   - Migrations (up/down) add `triggered_by`, `trigger_mode` (`single | selected | filter | sample`), `batch_id`,
     `goal_version`, `scorecard_version`, `weights_used`, `system_goal`, `business_goal`, `business_reason`,
     `judge_prompt_version`, `cost`, `superseded_by`, plus the `audit_check` and `metric_result` tables.
@@ -127,7 +127,7 @@ Rules for every task (CLAUDE.md "v2 rules"):
     (`scorecard_id`/`scorecard_version` = `hansa`/`default` v1, by `rubric_version` prefix); 19 dev rows graded on
     `-v2` rubrics link to the same template, which holds the v3 wording. New v1 audits aren't linked (v1 writes
     unchanged).
-- [ ] **P1-3 Config resolution** (§3.3, §4)
+- [x] **P1-3 Config resolution** (§3.3, §4)
   - `resolveConfig(agent)` returns the published goal config and scorecard version for an agent, using the same
     `agent_code`/`agent_id` matching as `agentFor`. It is used only by the v2 path; v1 rubrics stay in code.
   - Unit tests for a missing agent, a draft-only scorecard, and version selection.
@@ -172,7 +172,9 @@ Rules for every task (CLAUDE.md "v2 rules"):
   - Test: re-score with the original weights reproduces the original score.
   - Step 7: `rescoreAudit(db, auditId, weights)` in `src/db/rescore.ts` computes the re-score (Major flags zero their
     linked metric again, Critical flags still fail); `saveRescore` stores it in `audit_rescore` (migration 0009).
-    The route answers 404 while `AUDIT_V2_ENABLED` is off and 400 for weights that don't fit the scorecard. Listing
+    The route answers 404 while `AUDIT_V2_ENABLED` is off, 409 for an audit that isn't completed, and 400 for
+    weights it can't use, including weight on a metric the audit never scored (it was at 0; only a re-audit can
+    score it). Listing
     the history on the call page is P2-3.
 - [ ] **P1-10 Transcript-only rule metrics** (§4.3)
   - Stalling & filler words (stalling-phrase and filler-word lists, counted per 100 agent words, with count

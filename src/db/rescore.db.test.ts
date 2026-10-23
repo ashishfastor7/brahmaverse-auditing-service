@@ -113,7 +113,7 @@ describe.skipIf(!dbTestsEnabled)("re-scores (P1-9)", () => {
       });
     }));
 
-  it("returns null for a missing or v1 audit, and refuses weights that don't fit the scorecard", () =>
+  it("returns null for a missing or v1 audit; refuses an unfinished audit and weights it can't use", () =>
     withTestDb(async (sequelize) => {
       await createMigrator(sequelize, { quiet: true }).up();
       const id = await seedAudit(sequelize);
@@ -126,6 +126,35 @@ describe.skipIf(!dbTestsEnabled)("re-scores (P1-9)", () => {
       expect(await failure(rescoreAudit(sequelize, id, { ...ALL_TEN, repetition: 0, made_up: 10 }))).toContain("unknown metric made_up");
       expect(await failure(rescoreAudit(sequelize, id, { ...ALL_TEN, repetition: -10, flow_adherence: 30 }))).toContain(
         "repetition has a negative weight",
+      );
+      expect(await failure(rescoreAudit(sequelize, id, { ...ALL_TEN, flow_adherence: 10.05, query_handling: 9.95 }))).toContain(
+        "flow_adherence has more than one decimal",
+      );
+
+      // All the weight on N/A metrics: nothing to score, so the call fails.
+      const onlyNa = { troubleshooting: 50, interruptions: 50 };
+      expect(await rescoreAudit(sequelize, id, onlyNa)).toEqual({
+        score: null,
+        passed: false,
+        failedBy: [{ kind: "no_score" }],
+        weights: onlyNa,
+      });
+
+      // A metric at weight 0 when audited has no result (the judge skipped it): weighting it needs a re-audit.
+      await sequelize.query(
+        `DELETE FROM metric_result WHERE audit_id = $1 AND metric_id = (SELECT id FROM metric WHERE scorecard_id = 'default'
+           AND scorecard_version = 2 AND key = 'stalling_filler')`,
+        { bind: [id] },
+      );
+      expect(await failure(rescoreAudit(sequelize, id, ALL_TEN))).toContain(
+        "stalling_filler weren't scored in this audit (weight 0 when audited); re-audit to weight them",
+      );
+      // (20·0.8 + 6 + 9 + 7 + 10 + 0) / 70 = 68.6
+      expect((await rescoreAudit(sequelize, id, { ...ALL_TEN, stalling_filler: 0, flow_adherence: 20 }))?.score).toBe(68.6);
+
+      await sequelize.query("UPDATE audit_results SET status = 'failed' WHERE id = $1", { bind: [id] });
+      expect(await failure(rescoreAudit(sequelize, id, ALL_TEN))).toContain(
+        `audit ${id} is failed; only completed audits can be re-scored`,
       );
     }));
 
@@ -155,13 +184,27 @@ describe.skipIf(!dbTestsEnabled)("re-scores (P1-9)", () => {
       ]);
       expect(await auditRow()).toEqual(before);
 
+      // No score is stored as null; scores outside 0–100 are refused.
+      const none = await saveRescore(sequelize, id, { troubleshooting: 50, interruptions: 50 }, "admin");
+      expect([none?.score, none?.passed]).toEqual([null, false]);
+      expect(
+        await failure(
+          sequelize.query(
+            `INSERT INTO audit_rescore (audit_id, weights_used, score, passed, created_by) VALUES (${id}, '{}', 100.1, true, 'admin')`,
+          ),
+        ),
+      ).toContain("audit_rescore_score_check");
+      expect(await failure(sequelize.query(`UPDATE audit_results SET score = 100.1 WHERE id = ${id}`))).toContain(
+        "audit_results_score_check",
+      );
+
       expect(await saveRescore(sequelize, id + 100, ALL_TEN, "admin")).toBeNull();
       // Re-scores go with their audit.
       await sequelize.query(`DELETE FROM audit_results WHERE id = ${id}`);
       expect(await sequelize.query("SELECT 1 FROM audit_rescore", { type: QueryTypes.SELECT })).toEqual([]);
     }));
 
-  it("POST /audits/:id/rescore: saves and returns the re-score; 404 with v2 off or for a v1 audit; 400 for bad weights", () =>
+  it("POST /audits/:id/rescore: saves and returns the re-score; 404 with v2 off or for a v1 audit; 409 unfinished; 400 bad input", () =>
     withTestDb(async (sequelize) => {
       await createMigrator(sequelize, { quiet: true }).up();
       const id = await seedAudit(sequelize);
@@ -192,11 +235,14 @@ describe.skipIf(!dbTestsEnabled)("re-scores (P1-9)", () => {
       expect((await post(`/audits/${id}/rescore`, { weights: { ...ALL_TEN, repetition: 0 } })).status).toBe(400);
       expect((await post(`/audits/${id}/rescore`, {})).status).toBe(400);
       expect((await post(`/audits/${id}/rescore`, { weights: { flow_adherence: "a lot" } })).status).toBe(400);
+      expect((await app.request(`/v1/audit/audits/${id}/rescore`, { method: "POST", body: "{not json" })).status).toBe(400);
       expect((await post(`/audits/${id + 100}/rescore`, { weights: ALL_TEN })).status).toBe(404);
       expect((await post("/audits/abc/rescore", { weights: ALL_TEN })).status).toBe(404);
       await sequelize.query("UPDATE audit_results SET engine = 'v1' WHERE id = $1", { bind: [id] });
       expect((await post(`/audits/${id}/rescore`, { weights: ALL_TEN })).status).toBe(404);
-      await sequelize.query("UPDATE audit_results SET engine = 'v2' WHERE id = $1", { bind: [id] });
+      await sequelize.query("UPDATE audit_results SET engine = 'v2', status = 'pending' WHERE id = $1", { bind: [id] });
+      expect((await post(`/audits/${id}/rescore`, { weights: ALL_TEN })).status).toBe(409);
+      await sequelize.query("UPDATE audit_results SET status = 'completed' WHERE id = $1", { bind: [id] });
 
       v2 = false;
       expect((await post(`/audits/${id}/rescore`, { weights: ALL_TEN })).status).toBe(404);
