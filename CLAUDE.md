@@ -78,6 +78,10 @@ Other pieces:
 - `src/services/ai.db.ts` / `vajra.db.ts`: optional read-only pools (`AI_DB_*`, `VAJRA_DB_*`, SELECT-only via
   `readonly-db.ts`). The v2 readers in `src/services/v2/` (agent instructions, Caller flow, knowledge base) never
   throw: a missing login or row is `null` + reason. Test them with `fake-db.ts` + `fixtures/readers/`, never a live DB.
+- v2 config (`scorecard`, `metric`, `scorecard_condition`, `failure_condition`, `goal_config`; migrations 0003–0004):
+  versioned, draft → publish; the DB rejects any change to a published version. `loadActiveConfig`
+  (`src/db/config-store.ts`) returns an agent's published scorecard and goal. v1 rubrics stay in code, and v1 responses
+  leave out `V1_EXCLUDED` columns.
 - `src/env.ts`: all config via `@t3-oss/env-core` + zod; add new env vars there and to `.env.example`.
 - `src/index.ts` sets Bun `idleTimeout: 255` because on-demand audits hold the request open for the judge call.
 - `patches/`: unapplied changes for other repos; never depend on them (recordings need `AWS_*`, no agent prompt).
