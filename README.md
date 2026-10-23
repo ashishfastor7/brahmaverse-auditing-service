@@ -161,8 +161,8 @@ audited yet, at most `AUDIT_SYNC_MAX_PER_RUN` per run. Each audit is one OpenAI 
 one agent.
 
 **Other sources:** `--file calls.json` (a JSON array of rows) or `--rpc` (integration-service's
-`query.voicecall.list`). Once the integration-service patch is applied, the `voicecall.ended` event
-audits calls the moment they end.
+`query.voicecall.list`). With `AUDIT_SUBSCRIBE=true` (off by default) and the integration-service patch
+applied, the `voicecall.ended` event audits calls the moment they end.
 
 **Recordings** play in the dashboard when `AWS_*` is set: the service presigns the private-bucket URL
 itself (serving it as `audio/wav`, since archived files were stored with the wrong content type).
