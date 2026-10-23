@@ -47,14 +47,17 @@ Rules for every task (CLAUDE.md "v2 rules"):
     per-message timing, the same for `brahmaverse` (Vani) calls, and how long past calls stay available.
   - Write the findings in `docs/v2-timing.md` with a recommendation (provider timing or a diarisation step on the
     mono audio) and unblock or re-plan the timing-dependent tasks below.
-- [ ] **P0-6 v2 weighted score, pure** (§4.2)
+- [x] **P0-6 v2 weighted score, pure** (§4.2)
   - `src/audit/v2/score.ts`: `weightedScore(metrics, weights)` implements the §4.2 formula with N/A metrics
     dropped and weights re-normalised, and `passes(score, threshold, autoFailZero, criticalFlagged)`.
   - A call fails if the score is under the threshold, an auto-fail metric scored zero, or a Critical condition was
     flagged (Decisions, 2026-10-22).
   - Unit tests: all-applicable, some N/A, all N/A (null), weight 0 excluded, auto-fail zero, threshold edge (= 40),
     and a clean call with no failure condition scoring 35 fails.
-- [ ] **P0-7 Weight rebalancing, pure** (§4.4)
+  - Step 7: `computeScore(metricResults, weights, scorecard, criticalFlags)` in `src/audit/v2/score.ts` returns
+    `{ score, passed, failedBy }`. The score is rounded to one decimal and the threshold is checked on the rounded
+    value; all N/A gives `score: null` and fails (`no_score`).
+- [x] **P0-7 Weight rebalancing, pure** (§4.4)
   - `rebalance(weights, movedKey, newValue, lockedKeys)` follows rules 1–5: proportional absorption, locked
     metrics fixed, max = 100 − locked, no negatives with spill-over, one decimal with largest-remainder rounding
     to exactly 100.0.
@@ -63,6 +66,9 @@ Rules for every task (CLAUDE.md "v2 rules"):
     - 10 → 20 gives 8.8 for the first four and 8.7 for the last four; ties go to the metric listed first.
   - The meeting's 11-metric version (8.7 / 7.0 / 4.4) is an extra test. Property tests check the total and that
     no weight goes negative.
+  - Step 7: `rebalanceWeights(weights, locked, changed, value)` in `src/audit/v2/rebalance.ts` takes an ordered
+    `{ key, weight }[]` (order decides ties). The meeting's version is 11 metrics with Language match (10) locked:
+    Flow 12, Opening & closure 8, Stalling 5, Filler 5, the rest 10; Flow 12 → 22.
 - [ ] **P0-8 Failure-condition severity, pure** (§4.5)
   - `applySeverity(flags, scorecardConditions, metrics)` returns the critical failures (call fails), the metrics
     zeroed by Major flags, and the Minor flags (counted only). Flags without evidence are dropped.
@@ -162,6 +168,8 @@ Rules for every task (CLAUDE.md "v2 rules"):
   - `POST /v1/audit/audits/:id/rescore` with new weights recomputes from the stored `metric_result` rows. No
     judge call, recorded as a re-score of the same audit.
   - Test: re-score with the original weights reproduces the original score.
+  - Step 7: `rescoreAudit(db, auditId, weights)` in `src/db/rescore.ts` computes the re-score (Major flags zero their
+    linked metric again, Critical flags still fail) and writes nothing. Still to do: storing re-scores and the route.
 - [ ] **P1-10 Transcript-only rule metrics** (§4.3)
   - Stalling & filler words (stalling-phrase and filler-word lists, counted per 100 agent words, with count
     bands) and repetition (agent-turn similarity, LLM confirms) as pure functions with params from
