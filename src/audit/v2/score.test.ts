@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { Metric } from "./config";
-import { type MetricResult, computeScore } from "./score";
+import { type MetricResult, computeScore, passes, weightedScore } from "./score";
 
 const metric = (key: string, auto_fail = false) => ({ key, auto_fail }) as Pick<Metric, "key" | "auto_fail">;
 const scorecard = (auto_fail: string[] = [], pass_threshold = 40) => ({
@@ -45,6 +45,16 @@ describe("computeScore (PRD §4.2)", () => {
     expect(at399).toEqual({ score: 39.9, passed: false, failedBy: [{ kind: "below_threshold" }] });
   });
 
+  it("exactly at the threshold passes", () => {
+    const results = [scored("a", 4), scored("b", 4), scored("c", 4), scored("d", 4)];
+    expect(computeScore(results, even, scorecard())).toEqual({ score: 40, passed: true, failedBy: [] });
+  });
+
+  it("a metric that isn't N/A but has no score (nothing came back for it) drops out like N/A", () => {
+    const results = [scored("a", 10), { key: "b", score: null, max: 10, n_a: false }];
+    expect(weightedScore(results, { a: 50, b: 50 })).toBe(100);
+  });
+
   it("a clean call with no failure condition that scores 35 fails", () => {
     const results = [scored("a", 3.5), scored("b", 3.5), scored("c", 3.5), scored("d", 3.5)];
     expect(computeScore(results, even, scorecard())).toEqual({ score: 35, passed: false, failedBy: [{ kind: "below_threshold" }] });
@@ -86,5 +96,15 @@ describe("computeScore (PRD §4.2)", () => {
       { kind: "critical", code: "IGNORED_STOP_REQUEST" },
       { kind: "critical", code: "CALL_ERROR" },
     ]);
+  });
+
+  it("weightedScore and passes on their own (P0-6)", () => {
+    expect(weightedScore([scored("a", 10), na("b")], { a: 10, b: 90 })).toBe(100);
+    expect(weightedScore([na("a")], { a: 100 })).toBeNull();
+    expect(passes(40, 40, false, false)).toBe(true);
+    expect(passes(39.9, 40, false, false)).toBe(false);
+    expect(passes(95, 40, true, false)).toBe(false);
+    expect(passes(95, 40, false, true)).toBe(false);
+    expect(passes(null, 40, false, false)).toBe(false);
   });
 });

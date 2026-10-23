@@ -54,8 +54,8 @@ Rules for every task (CLAUDE.md "v2 rules"):
     flagged (Decisions, 2026-10-22).
   - Unit tests: all-applicable, some N/A, all N/A (null), weight 0 excluded, auto-fail zero, threshold edge (= 40),
     and a clean call with no failure condition scoring 35 fails.
-  - Step 7: `computeScore(metricResults, weights, scorecard, criticalFlags)` in `src/audit/v2/score.ts` returns
-    `{ score, passed, failedBy }`. The score is rounded to one decimal and the threshold is checked on the rounded
+  - Step 7: `weightedScore` and `passes` as above, and `computeScore(metricResults, weights, scorecard,
+    criticalFlags)` in `src/audit/v2/score.ts`, which uses both and returns `{ score, passed, failedBy }`. The score is rounded to one decimal and the threshold is checked on the rounded
     value; all N/A gives `score: null` and fails (`no_score`).
 - [x] **P0-7 Weight rebalancing, pure** (§4.4)
   - `rebalance(weights, movedKey, newValue, lockedKeys)` follows rules 1–5: proportional absorption, locked
@@ -172,7 +172,9 @@ Rules for every task (CLAUDE.md "v2 rules"):
   - Test: re-score with the original weights reproduces the original score.
   - Step 7: `rescoreAudit(db, auditId, weights)` in `src/db/rescore.ts` computes the re-score (Major flags zero their
     linked metric again, Critical flags still fail); `saveRescore` stores it in `audit_rescore` (migration 0009).
-    The route answers 404 while `AUDIT_V2_ENABLED` is off and 400 for weights that don't fit the scorecard. Listing
+    The route answers 404 while `AUDIT_V2_ENABLED` is off, 409 for an audit that isn't completed, and 400 for
+    weights it can't use, including weight on a metric the audit never scored (it was at 0; only a re-audit can
+    score it). Listing
     the history on the call page is P2-3.
 - [ ] **P1-10 Transcript-only rule metrics** (§4.3)
   - Stalling & filler words (stalling-phrase and filler-word lists, counted per 100 agent words, with count
