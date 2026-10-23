@@ -25,6 +25,21 @@ export const env = createEnv({
     SOURCE_DB_NAME: z.string().default("brainey-integration"),
     SOURCE_DB_SSL: bool(true),
 
+    // v2, optional: read-only access to ai-service (prompts, knowledgebase_documents) and Vajra (conversations,
+    // workflow_executions, workflow_versions). Unset, the readers that need them return null with a reason.
+    AI_DB_HOSTNAME: z.string().optional(),
+    AI_DB_PORT: z.coerce.number().default(5432),
+    AI_DB_USERNAME: z.string().optional(),
+    AI_DB_PASSWORD: z.string().default(""),
+    AI_DB_NAME: z.string().optional(),
+    AI_DB_SSL: bool(true),
+    VAJRA_DB_HOSTNAME: z.string().optional(),
+    VAJRA_DB_PORT: z.coerce.number().default(5432),
+    VAJRA_DB_USERNAME: z.string().optional(),
+    VAJRA_DB_PASSWORD: z.string().default(""),
+    VAJRA_DB_NAME: z.string().optional(),
+    VAJRA_DB_SSL: bool(true),
+
     // Recording playback: presign recordings in the private bucket
     AWS_ACCESS_KEY_ID: z.string().optional(),
     AWS_SECRET_ACCESS_KEY: z.string().optional(),
@@ -39,7 +54,7 @@ export const env = createEnv({
 
     PORT: z.coerce.number().default(8095),
     AUDIT_API_TOKEN: z.string().min(1).default("change-me"),
-    AUDIT_SUBSCRIBE: bool(true),
+    AUDIT_SUBSCRIBE: bool(false),
     AUDIT_INCLUDE_PLAYGROUND: bool(false),
     AUDIT_REVIEW_THRESHOLD: z.coerce.number().min(0).max(1).default(0.7),
     // v2 engine and pages (docs/prd-v2.md). Off: every v1 route returns exactly what it did before v2.

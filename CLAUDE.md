@@ -19,6 +19,7 @@ bun run test:db                 # *.db.test.ts on a throwaway DB on the DB_* ser
 bun test src/audit/audit.test.ts -t "ruleFailures"   # single file / test name filter
 bun run eval:planted            # REAL judge on fixtures/planted (needs only OPENAI_API_KEY); exits 1 on any miss; output in eval-output/
 bun run replay --db --call-id 3507 [--force]         # audit past calls from voice_call_logs (also --agent-id, --from/--to, --limit, --file, --rpc)
+bun run record:readers --call-id 4570 [--redact "Acme"]  # real rows for the v2 readers into fixtures/readers/recorded/ (needs AI_DB_*, VAJRA_DB_*); review before committing
 ```
 
 Lint: no linter or lint script; the checks are `bun run typecheck` and `npm run build` in `dashboard/` (both tsc).
@@ -74,6 +75,9 @@ Other pieces:
   bus RPCs to integration-service and ai-service; `recording.service.ts` presigns S3 recordings (`audio/wav`).
 - `src/routes/` (Hono, under `/v1/audit`, one shared bearer token in `middleware/auth.ts`): `calls.ts` lists calls
   live from the source table joined with the latest audit; `audits.ts` serves/creates audits.
+- `src/services/ai.db.ts` / `vajra.db.ts`: optional read-only pools (`AI_DB_*`, `VAJRA_DB_*`, SELECT-only via
+  `readonly-db.ts`). The v2 readers in `src/services/v2/` (agent instructions, Caller flow, knowledge base) never
+  throw: a missing login or row is `null` + reason. Test them with `fake-db.ts` + `fixtures/readers/`, never a live DB.
 - `src/env.ts`: all config via `@t3-oss/env-core` + zod; add new env vars there and to `.env.example`.
 - `src/index.ts` sets Bun `idleTimeout: 255` because on-demand audits hold the request open for the judge call.
 - `patches/`: unapplied changes for other repos; never depend on them (recordings need `AWS_*`, no agent prompt).

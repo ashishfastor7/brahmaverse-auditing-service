@@ -3,7 +3,7 @@ import { JUDGE_SCALE, SCORECARD } from "../rubrics/types";
 import type { AgentPrompt, AuditInput } from "../types";
 
 // Long prompts are mostly boilerplate; the facts and rules sit well within this.
-const MAX_AGENT_PROMPT_CHARS = 16_000;
+export const MAX_AGENT_PROMPT_CHARS = 16_000;
 
 function rubricText(rubric: Rubric, agentLabel: string | null): string {
   const goal = rubric.goal;
