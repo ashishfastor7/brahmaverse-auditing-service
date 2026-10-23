@@ -83,9 +83,10 @@ Rules for every task (CLAUDE.md "v2 rules"):
   - Calls without a Vajra conversation (Hansa, Project manager, or no login) fall back to the prompt text.
     Unit tests on recorded rows.
 - [ ] **P0-12 Knowledge base reader** (§8 #6)
-  - Read `ready` `knowledgebase_documents` for the call's business and agent over `AI_DB_*`, scoped by the
-    `document_ids` / `document_group` in `voice_call_logs.data.tools` when present (the `search_knowledgebase`
-    item's context, confirmed on real rows). Truncate for the judge the way the agent prompt is.
+  - Read `completed` `knowledgebase_documents` (the table has no `ready` status) for the call's business and
+    agent over `AI_DB_*`, scoped by the `document_ids` (row ids) / `document_group` in `voice_call_logs.data.tools`
+    when present (the `search_knowledgebase` item's context, confirmed on real rows). Truncate for the judge the
+    way the agent prompt is.
   - Unit tests: scoped, unscoped and empty knowledge base.
 - [ ] **P0-13 Tool-call reader** (§4.5 `FALSE_ACTION_CLAIM`, §3.1 S4) — after P0-5
   - Option A: Ultravox `/api/calls/{provider_call_id}/messages`, keeping the `TOOL` messages (O3).
@@ -269,11 +270,29 @@ Things only other people can provide. None of them is a code change in another r
 
 | # | Request | From | For |
 | --- | --- | --- | --- |
-| O1 | Read-only Postgres login to ai-service's DB, limited to `prompts`, `knowledgebase_documents`, `ai_tool_usages` | ai-service DB owner | P0-9, P0-10, P0-12, P0-13 (B) |
-| O2 | Read-only Postgres login to vajra-app-service's DB, limited to `conversations`, `workflow_executions`, `workflow_versions` | Vajra DB owner | P0-9, P0-11 |
+| O1 | Read-only Postgres login to ai-service's DB (`brainey-ai`), limited to `prompts`, `knowledgebase_documents`, `ai_tool_usages` | ai-service DB owner | P0-9, P0-10, P0-12, P0-13 (B) |
+| O2 | Read-only Postgres login to vajra-app-service's DB (`brahmaa-caller`), limited to `conversations`, `workflow_executions`, `workflow_versions` | Vajra DB owner | P0-9, P0-11 |
 | O3 | Ultravox API key (and the Vani equivalent) for read-only call lookups | Voice platform owner | P0-5, P0-13 (A) |
 | O4 | Read-only S3 access to the recordings bucket (`AWS_*`), confirmed in every environment | Infra | P3-1, recordings today |
-| O6 | Confirmation that the `SOURCE_DB_*` login is read-only and may run the v2 batch queries | integration-service DB owner | P1-16 |
+| O6 | A read-only login for `SOURCE_DB_*` (`brainey-integration`, `voice_call_logs`) that may run the v2 batch queries. Checked 2026-10-22: today's `SOURCE_DB_*` is ai-service's own app login, which can write | integration-service DB owner | P1-16 |
+
+**O1, O2 and O6 as one request (drafted 2026-10-23).** All three databases are on the same server (`brahma-all-db`;
+Vajra's tables checked in `public` on 2026-10-22), so one role covers them. To ask for, in dev and production:
+
+```sql
+CREATE ROLE audit_reader LOGIN PASSWORD '<strong password>';
+ALTER ROLE audit_reader SET default_transaction_read_only = on;
+ALTER ROLE audit_reader SET statement_timeout = '10s';
+-- in each database: GRANT CONNECT ON DATABASE "<db>" TO audit_reader; GRANT USAGE ON SCHEMA public TO audit_reader;
+GRANT SELECT ON prompts, knowledgebase_documents, ai_tool_usages TO audit_reader;          -- brainey-ai
+GRANT SELECT ON conversations, workflow_executions, workflow_versions TO audit_reader;     -- brahmaa-caller
+GRANT SELECT ON voice_call_logs TO audit_reader;                                           -- brainey-integration
+```
+
+Plus, per environment: host, port, password (through a secure channel), SSL, whether a pooler is in front, and IP
+allowlisting. When it arrives: set it in `SOURCE_DB_*`, `AI_DB_*` and `VAJRA_DB_*` (names above), record real rows
+over the hand-built `fixtures/readers/`, and drop the client-side read-only `options` in `readonly-db.ts` if the role
+enforces it (a pooler may reject startup options).
 
 **Needs another repo (not planned here).** These would need a change in someone else's repo. They are listed
 so their owners can decide; no task here depends on them.
