@@ -113,8 +113,8 @@ Rules for every task (CLAUDE.md "v2 rules"):
     their own) and clean calls under 40 (now fail). Those differences are listed in the test.
   - Step 6 (migrations 0003, 0004): every agent is graded on the 10 PRD §4.3 metrics at 10 each: Project manager and
     Caller on `default` v2, Hansa on `hansa` v2 (the same metrics plus `DISCRIMINATORY_QUESTION` and
-    `OUTCOME_MISMATCH`; Hansa keeps its own copy, decided 2026-10-23). `hansa` v1 / `default` v1 are the 5 × 20 templates, kept only so v1 audits link to what they
-    were graded on; no agent can use a scorecard with fewer than 10 metrics. Each agent points at one published
+    `OUTCOME_MISMATCH`; Hansa keeps its own copy, decided 2026-10-23). `hansa` v1 / `default` v1 are the 5 × 20
+    templates, kept only so v1 audits link to what they were graded on; no agent can use a scorecard with fewer than 10 metrics. Each agent points at one published
     version in `scorecard_assignment`, so attaching an agent never creates a version; weights change per audit with
     the sliders (`weights_used`). Published versions are immutable (DB triggers). The planted pass/fail comparison
     above needs P0-6 and P0-8, so it lands with them; it is the only part of P1-1 still open.
