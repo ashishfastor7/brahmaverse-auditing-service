@@ -100,6 +100,26 @@ describe("flowSteps", () => {
     ]);
   });
 
+  it("lists exits after every other step, as the compiled prompt does, even when the graph reaches them first", () => {
+    const nodes: FlowNode[] = [
+      { id: "s1", type: "say", data: { message: "hi" } },
+      { id: "e", type: "end_conversation", data: { closing_message: "Bye" } },
+      { id: "s2", type: "say", data: { message: "more" } },
+      { id: "s3", type: "say", data: { message: "last" } },
+    ];
+    const edges: FlowEdge[] = [
+      { id: "1", source: "s1", target: "e", order: 1 },
+      { id: "2", source: "s1", target: "s2", order: 2 },
+      { id: "3", source: "s2", target: "s3" },
+    ];
+    expect(flowSteps(nodes, edges).steps.map((s) => [s.step, s.node_id])).toEqual([
+      ["STEP_1", "s1"],
+      ["STEP_2", "s2"],
+      ["STEP_3", "s3"],
+      ["EXIT", "e"],
+    ]);
+  });
+
   it("joins nested decision conditions with AND, and drops paths with no edge or that loop back", () => {
     const nodes: FlowNode[] = [
       { id: "s", type: "say", data: { message: "hello" } },
