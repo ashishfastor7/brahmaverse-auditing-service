@@ -67,22 +67,22 @@ Rules for every task (CLAUDE.md "v2 rules"):
   - `applySeverity(flags, scorecardConditions, metrics)` returns the critical failures (call fails), the metrics
     zeroed by Major flags, and the Minor flags (counted only). Flags without evidence are dropped.
   - Unit tests for each severity, for an unknown code, and for a flag with no evidence.
-- [ ] **P0-9 Read-only connectors for other services' data** (§3, §4.3, §7)
+- [x] **P0-9 Read-only connectors for other services' data** (§3, §4.3, §7)
   - Optional `AI_DB_*` and `VAJRA_DB_*` settings in `src/env.ts` and `.env.example`, each with its own small `pg`
     pool, built like `src/services/call-source.db.ts`. SELECT-only queries on named columns; nothing else.
   - When a setting is missing, the feature that needs it degrades (`null` plus a reason) instead of failing the
     audit. Tests use fixtures, not live databases. Credentials: O1, O2.
-- [ ] **P0-10 Agent instructions from ai-service's `prompts` table** (§3.3, §7)
+- [x] **P0-10 Agent instructions from ai-service's `prompts` table** (§3.3, §7)
   - Read the prompt row (business override first, then the shared row) over `AI_DB_*`, and render it with a copy
     of ai-service's `renderTemplate` plus `call_type` and the call variables. Unit tests pin the copied renderer.
   - Used by the v2 path only. v1 keeps `src/services/prompt.service.ts`, so v1 scores don't move. This replaces
     the need for `patches/ai-service-prompt-rpc.patch` in v2.
-- [ ] **P0-11 Caller flow reader** (§3.1 S3, §4.3 flow adherence, §4.5 `SKIPPED_REQUIRED_STEP`)
+- [x] **P0-11 Caller flow reader** (§3.1 S3, §4.3 flow adherence, §4.5 `SKIPPED_REQUIRED_STEP`)
   - From `system_ref_id = "conversation:<id>"`, follow Vajra `conversations` → `workflow_executions` →
     `workflow_versions` over `VAJRA_DB_*`. Return the step list and the `required` `collect` fields.
   - Calls without a Vajra conversation (Hansa, Project manager, or no login) fall back to the prompt text.
     Unit tests on recorded rows.
-- [ ] **P0-12 Knowledge base reader** (§8 #6)
+- [x] **P0-12 Knowledge base reader** (§8 #6)
   - Read `completed` `knowledgebase_documents` (the table has no `ready` status) for the call's business and
     agent over `AI_DB_*`, scoped by the `document_ids` (row ids) / `document_group` in `voice_call_logs.data.tools`
     when present (the `search_knowledgebase` item's context, confirmed on real rows). Truncate for the judge the
@@ -290,9 +290,10 @@ GRANT SELECT ON voice_call_logs TO audit_reader;                                
 ```
 
 Plus, per environment: host, port, password (through a secure channel), SSL, whether a pooler is in front, and IP
-allowlisting. When it arrives: set it in `SOURCE_DB_*`, `AI_DB_*` and `VAJRA_DB_*` (names above), record real rows
-over the hand-built `fixtures/readers/`, and drop the client-side read-only `options` in `readonly-db.ts` if the role
-enforces it (a pooler may reject startup options).
+allowlisting. Until then, dev uses a personal login locally (`.env` only); call 4570 was recorded with it on
+2026-10-23 (`fixtures/readers/recorded/call-4570.json`). When it arrives: set it in `SOURCE_DB_*`, `AI_DB_*` and
+`VAJRA_DB_*` (names above), re-record with `bun run record:readers`, and drop the client-side read-only `options` in
+`readonly-db.ts` if the role enforces it (a pooler may reject startup options).
 
 **Needs another repo (not planned here).** These would need a change in someone else's repo. They are listed
 so their owners can decide; no task here depends on them.
