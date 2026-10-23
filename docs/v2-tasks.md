@@ -105,15 +105,29 @@ Rules for every task (CLAUDE.md "v2 rules"):
     `DISCRIMINATORY_QUESTION` and `OUTCOME_MISMATCH` Critical.
   - Planted fixtures give the same pass/fail as v1, except loop-only calls (Major in v2, so they no longer fail on
     their own) and clean calls under 40 (now fail). Those differences are listed in the test.
+  - Step 6 (migrations 0003, 0004): every agent is graded on the 10 PRD §4.3 metrics at 10 each: Project manager and
+    Caller on `default` v2, Hansa on `hansa` v2 (the same metrics plus `DISCRIMINATORY_QUESTION` and
+    `OUTCOME_MISMATCH`). `hansa` v1 / `default` v1 are the 5 × 20 templates, kept only so v1 audits link to what they
+    were graded on; no agent can use a scorecard with fewer than 10 metrics. Each agent points at one published
+    version in `scorecard_assignment`, so attaching an agent never creates a version; weights change per audit with
+    the sliders (`weights_used`). Published versions are immutable (DB triggers). The planted pass/fail comparison
+    above needs P0-6 and P0-8, so it lands with them.
 - [ ] **P1-2 Audit schema for v2** (§7)
   - Migrations (up/down) add `triggered_by`, `trigger_mode` (`single | selected | filter | sample`), `batch_id`,
     `goal_version`, `scorecard_version`, `weights_used`, `system_goal`, `business_goal`, `business_reason`,
     `judge_prompt_version`, `cost`, `superseded_by`, plus the `audit_check` and `metric_result` tables.
   - v1 rows are untouched. Down drops only what up added.
+  - Step 6 (migrations 0006, 0007): also `failure_flag`. v1 rows are linked to the template they used
+    (`scorecard_id`/`scorecard_version` = `hansa`/`default` v1, by `rubric_version` prefix); 19 dev rows graded on
+    `-v2` rubrics link to the same template, which holds the v3 wording. New v1 audits aren't linked (v1 writes
+    unchanged).
 - [ ] **P1-3 Config resolution** (§3.3, §4)
   - `resolveConfig(agent)` returns the published goal config and scorecard version for an agent, using the same
     `agent_code`/`agent_id` matching as `agentFor`. It is used only by the v2 path; v1 rubrics stay in code.
   - Unit tests for a missing agent, a draft-only scorecard, and version selection.
+  - Step 6: `resolveConfig` in `src/audit/v2/config.ts`; `loadActiveConfig`, `create*Draft` (with `from` to start
+    from another scorecard or agent), `publish*` and `assignScorecard` in `src/db/config-store.ts`. A new agent needs
+    an entry in `agents` (code), a goal config and an assignment.
 - [ ] **P1-4 v2 judge schema and prompt** (§3.3, §4.1, §7)
   - Built from the scorecard: one entry per metric with weight > 0, the enabled conditions, goal definitions
     and flow text when available. Output per check and metric: `result`, `score`, `reason`,
@@ -166,6 +180,7 @@ Rules for every task (CLAUDE.md "v2 rules"):
   - `audit_batch` table (migration), in-process worker with a concurrency limit, progress counts, cancel, and
     resume after restart. It only runs batches a user created.
   - Tests: cancel stops new audits, a restart resumes, the fixture judge is used throughout.
+  - The `audit_batch` table exists (step 6, migration 0005); the runner and anything resume needs are still to do.
 - [ ] **P1-14 Weight sliders + pre-run dialog** (§4.4, §5 item 9, §7)
   - Shown when the flag is on, for *Audit this call* and for batches. Pre-filled with scorecard defaults, uses
     `rebalance`, has lock toggles, *Reset to defaults*, and the call count and estimated cost.
@@ -212,12 +227,14 @@ Rules for every task (CLAUDE.md "v2 rules"):
 - [ ] **P2-4 Human review actions** (§5 item 7)
   - `review` table (migration). Agree / dispute a metric with corrected score and note / flag for review,
     recorded with the reviewer. Disputes feed the golden set (P1-19).
+  - The `review` table exists (step 6, migration 0007).
 - [ ] **P2-5 Review queue** (§8 #7)
   - Low confidence, disputes, AI-failure bucket and a random 5% sample, with reviewer agreement stats.
 - [ ] **P2-6 `daily_rollup`** (§6, §7)
   - Table (migration), refreshed on each audit write plus a nightly aggregation job (aggregation only, never
     audits). IST day buckets.
   - Test: rollup totals equal a direct query over the same audits.
+  - The table exists (step 6, migration 0008), keyed by day, agent and scorecard version; filling it is still to do.
 - [ ] **P2-7 Dashboard API and KPI tiles** (§6 items 1–2, behaviour rules)
   - Filters (date range, agent, direction, business goal, scorecard version, compare-to-previous) and KPIs with
     deltas and denominators. The business goal rate tile shows the Partial share next to it (Decisions #12).
@@ -230,7 +247,7 @@ Rules for every task (CLAUDE.md "v2 rules"):
   - Re-scores everything with one weight set from stored metric results, without changing stored audits.
 - [ ] **P2-11 Release markers** (§6 item 3, §8 #8)
   - `release_marker` table (migration) and CRUD. Markers appear on trends, and two periods or versions can be
-    compared.
+    compared. The table exists (step 6, migration 0008).
 - [ ] **P2-12 Cost tracking** (§8 #16)
   - Price table per model, `cost` per audit, cost per day on the dashboard, and the estimate used by the
     pre-run dialog.
