@@ -95,7 +95,7 @@ describe.skipIf(!dbTestsEnabled)("v2 config (migrations 0003–0008, config-stor
         [4, null, null], // v2 rows are never touched
       ]);
       const v2Fields = Object.keys(after[0]!).filter((k) => !(k in before[0]!));
-      expect(v2Fields).toHaveLength(13);
+      expect(v2Fields).toHaveLength(14); // 0006 adds 13, 0009 adds score
       for (const [i, row] of after.entries()) {
         for (const k of v2Fields.filter((k) => k !== "scorecard_id" && k !== "scorecard_version")) expect(row[k]).toBeNull();
         expect(Object.fromEntries(Object.entries(row).filter(([k]) => !v2Fields.includes(k)))).toEqual(before[i]!);

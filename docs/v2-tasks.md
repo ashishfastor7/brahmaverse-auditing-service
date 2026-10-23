@@ -47,14 +47,17 @@ Rules for every task (CLAUDE.md "v2 rules"):
     per-message timing, the same for `brahmaverse` (Vani) calls, and how long past calls stay available.
   - Write the findings in `docs/v2-timing.md` with a recommendation (provider timing or a diarisation step on the
     mono audio) and unblock or re-plan the timing-dependent tasks below.
-- [ ] **P0-6 v2 weighted score, pure** (§4.2)
+- [x] **P0-6 v2 weighted score, pure** (§4.2)
   - `src/audit/v2/score.ts`: `weightedScore(metrics, weights)` implements the §4.2 formula with N/A metrics
     dropped and weights re-normalised, and `passes(score, threshold, autoFailZero, criticalFlagged)`.
   - A call fails if the score is under the threshold, an auto-fail metric scored zero, or a Critical condition was
     flagged (Decisions, 2026-10-22).
   - Unit tests: all-applicable, some N/A, all N/A (null), weight 0 excluded, auto-fail zero, threshold edge (= 40),
     and a clean call with no failure condition scoring 35 fails.
-- [ ] **P0-7 Weight rebalancing, pure** (§4.4)
+  - Step 7: `computeScore(metricResults, weights, scorecard, criticalFlags)` in `src/audit/v2/score.ts` returns
+    `{ score, passed, failedBy }`. The score is rounded to one decimal and the threshold is checked on the rounded
+    value; all N/A gives `score: null` and fails (`no_score`).
+- [x] **P0-7 Weight rebalancing, pure** (§4.4)
   - `rebalance(weights, movedKey, newValue, lockedKeys)` follows rules 1–5: proportional absorption, locked
     metrics fixed, max = 100 − locked, no negatives with spill-over, one decimal with largest-remainder rounding
     to exactly 100.0.
@@ -63,6 +66,9 @@ Rules for every task (CLAUDE.md "v2 rules"):
     - 10 → 20 gives 8.8 for the first four and 8.7 for the last four; ties go to the metric listed first.
   - The meeting's 11-metric version (8.7 / 7.0 / 4.4) is an extra test. Property tests check the total and that
     no weight goes negative.
+  - Step 7: `rebalanceWeights(weights, locked, changed, value)` in `src/audit/v2/rebalance.ts` takes an ordered
+    `{ key, weight }[]` (order decides ties). The meeting's version is 11 metrics with Language match (10) locked:
+    Flow 12, Opening & closure 8, Stalling 5, Filler 5, the rest 10; Flow 12 → 22.
 - [ ] **P0-8 Failure-condition severity, pure** (§4.5)
   - `applySeverity(flags, scorecardConditions, metrics)` returns the critical failures (call fails), the metrics
     zeroed by Major flags, and the Minor flags (counted only). Flags without evidence are dropped.
@@ -158,10 +164,16 @@ Rules for every task (CLAUDE.md "v2 rules"):
     `weights_used`, versions, cost and `trigger_mode`.
   - Idempotent per (call, scorecard version, goal version, weights) unless forced. Tests use the fixture judge
     and a test DB.
-- [ ] **P1-9 Re-score without the LLM** (§4.4)
+  - Step 7: write the v2 score to `audit_results.score` (one decimal, migration 0009), not `overall_score`, which
+    is an integer and stays v1's.
+- [x] **P1-9 Re-score without the LLM** (§4.4)
   - `POST /v1/audit/audits/:id/rescore` with new weights recomputes from the stored `metric_result` rows. No
     judge call, recorded as a re-score of the same audit.
   - Test: re-score with the original weights reproduces the original score.
+  - Step 7: `rescoreAudit(db, auditId, weights)` in `src/db/rescore.ts` computes the re-score (Major flags zero their
+    linked metric again, Critical flags still fail); `saveRescore` stores it in `audit_rescore` (migration 0009).
+    The route answers 404 while `AUDIT_V2_ENABLED` is off and 400 for weights that don't fit the scorecard. Listing
+    the history on the call page is P2-3.
 - [ ] **P1-10 Transcript-only rule metrics** (§4.3)
   - Stalling & filler words (stalling-phrase and filler-word lists, counted per 100 agent words, with count
     bands) and repetition (agent-turn similarity, LLM confirms) as pure functions with params from
@@ -412,3 +424,11 @@ depend on it. Items keep their original numbers so references elsewhere stay val
   on transcripts (no timestamps), recordings (mono), variables per agent and outcome coverage (gap analysis "Call
   data format"). The full anonymised row, with `data.tools` (save-tool schemas with `required` fields, knowledge-base
   scope), is `fixtures/real/call-sample.json`. P0-5, P0-12, P1-5 and P3-1 updated to match.
+
+### 2026-10-23
+- **Re-score storage.** A re-score is history of its audit, not a new audit: one row per re-score in
+  `audit_rescore` (weights, score, pass/fail, reasons, who, when). The audit row keeps the score it was audited
+  with, and dashboards count only that, so trying other weights on one call never moves a dashboard number (re-scoring
+  everything with one weight set stays the §6 toggle, P2-10). A new `audit_results` row per re-score was rejected: it
+  would count as another audit, need the metric results copied, and clash with the one-row-per-(call, rubric
+  version) key. The v2 score gets its own one-decimal column, `audit_results.score`. P1-9 done; P1-8 notes updated.

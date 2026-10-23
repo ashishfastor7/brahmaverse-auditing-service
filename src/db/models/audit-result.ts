@@ -60,6 +60,8 @@ interface AuditResultModel extends Model<InferAttributes<AuditResultModel>, Infe
   /** USD, as a string (Postgres NUMERIC). */
   cost: CreationOptional<string | null>;
   superseded_by: CreationOptional<number | null>;
+  /** v2 score, one decimal (migration 0009), as a string (Postgres NUMERIC). */
+  score: CreationOptional<string | null>;
 }
 
 export type AuditResultRow = AuditResultModel["_model"]["dataValues"];
@@ -82,6 +84,7 @@ export const V2_FIELDS = [
   "judge_prompt_version",
   "cost",
   "superseded_by",
+  "score",
 ] as const;
 export const V1_EXCLUDED = ["engine", ...V2_FIELDS];
 /** A row as the v1 routes returned it before v2: without the v2 fields. */
@@ -137,6 +140,7 @@ export const AuditResultTable = sequelize.define<AuditResultModel>(
     judge_prompt_version: { type: DataTypes.STRING },
     cost: { type: DataTypes.DECIMAL(12, 6) },
     superseded_by: { type: DataTypes.INTEGER },
+    score: { type: DataTypes.DECIMAL(4, 1) },
   },
   {
     tableName: "audit_results",
