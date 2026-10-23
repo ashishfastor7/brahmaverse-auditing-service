@@ -1,0 +1,158 @@
+{
+  "_note": "Rows from vajra-app-service's conversations, workflow_executions and workflow_versions, in the columns the v2 caller-flow reader selects. Hand-built from the Vajra models and node types (src/db/models/*.model.ts, src/types/node.types.ts) with the ids of anonymised call 4570 (conversation 2105, execution 711, workflow 326); the graph reproduces STEP_1 to STEP_6 of that call's compiled variables.prompt. The VAJRA_DB_* login (O2) doesn't exist yet: replace with recorded rows once it does.",
+  "conversations": [
+    { "id": 2105, "business_id": 77, "workflow_execution_id": 711, "conversation_node_id": "start-conv-1" },
+    { "id": 2200, "business_id": 77, "workflow_execution_id": null, "conversation_node_id": null }
+  ],
+  "workflow_executions": [{ "id": 711, "workflow_id": 326, "workflow_version_id": 902 }],
+  "workflow_versions": [
+    {
+      "id": 902,
+      "workflow_id": 326,
+      "version": 4,
+      "nodes": [
+        {
+          "id": "start-conv-1",
+          "type": "start_conversation",
+          "flow_type": "conversation",
+          "node_version": 1,
+          "data": { "preferred_channel": "voice_call", "knowledge_base_ids": [1070] }
+        },
+        {
+          "id": "discuss-name",
+          "type": "discuss",
+          "flow_type": "conversation",
+          "node_version": 1,
+          "name": "Confirm name",
+          "data": {
+            "instructions": "Hi am I talking to {{contact.first_name}}?",
+            "extract": [{ "variable": "name_confirmed", "data_type": "boolean", "required": true, "scope": "case" }]
+          }
+        },
+        {
+          "id": "dec-name",
+          "type": "decision",
+          "flow_type": "conversation",
+          "node_version": 1,
+          "name": "Right person?",
+          "data": {
+            "paths": [
+              { "id": "p-yes", "label": "yes", "condition": "{{name_confirmed}} is true/yes" },
+              { "id": "p-no", "label": "otherwise" }
+            ]
+          }
+        },
+        {
+          "id": "say-sorry",
+          "type": "say",
+          "flow_type": "conversation",
+          "node_version": 1,
+          "name": "Wrong person",
+          "data": { "message": "Sorry for misunderstanding! Have a great day!" }
+        },
+        {
+          "id": "discuss-intro",
+          "type": "discuss",
+          "flow_type": "conversation",
+          "node_version": 1,
+          "name": "Introduce",
+          "data": {
+            "instructions": "Hi {{contact.first_name}}, this is Rohan calling from <COMPANY>.\n\nthen then say you noticed they'd recently looked into AI for growing their business, and ask if now is an okay time for a quick chat.",
+            "extract": [{ "variable": "quick_chat", "data_type": "text", "required": false, "scope": "case" }]
+          }
+        },
+        {
+          "id": "dec-intro",
+          "type": "decision",
+          "flow_type": "conversation",
+          "node_version": 1,
+          "name": "Time to talk?",
+          "data": {
+            "paths": [
+              { "id": "p-talk", "label": "talk", "condition": "the caller says yes to talk" },
+              { "id": "p-not", "label": "not interested", "condition": "the caller says they are not interested" },
+              { "id": "p-busy", "label": "busy", "condition": "the caller says they are busy" },
+              { "id": "p-else", "label": "otherwise" }
+            ]
+          }
+        },
+        {
+          "id": "collect-ai",
+          "type": "collect",
+          "flow_type": "conversation",
+          "node_version": 1,
+          "name": "AI use",
+          "data": {
+            "fields": [
+              {
+                "variable": "is_AI_used",
+                "data_type": "text",
+                "required": true,
+                "scope": "case",
+                "prompt": "Are you already using any AI in your business, or is it still early days?"
+              }
+            ]
+          }
+        },
+        {
+          "id": "collect-callback",
+          "type": "collect",
+          "flow_type": "conversation",
+          "node_version": 1,
+          "name": "Callback time",
+          "data": {
+            "fields": [
+              {
+                "variable": "callback_preferred_datetime",
+                "data_type": "datetime",
+                "required": true,
+                "scope": "case",
+                "prompt": "No problem, when would be a better time to catch you?"
+              },
+              {
+                "variable": "questions",
+                "data_type": "text",
+                "required": false,
+                "scope": "case",
+                "prompt": "Anything you'd like us to prepare?"
+              }
+            ]
+          }
+        },
+        {
+          "id": "say-no-problem",
+          "type": "say",
+          "flow_type": "conversation",
+          "node_version": 1,
+          "name": "Not interested",
+          "data": { "message": "No problem at all, thanks for your time. Maybe I'll check back down the line. Take care!" }
+        },
+        {
+          "id": "say-perfect",
+          "type": "say",
+          "flow_type": "conversation",
+          "node_version": 1,
+          "name": "Callback booked",
+          "data": { "message": "Perfect, I'll give you a call then. Thanks, have a good day!" }
+        },
+        { "id": "end-1", "type": "end_conversation", "flow_type": "conversation", "node_version": 1, "data": { "closing_message": null } }
+      ],
+      "edges": [
+        { "id": "e1", "source": "start-conv-1", "target": "discuss-name" },
+        { "id": "e2", "source": "discuss-name", "target": "dec-name" },
+        { "id": "e3", "source": "dec-name", "target": "say-sorry", "label": "otherwise", "order": 1 },
+        { "id": "e4", "source": "dec-name", "target": "discuss-intro", "label": "yes", "order": 2 },
+        { "id": "e5", "source": "say-sorry", "target": "end-1" },
+        { "id": "e6", "source": "discuss-intro", "target": "dec-intro" },
+        { "id": "e7", "source": "dec-intro", "target": "collect-ai", "label": "talk", "order": 1 },
+        { "id": "e8", "source": "dec-intro", "target": "collect-callback", "label": "busy", "order": 2 },
+        { "id": "e9", "source": "dec-intro", "target": "say-no-problem", "label": "not interested", "order": 3 },
+        { "id": "e10", "source": "dec-intro", "target": "end-1", "label": "otherwise", "order": 4 },
+        { "id": "e11", "source": "collect-ai", "target": "end-1" },
+        { "id": "e12", "source": "collect-callback", "target": "say-perfect" },
+        { "id": "e13", "source": "say-no-problem", "target": "end-1" },
+        { "id": "e14", "source": "say-perfect", "target": "end-1" }
+      ]
+    }
+  ]
+}

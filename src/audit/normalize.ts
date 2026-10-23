@@ -1,7 +1,7 @@
 import type { AuditInput, Turn } from "./types";
 
 /** JSON columns arrive as objects from the bus but as strings from some DB exports. */
-function parseJson<T>(value: unknown, fallback: T): T {
+export function parseJson<T>(value: unknown, fallback: T): T {
   if (value === null || value === undefined || value === "") return fallback;
   if (typeof value === "string") {
     try {

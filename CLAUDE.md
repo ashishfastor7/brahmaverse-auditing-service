@@ -74,6 +74,9 @@ Other pieces:
   bus RPCs to integration-service and ai-service; `recording.service.ts` presigns S3 recordings (`audio/wav`).
 - `src/routes/` (Hono, under `/v1/audit`, one shared bearer token in `middleware/auth.ts`): `calls.ts` lists calls
   live from the source table joined with the latest audit; `audits.ts` serves/creates audits.
+- `src/services/ai.db.ts` / `vajra.db.ts`: optional read-only pools (`AI_DB_*`, `VAJRA_DB_*`, SELECT-only via
+  `readonly-db.ts`). The v2 readers in `src/services/v2/` (agent instructions, Caller flow, knowledge base) never
+  throw: a missing login or row is `null` + reason. Test them with `fake-db.ts` + `fixtures/readers/`, never a live DB.
 - `src/env.ts`: all config via `@t3-oss/env-core` + zod; add new env vars there and to `.env.example`.
 - `src/index.ts` sets Bun `idleTimeout: 255` because on-demand audits hold the request open for the judge call.
 - `patches/`: unapplied changes for other repos; never depend on them (recordings need `AWS_*`, no agent prompt).

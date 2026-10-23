@@ -25,6 +25,21 @@ export const env = createEnv({
     SOURCE_DB_NAME: z.string().default("brainey-integration"),
     SOURCE_DB_SSL: bool(true),
 
+    // v2, optional: read-only access to ai-service (prompts, knowledgebase_documents) and Vajra (conversations,
+    // workflow_executions, workflow_versions). Unset, the readers that need them return null with a reason.
+    AI_DB_HOSTNAME: z.string().optional(),
+    AI_DB_PORT: z.coerce.number().default(5432),
+    AI_DB_USERNAME: z.string().optional(),
+    AI_DB_PASSWORD: z.string().default(""),
+    AI_DB_NAME: z.string().optional(),
+    AI_DB_SSL: bool(true),
+    VAJRA_DB_HOSTNAME: z.string().optional(),
+    VAJRA_DB_PORT: z.coerce.number().default(5432),
+    VAJRA_DB_USERNAME: z.string().optional(),
+    VAJRA_DB_PASSWORD: z.string().default(""),
+    VAJRA_DB_NAME: z.string().optional(),
+    VAJRA_DB_SSL: bool(true),
+
     // Recording playback: presign recordings in the private bucket
     AWS_ACCESS_KEY_ID: z.string().optional(),
     AWS_SECRET_ACCESS_KEY: z.string().optional(),

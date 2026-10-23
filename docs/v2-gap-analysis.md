@@ -182,7 +182,10 @@ Found by reading the sibling repos in `Brahmaverse Oneverse/`.
   prompt).
 - The call's scope is in `voice_call_logs.data.tools` (confirmed 2026-10-22: `search_knowledgebase.context.document_ids`,
   and `document_group` in the top-level context). The auditor already selects `data`. Without a scope (calls before
-  late September 2026), use all `ready` documents for the business and agent.
+  late September 2026), use all `completed` documents for the business and agent.
+- `document_ids` are `knowledgebase_documents.id` (row ids), not the `document_id` string. ai-service always passes
+  the call's `agent_code` as `app_code`, so every search is limited to that agent's documents, and `document_ids`
+  wins over `document_group`.
 
 **Tool-call logs**
 - Ultravox and Vani return tool calls and results in `/api/calls/{id}/messages`. ai-service's `fetchCallDetails`
