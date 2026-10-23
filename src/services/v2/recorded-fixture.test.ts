@@ -89,8 +89,8 @@ describe("redactionsFor and anonymise", () => {
       ["Asha Rao", "<NAME>"],
       ["Anjali", "<AGENT_NAME>"],
       ["Rohan", "<REDACTED>"],
-      ["Acme", "<COMPANY_NAME>"],
       ["Asha", "<NAME>"],
+      ["Acme", "<COMPANY_NAME>"],
     ]);
   });
 
@@ -128,6 +128,35 @@ describe("redactionsFor and anonymise", () => {
     expect(await replayDb(out, "ai").query(recorded.queries[0].sql, ["<REDACTED>_prompt"])).toEqual([
       { system_prompt: "<REDACTED> rules" },
     ]);
+  });
+});
+
+describe("redactionsFor first names", () => {
+  it("also redacts the first word of a multi-word name, which prompts use on its own", () => {
+    const row = { data: { config: { variables: { name: "Krishna Iyer", agent_name: "Anjali Rao", phone_name: "xy" } } } };
+    expect(redactionsFor(row)).toEqual([
+      ["Krishna Iyer", "<NAME>"],
+      ["Anjali Rao", "<AGENT_NAME>"],
+      ["Krishna", "<NAME>"],
+      ["Anjali", "<AGENT_NAME>"],
+    ]);
+  });
+});
+
+describe("anonymise and identifiers", () => {
+  it("leaves Vajra node ids, edge ends and ms timestamps alone, so the flow graph survives", () => {
+    const graph = {
+      nodes: [{ id: "discuss-1712345678901", name: "Ask Asha", data: { at: 1712345678901 } }],
+      edges: [{ id: "xy-edge__discuss-1712345678901-say-1712345678902", source: "discuss-1712345678901", target: "say-1712345678902" }],
+      conversation_node_id: "start-conv-1",
+      text: "See discuss-1712345678901, or call +91 98765 43210.",
+    };
+    expect(anonymise(graph, [["Asha", "<NAME>"]])).toEqual({
+      nodes: [{ id: "discuss-1712345678901", name: "Ask <NAME>", data: { at: 1712345678901 } }],
+      edges: graph.edges,
+      conversation_node_id: "start-conv-1",
+      text: "See discuss-1712345678901, or call <PHONE>.",
+    });
   });
 });
 

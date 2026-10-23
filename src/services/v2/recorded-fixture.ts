@@ -74,6 +74,9 @@ export function redactionsFor(row: any, extra: string[] = []): [string, string][
       if (!PERSONAL_KEY.test(key) || ID_KEY.test(key) || typeof value !== "string") continue;
       const text = value.trim();
       if (text.length >= 3 && !pairs.has(text)) pairs.set(text, `<${key.toUpperCase()}>`);
+      // a person's first name on its own ("Hi Krishna"), which prompts use as often as the full name
+      const first = text.split(/\s+/)[0];
+      if (/name/i.test(key) && first !== text && first.length >= 3 && !pairs.has(first)) pairs.set(first, `<${key.toUpperCase()}>`);
     }
   }
   for (const term of extra) if (term.trim().length >= 2) pairs.set(term.trim(), "<REDACTED>");
@@ -81,11 +84,16 @@ export function redactionsFor(row: any, extra: string[] = []): [string, string][
 }
 
 const EMAIL = /[\w.+-]+@[\w-]+\.[\w.-]+/g;
-const PHONE_LIKE = /\+?\d[\d\s-]{8,}\d/g;
+// not digits glued to a word or an id: Vajra node ids end in a ms timestamp ("discuss-1712345678901")
+const PHONE_LIKE = /(?<![\w-])\+?\d[\d\s-]{8,}\d(?!\w)/g;
+/** Keys whose values are identifiers, never personal: kept exactly as recorded, so the flow graph and replay match. */
+const IDENTIFIER_KEY = /^(id|source|target)$|_ids?$/i;
+/** 10 to 12 digits: a phone stored as a number. 13-digit ms timestamps stay. */
+const isPhoneNumber = (n: number) => Number.isInteger(n) && Math.abs(n) >= 1e9 && Math.abs(n) < 1e12;
 
 /**
- * Replaces the redactions, emails and phone numbers (10+ digits, so dates and ids stay) in every string, and turns
- * numbers of 10+ digits (a phone stored as a number) into "<PHONE>". Pure.
+ * Replaces the redactions, emails and phone numbers (10+ digits, so dates stay) in every string, and phones stored as
+ * numbers, with placeholders. Values under identifier keys (`id`, `source`, `target`, `*_id`) are left alone. Pure.
  */
 export function anonymise<T>(value: T, redactions: [string, string][]): T {
   const text = (s: string) => {
@@ -96,12 +104,12 @@ export function anonymise<T>(value: T, redactions: [string, string][]): T {
   const walk = (v: any): any =>
     typeof v === "string"
       ? text(v)
-      : typeof v === "number" && Number.isInteger(v) && Math.abs(v) >= 1e9
+      : typeof v === "number" && isPhoneNumber(v)
         ? "<PHONE>"
         : Array.isArray(v)
           ? v.map(walk)
           : v && typeof v === "object"
-            ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x)]))
+            ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, IDENTIFIER_KEY.test(k) ? x : walk(x)]))
             : v;
   return walk(value);
 }

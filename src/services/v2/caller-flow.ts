@@ -107,7 +107,9 @@ export function flowSteps(nodes: FlowNode[], edges: FlowEdge[]): { steps: FlowSt
     });
   };
 
-  const steps = sorted
+  // listed in the compiled prompt's order: every other step first, then the exits
+  const isEnd = (n: FlowNode) => n.type === "end_conversation";
+  const steps = [...sorted.filter((n) => !isEnd(n)), ...sorted.filter(isEnd)]
     .filter((n) => stepNameOf.has(n.id))
     .map((node) => {
       const raw = TEXT_KEY[node.type] ? node.data?.[TEXT_KEY[node.type]] : null;
