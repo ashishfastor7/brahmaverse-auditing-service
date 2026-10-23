@@ -54,7 +54,7 @@ export const env = createEnv({
 
     PORT: z.coerce.number().default(8095),
     AUDIT_API_TOKEN: z.string().min(1).default("change-me"),
-    AUDIT_SUBSCRIBE: bool(true),
+    AUDIT_SUBSCRIBE: bool(false),
     AUDIT_INCLUDE_PLAYGROUND: bool(false),
     AUDIT_REVIEW_THRESHOLD: z.coerce.number().min(0).max(1).default(0.7),
     // v2 engine and pages (docs/prd-v2.md). Off: every v1 route returns exactly what it did before v2.
