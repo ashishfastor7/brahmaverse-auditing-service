@@ -33,6 +33,8 @@ const SOURCE_ROW = {
   picked_at: "2026-10-12T12:10:14.000Z",
   ends_at: "2026-10-12T12:12:14.000Z",
 };
+/** A call that never connected: auditing it is recorded as skipped before any judge or RPC call. */
+const NO_ANSWER_ROW = { ...SOURCE_ROW, id: 5009, status: "no_answer", transcriptions: [], turns: 0 };
 /** Every audit timestamp is set to this, so the snapshot is the same on every run. */
 const AUDITED_AT = "2026-10-12T12:30:00.000Z";
 const auth = { Authorization: `Bearer ${env.AUDIT_API_TOKEN}` };
@@ -51,7 +53,7 @@ describe.skipIf(!dbTestsEnabled)("v1 routes", () => {
       mock.module("@/db/connection", () => ({ sequelize }));
       mock.module("@/services/call-source.db", () => ({
         sourceDbConfigured: () => true,
-        getSourceCall: async (id: number) => (id === SOURCE_ROW.id ? SOURCE_ROW : null),
+        getSourceCall: async (id: number) => (id === SOURCE_ROW.id ? SOURCE_ROW : id === NO_ANSWER_ROW.id ? NO_ANSWER_ROW : null),
         listSourceCalls: async (q: { only_ids?: number[]; exclude_ids?: number[] }) => {
           const rows = [SOURCE_ROW].filter((r) => (!q.only_ids || q.only_ids.includes(r.id)) && !q.exclude_ids?.includes(r.id));
           return { rows, total: rows.length };
@@ -161,5 +163,17 @@ describe.skipIf(!dbTestsEnabled)("v1 routes", () => {
       });
       expect((await runAudit(skippedCall)).id).toBe(written.id);
       expect(await tables.AuditResult.findByPk(v2.id, { raw: true })).toEqual(v2Before);
+
+      // POST "Audit this call" and "Re-audit" return the row as before v2: its v1 columns and engine, no v2 fields.
+      const { V2_FIELDS } = await import("@/db/models/audit-result");
+      const v1Keys = Object.keys(tables.AuditResult.getAttributes())
+        .filter((k) => !(V2_FIELDS as readonly string[]).includes(k))
+        .sort();
+      expect(v1Keys).toHaveLength(29); // the 28 baseline columns + engine
+      const audited = await get(`/calls/${NO_ANSWER_ROW.id}/audit`, { method: "POST" });
+      const auditedRow = ((await audited.json()) as any).data;
+      expect([audited.status, auditedRow.status, Object.keys(auditedRow).sort()]).toEqual([200, "skipped", v1Keys]);
+      const reaudited = ((await (await get(`/audits/${auditedRow.id}/reaudit`, { method: "POST" })).json()) as any).data;
+      expect([reaudited.id, Object.keys(reaudited).sort()]).toEqual([auditedRow.id, v1Keys]);
     }));
 });

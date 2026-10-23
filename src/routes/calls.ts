@@ -2,7 +2,7 @@ import { normalizeCall } from "@/audit/normalize";
 import { runAudit } from "@/audit/run-audit";
 import { agentFor, agents } from "@/audit/rubrics";
 import { tables } from "@/db";
-import { type AuditResultRow, V1 } from "@/db/models/audit-result";
+import { type AuditResultRow, V1, V1_EXCLUDED, withoutV2Fields } from "@/db/models/audit-result";
 import { getSourceCall, listSourceCalls, sourceCallCounts, sourceDbConfigured } from "@/services/call-source.db";
 import { playableRecordingUrl } from "@/services/recording.service";
 import { Hono } from "hono";
@@ -210,7 +210,7 @@ router.get("/calls/:id", async (c) => {
   const agent = agentFor(input.agent_code, input.agent_id);
 
   const audit = await tables.AuditResult.findOne({
-    attributes: { exclude: ["engine"] },
+    attributes: { exclude: V1_EXCLUDED },
     where: { ...V1, source: "voice_call_logs", call_id: id },
     order: [["updated_at", "DESC"]],
     raw: true,
@@ -261,7 +261,7 @@ router.post("/calls/:id/audit", async (c) => {
   const row = await runAudit(normalizeCall(raw), { force: true }).catch((e) => {
     throw new HTTPException(502, { message: `Audit failed: ${(e as Error).message}` });
   });
-  return c.json({ data: row });
+  return c.json({ data: withoutV2Fields(row) });
 });
 
 export default router;

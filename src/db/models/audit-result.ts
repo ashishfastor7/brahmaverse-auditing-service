@@ -44,12 +44,49 @@ interface AuditResultModel extends Model<InferAttributes<AuditResultModel>, Infe
   audited_at: Date | null;
   created_at: CreationOptional<Date>;
   updated_at: CreationOptional<Date>;
+
+  // v2 only (migration 0006). On v1 rows only scorecard_id/scorecard_version are set: the 5 × 20 template they used.
+  triggered_by: CreationOptional<string | null>;
+  trigger_mode: CreationOptional<"single" | "selected" | "filter" | "sample" | null>;
+  batch_id: CreationOptional<number | null>;
+  goal_version: CreationOptional<number | null>;
+  scorecard_id: CreationOptional<string | null>;
+  scorecard_version: CreationOptional<number | null>;
+  weights_used: CreationOptional<Record<string, number> | null>;
+  system_goal: CreationOptional<"PASS" | "FAIL" | "NOT_APPLICABLE" | null>;
+  business_goal: CreationOptional<"ACHIEVED" | "PARTIAL" | "NOT_ACHIEVED" | "NOT_APPLICABLE" | null>;
+  business_reason: CreationOptional<string | null>;
+  judge_prompt_version: CreationOptional<string | null>;
+  /** USD, as a string (Postgres NUMERIC). */
+  cost: CreationOptional<string | null>;
+  superseded_by: CreationOptional<number | null>;
 }
 
 export type AuditResultRow = AuditResultModel["_model"]["dataValues"];
 
 /** Spread into every v1 query: v1 code never reads or overwrites rows written by the v2 engine. */
 export const V1 = { engine: "v1" } as const;
+
+/** Columns v1 responses never include (with `engine`), so the v1 API returns what it returned before v2. */
+export const V2_FIELDS = [
+  "triggered_by",
+  "trigger_mode",
+  "batch_id",
+  "goal_version",
+  "scorecard_id",
+  "scorecard_version",
+  "weights_used",
+  "system_goal",
+  "business_goal",
+  "business_reason",
+  "judge_prompt_version",
+  "cost",
+  "superseded_by",
+] as const;
+export const V1_EXCLUDED = ["engine", ...V2_FIELDS];
+/** A row as the v1 routes returned it before v2: without the v2 fields. */
+export const withoutV2Fields = (row: AuditResultRow) =>
+  Object.fromEntries(Object.entries(row).filter(([k]) => !(V2_FIELDS as readonly string[]).includes(k)));
 
 export const AuditResultTable = sequelize.define<AuditResultModel>(
   "audit_results",
@@ -86,6 +123,20 @@ export const AuditResultTable = sequelize.define<AuditResultModel>(
     audited_at: { type: DataTypes.DATE },
     created_at: { type: DataTypes.DATE },
     updated_at: { type: DataTypes.DATE },
+
+    triggered_by: { type: DataTypes.STRING },
+    trigger_mode: { type: DataTypes.STRING },
+    batch_id: { type: DataTypes.INTEGER },
+    goal_version: { type: DataTypes.INTEGER },
+    scorecard_id: { type: DataTypes.STRING },
+    scorecard_version: { type: DataTypes.INTEGER },
+    weights_used: { type: DataTypes.JSONB },
+    system_goal: { type: DataTypes.STRING },
+    business_goal: { type: DataTypes.STRING },
+    business_reason: { type: DataTypes.STRING },
+    judge_prompt_version: { type: DataTypes.STRING },
+    cost: { type: DataTypes.DECIMAL(12, 6) },
+    superseded_by: { type: DataTypes.INTEGER },
   },
   {
     tableName: "audit_results",

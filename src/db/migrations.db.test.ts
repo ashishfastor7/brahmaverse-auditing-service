@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { QueryTypes, type Sequelize } from "sequelize";
+import { migrations } from "./migrations";
 import { createMigrator, migrateCommand, pendingMigrations } from "./migrator";
 import { dbTestsEnabled, withTestDb } from "./test-db";
 
@@ -71,9 +72,65 @@ async function schema(sequelize: Sequelize) {
   return { columns: columns.map((r) => r.c), indexes: indexes.map((r) => r.indexdef) };
 }
 
+const tables = async (sequelize: Sequelize) =>
+  (
+    await sequelize.query<{ t: string }>("SELECT table_name AS t FROM information_schema.tables WHERE table_schema = 'public' ORDER BY 1", {
+      type: QueryTypes.SELECT,
+    })
+  ).map((r) => r.t);
+
 const BASELINE = { columns: BASELINE_COLUMNS, indexes: BASELINE_INDEXES };
-/** After every migration: the baseline plus 0002's engine column. */
-const LATEST = { columns: [...BASELINE_COLUMNS, "engine|character varying|255|NO|'v1'::character varying"], indexes: BASELINE_INDEXES };
+/** After 0002: the baseline plus the engine column. */
+const WITH_ENGINE = {
+  columns: [...BASELINE_COLUMNS, "engine|character varying|255|NO|'v1'::character varying"],
+  indexes: BASELINE_INDEXES,
+};
+/** After every migration: plus 0006's v2 audit fields and their indexes. */
+const LATEST = {
+  columns: [
+    ...WITH_ENGINE.columns,
+    "triggered_by|character varying|255|YES|",
+    "trigger_mode|character varying|255|YES|",
+    "batch_id|integer||YES|",
+    "goal_version|integer||YES|",
+    "scorecard_id|character varying|255|YES|",
+    "scorecard_version|integer||YES|",
+    "weights_used|jsonb||YES|",
+    "system_goal|character varying|255|YES|",
+    "business_goal|character varying|255|YES|",
+    "business_reason|character varying|255|YES|",
+    "judge_prompt_version|character varying|255|YES|",
+    "cost|numeric||YES|",
+    "superseded_by|integer||YES|",
+  ],
+  indexes: [
+    BASELINE_INDEXES[0],
+    "CREATE INDEX audit_results_batch_id ON public.audit_results USING btree (batch_id)",
+    BASELINE_INDEXES[1],
+    BASELINE_INDEXES[2],
+    "CREATE INDEX audit_results_scorecard ON public.audit_results USING btree (scorecard_id, scorecard_version)",
+    BASELINE_INDEXES[3],
+    BASELINE_INDEXES[4],
+  ],
+};
+const ALL_TABLES = [
+  "SequelizeMeta",
+  "audit_batch",
+  "audit_check",
+  "audit_results",
+  "daily_rollup",
+  "failure_condition",
+  "failure_flag",
+  "goal_config",
+  "metric",
+  "metric_result",
+  "release_marker",
+  "review",
+  "scorecard",
+  "scorecard_assignment",
+  "scorecard_condition",
+];
+const NAMES = migrations.map((m) => m.name);
 
 describe.skipIf(!dbTestsEnabled)("migrations", () => {
   it("up -> down -> up on an empty database", () =>
@@ -82,8 +139,13 @@ describe.skipIf(!dbTestsEnabled)("migrations", () => {
 
       await migrator.up();
       expect(await schema(sequelize)).toEqual(LATEST);
+      expect(await tables(sequelize)).toEqual(ALL_TABLES);
 
-      await migrator.down(); // 0002 only
+      await migrator.down({ to: "0003-config-tables" });
+      expect(await schema(sequelize)).toEqual(WITH_ENGINE);
+      expect(await tables(sequelize)).toEqual(["SequelizeMeta", "audit_results"]);
+
+      await migrator.down(); // 0002
       expect(await schema(sequelize)).toEqual(BASELINE);
 
       await migrator.down({ to: 0 });
@@ -92,7 +154,21 @@ describe.skipIf(!dbTestsEnabled)("migrations", () => {
 
       await migrator.up();
       expect(await schema(sequelize)).toEqual(LATEST);
+      expect(await tables(sequelize)).toEqual(ALL_TABLES);
       expect(await migrator.pending()).toEqual([]);
+    }));
+
+  it("every migration reverts on its own, newest first (as migrate:down does), then re-applies", () =>
+    withTestDb(async (sequelize) => {
+      const migrator = createMigrator(sequelize, { quiet: true });
+      await migrator.up();
+      for (const name of [...NAMES].reverse()) {
+        await migrator.down();
+        expect((await migrator.executed()).map((m) => m.name)).toEqual(NAMES.slice(0, NAMES.indexOf(name)));
+      }
+      expect(await tables(sequelize)).toEqual(["SequelizeMeta"]);
+      await migrator.up();
+      expect(await tables(sequelize)).toEqual(ALL_TABLES);
     }));
 
   it("on a database created by sequelize.sync(), keeps the rows and marks them engine 'v1'", () =>
@@ -121,32 +197,40 @@ describe.skipIf(!dbTestsEnabled)("migrations", () => {
         );
       await insert("v2");
       // (Bun 1.2's `expect(...).rejects` hangs on Sequelize errors, hence the catch.)
-      const error = await insert("v3").then(() => null, (e: Error) => e.message);
+      const error = await insert("v3").then(
+        () => null,
+        (e: Error) => e.message,
+      );
       expect(error).toContain("audit_results_engine_check");
     }));
 
   it("pendingMigrations (the startup check) lists what migrate would apply, without writing", () =>
     withTestDb(async (sequelize) => {
-      expect(await pendingMigrations(sequelize)).toEqual(["0001-baseline", "0002-audit-results-engine"]);
-      const tables = await sequelize.query("SELECT 1 FROM information_schema.tables WHERE table_schema = 'public'", { type: QueryTypes.SELECT });
+      expect(await pendingMigrations(sequelize)).toEqual(NAMES);
+      const tables = await sequelize.query("SELECT 1 FROM information_schema.tables WHERE table_schema = 'public'", {
+        type: QueryTypes.SELECT,
+      });
       expect(tables).toEqual([]);
 
       const migrator = createMigrator(sequelize, { quiet: true });
       await migrator.up({ to: "0001-baseline" });
-      expect(await pendingMigrations(sequelize)).toEqual(["0002-audit-results-engine"]);
+      expect(await pendingMigrations(sequelize)).toEqual(NAMES.slice(1));
       await migrator.up();
       expect(await pendingMigrations(sequelize)).toEqual([]);
     }));
 
   it("bun run migrate / migrate:down: applies, is a no-op when current, reverts one at a time, guards the baseline", () =>
     withTestDb(async (sequelize) => {
-      expect(await migrateCommand(sequelize)).toBe("applied 0001-baseline, 0002-audit-results-engine");
+      expect(await migrateCommand(sequelize)).toBe(`applied ${NAMES.join(", ")}`);
       expect(await migrateCommand(sequelize)).toBe("up to date");
 
-      expect(await migrateCommand(sequelize, { down: true })).toBe("reverted 0002-audit-results-engine");
+      for (const name of NAMES.slice(1).reverse()) expect(await migrateCommand(sequelize, { down: true })).toBe(`reverted ${name}`);
       expect(await schema(sequelize)).toEqual(BASELINE);
 
-      const refused = await migrateCommand(sequelize, { down: true }).then(() => null, (e: Error) => e.message);
+      const refused = await migrateCommand(sequelize, { down: true }).then(
+        () => null,
+        (e: Error) => e.message,
+      );
       expect(refused).toContain("--drop-table");
       expect(await schema(sequelize)).toEqual(BASELINE);
 

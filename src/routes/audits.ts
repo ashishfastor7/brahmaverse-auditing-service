@@ -2,7 +2,7 @@ import { runAudit } from "@/audit/run-audit";
 import { agents } from "@/audit/rubrics";
 import { POINTS_PER_CATEGORY, SCORECARD } from "@/audit/rubrics/types";
 import { tables } from "@/db";
-import { V1 } from "@/db/models/audit-result";
+import { V1, V1_EXCLUDED, withoutV2Fields } from "@/db/models/audit-result";
 import { playableRecordingUrl } from "@/services/recording.service";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
@@ -136,7 +136,7 @@ const auditId = (raw: string) => {
 };
 
 router.get("/audits/:id", async (c) => {
-  const row = await tables.AuditResult.findOne({ attributes: { exclude: ["engine"] }, where: { ...V1, id: auditId(c.req.param("id")) }, raw: true });
+  const row = await tables.AuditResult.findOne({ attributes: { exclude: V1_EXCLUDED }, where: { ...V1, id: auditId(c.req.param("id")) }, raw: true });
   if (!row) throw new HTTPException(404, { message: "Audit not found" });
   return c.json({ data: row });
 });
@@ -158,7 +158,7 @@ router.post("/audits/:id/reaudit", async (c) => {
   const updated = await runAudit(row.call, { force: true }).catch((e) => {
     throw new HTTPException(502, { message: `Re-audit failed: ${(e as Error).message}` });
   });
-  return c.json({ data: updated });
+  return c.json({ data: withoutV2Fields(updated) });
 });
 
 /** The agents the dashboard can filter by, and the scorecard they are graded on. */
