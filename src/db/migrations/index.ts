@@ -6,6 +6,7 @@ import * as auditBatch from "./0005-audit-batch";
 import * as auditResultsV2 from "./0006-audit-results-v2";
 import * as auditDetailTables from "./0007-audit-detail-tables";
 import * as reportingTables from "./0008-reporting-tables";
+import * as auditRescore from "./0009-audit-rescore";
 
 /** Every migration, in order. Add new ones at the end with the next number; never edit one that has been applied. */
 export const migrations = [
@@ -17,4 +18,5 @@ export const migrations = [
   { name: "0006-audit-results-v2", ...auditResultsV2 },
   { name: "0007-audit-detail-tables", ...auditDetailTables },
   { name: "0008-reporting-tables", ...reportingTables },
+  { name: "0009-audit-rescore", ...auditRescore },
 ];

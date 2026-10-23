@@ -85,7 +85,7 @@ const WITH_ENGINE = {
   columns: [...BASELINE_COLUMNS, "engine|character varying|255|NO|'v1'::character varying"],
   indexes: BASELINE_INDEXES,
 };
-/** After every migration: plus 0006's v2 audit fields and their indexes. */
+/** After every migration: plus the v2 audit fields (0006, 0009) and their indexes. */
 const LATEST = {
   columns: [
     ...WITH_ENGINE.columns,
@@ -102,6 +102,7 @@ const LATEST = {
     "judge_prompt_version|character varying|255|YES|",
     "cost|numeric||YES|",
     "superseded_by|integer||YES|",
+    "score|numeric||YES|",
   ],
   indexes: [
     BASELINE_INDEXES[0],
@@ -117,6 +118,7 @@ const ALL_TABLES = [
   "SequelizeMeta",
   "audit_batch",
   "audit_check",
+  "audit_rescore",
   "audit_results",
   "daily_rollup",
   "failure_condition",

@@ -164,12 +164,16 @@ Rules for every task (CLAUDE.md "v2 rules"):
     `weights_used`, versions, cost and `trigger_mode`.
   - Idempotent per (call, scorecard version, goal version, weights) unless forced. Tests use the fixture judge
     and a test DB.
-- [ ] **P1-9 Re-score without the LLM** (§4.4)
+  - Step 7: write the v2 score to `audit_results.score` (one decimal, migration 0009), not `overall_score`, which
+    is an integer and stays v1's.
+- [x] **P1-9 Re-score without the LLM** (§4.4)
   - `POST /v1/audit/audits/:id/rescore` with new weights recomputes from the stored `metric_result` rows. No
     judge call, recorded as a re-score of the same audit.
   - Test: re-score with the original weights reproduces the original score.
   - Step 7: `rescoreAudit(db, auditId, weights)` in `src/db/rescore.ts` computes the re-score (Major flags zero their
-    linked metric again, Critical flags still fail) and writes nothing. Still to do: storing re-scores and the route.
+    linked metric again, Critical flags still fail); `saveRescore` stores it in `audit_rescore` (migration 0009).
+    The route answers 404 while `AUDIT_V2_ENABLED` is off and 400 for weights that don't fit the scorecard. Listing
+    the history on the call page is P2-3.
 - [ ] **P1-10 Transcript-only rule metrics** (§4.3)
   - Stalling & filler words (stalling-phrase and filler-word lists, counted per 100 agent words, with count
     bands) and repetition (agent-turn similarity, LLM confirms) as pure functions with params from
@@ -420,3 +424,11 @@ depend on it. Items keep their original numbers so references elsewhere stay val
   on transcripts (no timestamps), recordings (mono), variables per agent and outcome coverage (gap analysis "Call
   data format"). The full anonymised row, with `data.tools` (save-tool schemas with `required` fields, knowledge-base
   scope), is `fixtures/real/call-sample.json`. P0-5, P0-12, P1-5 and P3-1 updated to match.
+
+### 2026-10-23
+- **Re-score storage.** A re-score is history of its audit, not a new audit: one row per re-score in
+  `audit_rescore` (weights, score, pass/fail, reasons, who, when). The audit row keeps the score it was audited
+  with, and dashboards count only that, so trying other weights on one call never moves a dashboard number (re-scoring
+  everything with one weight set stays the §6 toggle, P2-10). A new `audit_results` row per re-score was rejected: it
+  would count as another audit, need the metric results copied, and clash with the one-row-per-(call, rubric
+  version) key. The v2 score gets its own one-decimal column, `audit_results.score`. P1-9 done; P1-8 notes updated.

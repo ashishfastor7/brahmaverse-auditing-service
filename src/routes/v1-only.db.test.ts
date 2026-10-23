@@ -145,6 +145,7 @@ describe.skipIf(!dbTestsEnabled)("v1 routes", () => {
       expect((await get(`/audits/${v2.id}`)).status).toBe(404);
       expect((await get(`/audits/${v2.id}/recording`)).status).toBe(404);
       expect((await get(`/audits/${v2.id}/reaudit`, { method: "POST" })).status).toBe(404);
+      expect((await get(`/audits/${v2.id}/rescore`, { method: "POST", body: '{"weights": {}}' })).status).toBe(404);
 
       // runAudit (Audit this call, replay) writes a v1 row and leaves the v2 audit alone. A call that never connected is
       // skipped before the agent-prompt RPC and the judge, so nothing leaves the process.

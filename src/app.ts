@@ -1,7 +1,10 @@
+import { sequelize } from "@/db/connection";
+import { env } from "@/env";
 import { requireToken } from "@/middleware/auth";
 import audits from "@/routes/audits";
 import calls from "@/routes/calls";
 import config from "@/routes/config";
+import { rescoreRouter } from "@/routes/rescore";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
@@ -25,3 +28,10 @@ app.use("/v1/audit/*", requireToken);
 app.route("/v1/audit", audits);
 app.route("/v1/audit", calls);
 app.route("/v1/audit", config);
+app.route(
+  "/v1/audit",
+  rescoreRouter(
+    () => sequelize,
+    () => env.AUDIT_V2_ENABLED,
+  ),
+);
