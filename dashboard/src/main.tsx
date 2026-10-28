@@ -1,14 +1,15 @@
-import { QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryCache, QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { api, tokenStore, UnauthorizedError } from "./api";
+import { api, configApi, tokenStore, UnauthorizedError } from "./api";
 import "./index.css";
 import { applyInitialTheme, ThemeToggle } from "./components/theme";
 import { CallDetail } from "./pages/CallDetail";
 import { CallList } from "./pages/CallList";
+import { Conditions } from "./pages/Conditions";
 import { Login } from "./pages/Login";
 
-/** Hash routes: #/ (all calls, filters in the query string), #/calls/:id, and old #/audits/:id links. */
+/** Hash routes: #/ (all calls, filters in the query string), #/calls/:id, #/conditions (v2 only), and old #/audits/:id links. */
 function useHashRoute() {
   const [hash, setHash] = useState(() => window.location.hash.slice(1) || "/");
   useEffect(() => {
@@ -33,6 +34,8 @@ function AuditRedirect({ id }: { id: number }) {
 function App() {
   const [authed, setAuthed] = useState(() => Boolean(tokenStore.get()));
   const route = useHashRoute();
+  const config = useQuery({ queryKey: ["config"], queryFn: configApi.get, enabled: authed, staleTime: Infinity });
+  const v2 = config.data?.v2_enabled === true;
 
   useEffect(() => {
     const onLogout = () => setAuthed(false);
@@ -45,6 +48,7 @@ function App() {
   const [path, search = ""] = route.split("?");
   const call = path.match(/^\/calls\/(\d+)$/);
   const oldAudit = path.match(/^\/audits\/(\d+)$/);
+  const conditions = path === "/conditions";
   return (
     <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6">
       <header className="mb-5 flex items-center justify-between gap-3">
@@ -52,6 +56,11 @@ function App() {
           Call audits
         </a>
         <div className="flex items-center gap-3">
+          {v2 && (
+            <a href="#/conditions" className="text-sm text-muted hover:text-ink">
+              Failure conditions
+            </a>
+          )}
           <ThemeToggle />
           <button
             className="text-sm text-muted hover:text-ink"
@@ -64,7 +73,13 @@ function App() {
           </button>
         </div>
       </header>
-      {call ? (
+      {conditions ? (
+        v2 ? (
+          <Conditions />
+        ) : (
+          <p className="text-sm text-muted">{config.isPending ? "Loading…" : "Failure conditions are part of v2, which is off (AUDIT_V2_ENABLED)."}</p>
+        )
+      ) : call ? (
         <CallDetail key={call[1]} id={Number(call[1])} />
       ) : oldAudit ? (
         <AuditRedirect id={Number(oldAudit[1])} />

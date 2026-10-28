@@ -262,3 +262,45 @@ export const callsApi = {
   recording: (id: number) => call<{ data: { url: string | null; reason?: string } }>(`/calls/${id}/recording`).then((r) => r.data),
   audit: (id: number) => call<{ data: AuditDetail }>(`/calls/${id}/audit`, { method: "POST" }).then((r) => r.data),
 };
+
+// ---- Failure conditions (v2, PRD §4.5): the shared library and each scorecard's conditions ----
+
+export type Severity = "critical" | "major" | "minor";
+export type LibraryCondition = {
+  code: string;
+  label: string;
+  definition: string;
+  default_severity: Severity;
+  rolls_up_to: string[];
+  detection: "rule" | "llm";
+  created_at: string;
+};
+export type ScorecardCondition = { condition_code: string; enabled: boolean; severity: Severity; metric_key: string | null };
+export type ScorecardConditions = {
+  scorecard_id: string;
+  name: string;
+  published: number;
+  draft: number | null;
+  agents: string[];
+  metrics: { key: string; name: string }[];
+  conditions: ScorecardCondition[];
+  /** What the draft adds or changes; it counts only after Publish. */
+  pending: ScorecardCondition[];
+};
+export type NewCondition = {
+  code?: string;
+  label: string;
+  flags_when: string;
+  does_not_count: string;
+  severity: Severity;
+  metric_key?: string | null;
+  scorecards: string[];
+};
+
+export const conditionsApi = {
+  list: () => call<{ data: { conditions: LibraryCondition[]; scorecards: ScorecardConditions[] } }>(`/conditions`).then((r) => r.data),
+  add: (c: NewCondition) => call<{ data: LibraryCondition }>(`/conditions`, { method: "POST", body: JSON.stringify(c) }).then((r) => r.data),
+  remove: (code: string) => call(`/conditions/${encodeURIComponent(code)}`, { method: "DELETE" }),
+  publish: (scorecardId: string) => call(`/scorecards/${encodeURIComponent(scorecardId)}/publish`, { method: "POST" }),
+  discard: (scorecardId: string) => call(`/scorecards/${encodeURIComponent(scorecardId)}/draft`, { method: "DELETE" }),
+};

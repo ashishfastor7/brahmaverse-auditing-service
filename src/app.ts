@@ -3,6 +3,7 @@ import { env } from "@/env";
 import { requireToken } from "@/middleware/auth";
 import audits from "@/routes/audits";
 import calls from "@/routes/calls";
+import { conditionsRouter } from "@/routes/conditions";
 import config from "@/routes/config";
 import { rescoreRouter } from "@/routes/rescore";
 import { Hono } from "hono";
@@ -31,6 +32,13 @@ app.route("/v1/audit", config);
 app.route(
   "/v1/audit",
   rescoreRouter(
+    () => sequelize,
+    () => env.AUDIT_V2_ENABLED,
+  ),
+);
+app.route(
+  "/v1/audit",
+  conditionsRouter(
     () => sequelize,
     () => env.AUDIT_V2_ENABLED,
   ),

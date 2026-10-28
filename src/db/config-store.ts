@@ -118,15 +118,16 @@ async function versions(db: Sequelize, table: "scorecard" | "goal_config", keyCo
 
 /**
  * Starts the next version of a scorecard as a draft. It copies the scorecard's latest published version, or `from`
- * (any published version, e.g. of another scorecard, to start a new scorecard at version 1).
+ * (any published version, e.g. of another scorecard, to start a new scorecard at version 1). Runs in `transaction`
+ * when one is given.
  */
 export function createScorecardDraft(
   db: Sequelize,
   scorecard_id: string,
   created_by: string,
-  opts: { from?: { scorecard_id: string; version: number } } = {},
+  opts: { from?: { scorecard_id: string; version: number }; transaction?: Transaction } = {},
 ): Promise<ScorecardVersion> {
-  return db.transaction(async (transaction) => {
+  const run = async (transaction: Transaction) => {
     const v = await versions(db, "scorecard", "scorecard_id", scorecard_id, transaction);
     if (v.draft !== null) throw new Error(`scorecard ${scorecard_id} already has a draft (version ${v.draft})`);
     const from = opts.from ?? (v.published !== null ? { scorecard_id, version: v.published } : null);
@@ -155,7 +156,8 @@ export function createScorecardDraft(
       { bind, transaction },
     );
     return (await loadScorecard(db, scorecard_id, v.next, transaction))!;
-  });
+  };
+  return opts.transaction ? run(opts.transaction) : db.transaction(run);
 }
 
 /**
