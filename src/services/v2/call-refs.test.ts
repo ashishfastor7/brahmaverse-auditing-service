@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import sample from "../../../fixtures/real/call-sample.json";
+import sample from "../../../fixtures/call-sample.json";
 import { callRefs } from "./call-refs";
 import { sampleRow } from "./fake-db";
 

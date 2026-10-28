@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import sample from "../../../fixtures/real/call-sample.json";
+import sample from "../../../fixtures/call-sample.json";
 import { callRefs, type CallTools } from "./call-refs";
 import { aiFixtureDb, sampleRow, throwingDb } from "./fake-db";
 import { MAX_AGENT_PROMPT_CHARS } from "@/audit/judge/prompt";

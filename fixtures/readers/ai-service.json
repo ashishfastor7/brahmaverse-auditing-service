@@ -1,5 +1,5 @@
 {
-  "_note": "Rows from ai-service's prompts and knowledgebase_documents, in the columns the v2 readers select. Hand-built from the ai-service models (src/db/models/prompts.ts, knowledgebase/knowledgebase_document.ts) and the ids of anonymised call 4570 (fixtures/real/call-sample.json), because the AI_DB_* login (O1) doesn't exist yet. Replace with recorded rows once it does.",
+  "_note": "Rows from ai-service's prompts and knowledgebase_documents, in the columns the v2 readers select. Hand-built from the ai-service models (src/db/models/prompts.ts, knowledgebase/knowledgebase_document.ts) and the ids of anonymised call 4570 (fixtures/call-sample.json), because the AI_DB_* login (O1) doesn't exist yet. Replace with recorded rows once it does.",
   "prompts": [
     {
       "id": 12,

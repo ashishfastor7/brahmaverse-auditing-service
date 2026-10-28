@@ -451,7 +451,7 @@ depend on it. Items keep their original numbers so references elsewhere stay val
 - **#20 Real data example.** Replaced with real call 4570 (anonymised) from the dev database, along with checked facts
   on transcripts (no timestamps), recordings (mono), variables per agent and outcome coverage (gap analysis "Call
   data format"). The full anonymised row, with `data.tools` (save-tool schemas with `required` fields, knowledge-base
-  scope), is `fixtures/real/call-sample.json`. P0-5, P0-12, P1-5 and P3-1 updated to match.
+  scope), is `fixtures/call-sample.json`. P0-5, P0-12, P1-5 and P3-1 updated to match.
 
 ### 2026-10-23
 - **Re-score storage.** A re-score is history of its audit, not a new audit: one row per re-score in

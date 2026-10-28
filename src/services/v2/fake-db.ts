@@ -1,6 +1,6 @@
 import aiService from "../../../fixtures/readers/ai-service.json";
 import vajra from "../../../fixtures/readers/vajra.json";
-import sample from "../../../fixtures/real/call-sample.json";
+import sample from "../../../fixtures/call-sample.json";
 import type { ReadOnlyDb } from "@/services/readonly-db";
 
 /**

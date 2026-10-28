@@ -86,7 +86,7 @@ normalised into `AuditInput` (`src/audit/normalize.ts`, `src/audit/types.ts`).
 
 **Example: call 4570 (real, anonymised).** Caller agent, outbound, `plivo` + `brahmaverse`, 12 Oct 2026. Names, the
 company and a phone number are replaced; the long `prompt` and `context` variables are cut short here. The full
-anonymised row, with `tools`, is `fixtures/real/call-sample.json`. The agent says "Rohan" although `agent_name` is
+anonymised row, with `tools`, is `fixtures/call-sample.json`. The agent says "Rohan" although `agent_name` is
 "Anjali": the flow's STEP_3 text names "Rohan", so this follows the instructions and isn't an agent error.
 
 ```json
