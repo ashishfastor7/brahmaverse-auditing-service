@@ -1,6 +1,7 @@
-import type { Metric, ScorecardHeader } from "./config";
+import type { Metric, ScorecardCondition, ScorecardHeader } from "./config";
+import { type Flag, type FlagOutcome, applySeverity } from "./severity";
 
-/** A metric's raw score from the judge or a rule, as stored in `metric_result` (Major flags already applied). */
+/** A metric's raw score from the judge or a rule, as stored in `metric_result`. */
 export type MetricResult = { key: string; score: number | null; max: number; n_a: boolean };
 
 export type FailedBy =
@@ -33,23 +34,30 @@ export function passes(score: number | null, threshold: number, autoFailZero: bo
 }
 
 /**
- * `weightedScore` and `passes` together, with every reason the call failed. A clean call under the threshold fails.
- * The threshold is checked on the rounded score, so the score shown and the verdict always agree.
+ * The score of one audit: the scorecard's severities applied to the flags (`applySeverity`: Critical fails the call,
+ * Major zeroes its linked metric, Minor is counted only), then `weightedScore` and `passes`, with every reason the call
+ * failed and what each flag did. A clean call under the threshold fails. The threshold is checked on the rounded
+ * score, so the score shown and the verdict always agree.
  */
 export function computeScore(
   metricResults: MetricResult[],
   weights: Record<string, number>,
-  scorecard: Pick<ScorecardHeader, "pass_threshold"> & { metrics: Pick<Metric, "key" | "auto_fail">[] },
-  criticalFlags: string[] = [],
-): Score {
-  const score = weightedScore(metricResults, weights);
+  scorecard: Pick<ScorecardHeader, "pass_threshold"> & {
+    metrics: Pick<Metric, "key" | "auto_fail">[];
+    conditions: Pick<ScorecardCondition, "condition_code" | "enabled" | "severity" | "metric_key">[];
+  },
+  flags: Flag[] = [],
+): Score & { flags: FlagOutcome } {
+  const { results, ...outcome } = applySeverity(flags, scorecard.conditions, metricResults);
+  const score = weightedScore(results, weights);
   const autoFail = new Set(scorecard.metrics.filter((m) => m.auto_fail).map((m) => m.key));
-  const zeroed = applicable(metricResults, weights).filter((m) => autoFail.has(m.key) && m.score === 0);
+  const zeroed = applicable(results, weights).filter((m) => autoFail.has(m.key) && m.score === 0);
 
   const failedBy: FailedBy[] = [];
   if (score === null) failedBy.push({ kind: "no_score" });
   else if (score < scorecard.pass_threshold) failedBy.push({ kind: "below_threshold" });
   for (const m of zeroed) failedBy.push({ kind: "auto_fail", metric: m.key });
-  for (const code of criticalFlags) failedBy.push({ kind: "critical", code });
-  return { score, passed: passes(score, scorecard.pass_threshold, zeroed.length > 0, criticalFlags.length > 0), failedBy };
+  for (const code of outcome.critical) failedBy.push({ kind: "critical", code });
+  const passed = passes(score, scorecard.pass_threshold, zeroed.length > 0, outcome.critical.length > 0);
+  return { score, passed, failedBy, flags: outcome };
 }
