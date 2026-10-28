@@ -1,6 +1,6 @@
 import { type MetricResult, type Score, computeScore } from "@/audit/v2/score";
+import type { Flag } from "@/audit/v2/severity";
 import { QueryTypes, type Sequelize } from "sequelize";
-import type { ScorecardCondition } from "@/audit/v2/config";
 import { loadScorecard } from "./config-store";
 
 /** Why an audit can't be re-scored with these weights; the route answers with `status`. */
@@ -13,33 +13,11 @@ export class RescoreError extends Error {
   }
 }
 
-type StoredFlag = { condition_code: string; severity: string };
-
-/**
- * A re-score's inputs from the stored flags: each Major flag zeroes its linked metric (`scorecard_condition.metric_key`)
- * unless that metric is N/A, and Critical flags are returned for `computeScore`. Minor flags change nothing. Doing the
- * zeroing again works whether the stored metric score is the judge's raw one or already zeroed.
- */
-export function applyStoredFlags(
-  results: MetricResult[],
-  flags: StoredFlag[],
-  conditions: Pick<ScorecardCondition, "condition_code" | "metric_key">[],
-): { results: MetricResult[]; critical: string[] } {
-  const zeroed = new Set(
-    flags
-      .filter((f) => f.severity === "major")
-      .map((f) => conditions.find((c) => c.condition_code === f.condition_code)?.metric_key)
-      .filter((key) => key != null),
-  );
-  return {
-    results: results.map((r) => (zeroed.has(r.key) && !r.n_a ? { ...r, score: 0 } : r)),
-    critical: flags.filter((f) => f.severity === "critical").map((f) => f.condition_code),
-  };
-}
-
 /**
  * PRD §4.4 re-score: the score a completed v2 audit gets with other weights, recomputed from its stored
- * `metric_result` rows and failure flags (`applyStoredFlags`). No judge call and nothing written; `saveRescore` stores it.
+ * `metric_result` rows and failure flags: `computeScore` applies the scorecard's severities to the flags again (Major
+ * zeroes its linked metric, Critical still fails), which gives the same result as when audited because a published
+ * scorecard never changes. No judge call and nothing written; `saveRescore` stores it.
  *
  * Returns null for a missing audit or one not written by the v2 engine. Throws `RescoreError`:
  * - 409 when the audit isn't completed (it has no metric results);
@@ -79,9 +57,9 @@ export async function rescoreAudit(
   if (unscored.length)
     throw new RescoreError(`${unscored.join(", ")} weren't scored in this audit (weight 0 when audited); re-audit to weight them`, 400);
 
-  const flags = await select<StoredFlag>("SELECT condition_code, severity FROM failure_flag WHERE audit_id = $1 ORDER BY id");
-  const { results, critical } = applyStoredFlags(stored, flags, scorecard.conditions);
-  return { ...computeScore(results, weights, scorecard, critical), weights };
+  const flags = await select<Flag>("SELECT condition_code AS code, source, evidence FROM failure_flag WHERE audit_id = $1 ORDER BY id");
+  const { flags: _, ...score } = computeScore(stored, weights, scorecard, flags);
+  return { ...score, weights };
 }
 
 export type Rescore = Score & { id: number; audit_id: number; weights_used: Record<string, number>; created_by: string; created_at: Date };

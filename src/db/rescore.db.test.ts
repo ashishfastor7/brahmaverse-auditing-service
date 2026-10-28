@@ -103,7 +103,8 @@ describe.skipIf(!dbTestsEnabled)("re-scores (P1-9)", () => {
       await createMigrator(sequelize, { quiet: true }).up();
       const id = await seedAudit(sequelize);
       await sequelize.query(
-        `INSERT INTO failure_flag (audit_id, condition_code, severity, source) VALUES ($1, 'CRITICAL_HALLUCINATION', 'critical', 'judge')`,
+        `INSERT INTO failure_flag (audit_id, condition_code, severity, source, evidence)
+         VALUES ($1, 'CRITICAL_HALLUCINATION', 'critical', 'judge', '[{"turns": [4]}]')`,
         { bind: [id] },
       );
       expect(await rescoreAudit(sequelize, id, ALL_TEN)).toMatchObject({

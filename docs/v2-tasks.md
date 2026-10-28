@@ -69,10 +69,15 @@ Rules for every task (CLAUDE.md "v2 rules"):
   - Step 7: `rebalanceWeights(weights, locked, changed, value)` in `src/audit/v2/rebalance.ts` takes an ordered
     `{ key, weight }[]` (order decides ties). The meeting's version is 11 metrics with Language match (10) locked:
     Flow 12, Opening & closure 8, Stalling 5, Filler 5, the rest 10; Flow 12 → 22.
-- [ ] **P0-8 Failure-condition severity, pure** (§4.5)
+- [x] **P0-8 Failure-condition severity, pure** (§4.5)
   - `applySeverity(flags, scorecardConditions, metrics)` returns the critical failures (call fails), the metrics
     zeroed by Major flags, and the Minor flags (counted only). Flags without evidence are dropped.
   - Unit tests for each severity, for an unknown code, and for a flag with no evidence.
+  - Step 8: `applySeverity` in `src/audit/v2/severity.ts`; `computeScore(metricResults, weights, scorecard, flags)`
+    calls it and also returns what each flag did (`flags: { critical, major, minor, dropped }`). Only judge flags need
+    evidence (`CALL_ERROR` and `NO_AGENT_SPEECH` have no turn to cite); disabled conditions and codes not on the
+    scorecard are dropped; each code counts once and a rule hit wins. Re-scores use the same path, so
+    `applyStoredFlags` is gone. The library is `src/audit/v2/conditions.ts` (a copy; v1 keeps `COMMON_FAILURES`).
 - [x] **P0-9 Read-only connectors for other services' data** (§3, §4.3, §7)
   - Optional `AI_DB_*` and `VAJRA_DB_*` settings in `src/env.ts` and `.env.example`, each with its own small `pg`
     pool, built like `src/services/call-source.db.ts`. SELECT-only queries on named columns; nothing else.
@@ -190,6 +195,10 @@ Rules for every task (CLAUDE.md "v2 rules"):
     `DENIED_BEING_AI`, `SENSITIVE_DATA_EXPOSED`, `OFF_SCOPE_ADVICE`, `OUTCOME_MISRECORDED` to the library, each
     with a "does not count" clause, starting as Minor.
   - One planted fixture per condition in `fixtures/planted/`. `eval:planted` passes.
+  - Step 8 (migration 0010): all §4.5 proposed conditions are in the library as Minor, with a "does not count"
+    clause, on `default` v3 and `hansa` v3 (agents moved from v2). `UNRESPONSIVE_AGENT`, `FALSE_ACTION_CLAIM` and
+    `SKIPPED_REQUIRED_STEP` are disabled until their data exists (P0-5, P0-13, P0-11; enabling them is P3-5).
+    `OUTCOME_MISRECORDED` is only on `default` (Hansa has `OUTCOME_MISMATCH`). Planted fixtures are still to do.
 - [ ] **P1-13 Batch runner** (§7)
   - `audit_batch` table (migration), in-process worker with a concurrency limit, progress counts, cancel, and
     resume after restart. It only runs batches a user created.
@@ -217,6 +226,12 @@ Rules for every task (CLAUDE.md "v2 rules"):
     (what and when; "who" is always the shared login). *Save as default* from the sliders creates a draft or a
     version, per Open #13.
   - Published versions are immutable. Tests cover the versioning rules.
+  - Step 8, failure conditions only: the dashboard's *Failure conditions* page (`#/conditions`, behind
+    `AUDIT_V2_ENABLED`) lists the library with each scorecard's severity, and adds a condition (label, code, "flags
+    when", "does not count when", severity, metric for Major, scorecards) to the library and to the scorecards'
+    drafts. *Publish* makes a draft the new version and moves its agents; *Discard draft* throws it away. A condition
+    no published version uses can be removed. API: `src/routes/conditions.ts`, `src/db/condition-store.ts`. Still
+    open: editing metrics, weights and existing conditions' severity or on/off, and the change log.
 - [ ] **P1-19 Golden set and agreement gate** (§8 #2, §9 success metrics)
   - Import human scores for 50–100 calls. A command measures per-metric agreement (within one scale point)
     using recorded judge runs.
@@ -336,14 +351,9 @@ so their owners can decide; no task here depends on them.
 ## Open
 
 Ambiguities in the PRD and places where it disagrees with the code. Each needs a decision before the tasks that
-depend on it. Items keep their original numbers so references elsewhere stay valid; resolved ones (#1, #4, #9,
-#10, #12, #20) are in **Decisions** below.
+depend on it. Items keep their original numbers so references elsewhere stay valid; resolved ones (#1, #2, #3, #4,
+#9, #10, #12, #14, #20) are in **Decisions** below.
 
-- **#2 Loop code `"S"`.** §4.5 says the loop code is `"S"` and needs a rename migration. The code uses
-  `AGENT_LOOP` in the rubric, the rule and the schema enum. Check stored `audit_results.failure_codes` for `"S"`. If
-  there are none, drop the migration.
-- **#3 `OUTCOME_MISMATCH` vs `OUTCOME_MISRECORDED`.** Hansa's `OUTCOME_MISMATCH` (kept, Critical) and the PRD's
-  proposed `OUTCOME_MISRECORDED` look like the same check. Merge them into one code, or keep both?
 - **#5 Timestamps.** §3.1 S2, §4.3, §5 (items 4–5), §7 (`ts_start`/`ts_end`) and §8 #4–5 assume timing data.
   Stored transcripts have none and stored recordings are mono (checked 2026-10-22). Whether the provider API has
   timing is still unknown; P0-5 answers it.
@@ -387,8 +397,6 @@ depend on it. Items keep their original numbers so references elsewhere stay val
   older than that version's `updated_at`.
 - **#13 Save as default.** Does it need approval before becoming a version? (Who may use it is decided: anyone
   signed in, see Decisions.)
-- **#14 "New conditions start as Minor for one week."** Is that a manual step, or should the severity switch on its
-  own after a week? A switch on its own changes scores without a user action.
 - **#15 "Unjoined".** §3.1 calls unanswered calls *Unjoined*. That's the providers' `end_reason` for a call that rang
   out and was never picked up. integration-service (`src/controller/voice-call/voice-call.controller.ts`) saves
   those calls with `status = 'no_answer'` and `ended_reason = 'unjoined'`, so "Unjoined" in the PRD means
@@ -434,3 +442,12 @@ depend on it. Items keep their original numbers so references elsewhere stay val
   everything with one weight set stays the §6 toggle, P2-10). A new `audit_results` row per re-score was rejected: it
   would count as another audit, need the metric results copied, and clash with the one-row-per-(call, rubric
   version) key. The v2 score gets its own one-decimal column, `audit_results.score`. P1-9 done; P1-8 notes updated.
+
+### 2026-10-28
+- **#2 Loop code `"S"`.** No stored audit has `"S"` (dev DB checked read-only: 51 v1 rows, codes `AGENT_LOOP`,
+  `IGNORED_STOP_REQUEST`, `NO_AGENT_SPEECH`). The code already uses `AGENT_LOOP`, so there is no rename migration.
+- **#3 `OUTCOME_MISMATCH` vs `OUTCOME_MISRECORDED`.** Keep both codes, split by scorecard: `OUTCOME_MISRECORDED` on
+  `default` (Caller, Project manager), `OUTCOME_MISMATCH` on `hansa`, so no call is flagged twice for one value.
+- **#14 Minor for one week.** Manual. New conditions are Minor in the library and on scorecards; raising one to its
+  PRD severity is a deliberate new scorecard version, never automatic. The PRD target is noted in
+  `src/audit/v2/conditions.ts`.

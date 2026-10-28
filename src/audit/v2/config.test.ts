@@ -3,6 +3,8 @@ import { COMMON_FAILURES, defaultRubric } from "@/audit/rubrics/default";
 import { hansaRubric } from "@/audit/rubrics/hansa";
 import { SCORECARD } from "@/audit/rubrics/types";
 import { ASSIGNMENTS, FAILURE_CONDITIONS, GOAL_CONFIGS, SCORECARDS } from "@/db/migrations/0004-config-seed.data";
+import { DISABLED_UNTIL_DATA, PROPOSED_CONDITIONS, V3_SCORECARDS } from "@/db/migrations/0010-proposed-conditions.data";
+import { CONDITION_LIBRARY } from "./conditions";
 import {
   type GoalConfig,
   type Metric,
@@ -232,3 +234,53 @@ describe("0004 seed", () => {
     });
   }
 });
+
+describe("failure-condition library (PRD §4.5, src/audit/v2/conditions.ts)", () => {
+  const library = (code: string) => CONDITION_LIBRARY.find((c) => c.code === code);
+
+  it("copies v1's conditions word for word; v1 keeps its own", () => {
+    for (const f of [...COMMON_FAILURES, ...hansaRubric.failure_conditions]) {
+      expect({ code: f.code, label: library(f.code)?.label, definition: library(f.code)?.definition }).toEqual(f);
+    }
+  });
+
+  it("is exactly what migrations 0004 and 0010 seed", () => {
+    const seeded = [...FAILURE_CONDITIONS, ...PROPOSED_CONDITIONS].map((c) => ({
+      code: c.code,
+      label: c.label,
+      definition: c.definition,
+      defaultSeverity: c.default_severity,
+      rollsUpTo: c.rolls_up_to,
+      detection: c.detection,
+    }));
+    expect(CONDITION_LIBRARY).toEqual(seeded);
+    expect(new Set(CONDITION_LIBRARY.map((c) => c.code)).size).toBe(CONDITION_LIBRARY.length);
+  });
+
+  it("seeded severities: the PRD defaults for the existing ones, Minor for every new one", () => {
+    const major = ["AGENT_LOOP"];
+    for (const c of FAILURE_CONDITIONS) expect([c.code, library(c.code)?.defaultSeverity]).toEqual([c.code, major.includes(c.code) ? "major" : "critical"]);
+    for (const c of PROPOSED_CONDITIONS) expect([c.code, library(c.code)?.defaultSeverity]).toEqual([c.code, "minor"]);
+    expect(PROPOSED_CONDITIONS.map((c) => c.code)).not.toContain("NO_AGENT_SPEECH");
+  });
+
+  it("every new definition says what does not count", () => {
+    for (const c of PROPOSED_CONDITIONS) expect(c.definition).toContain("NOT count");
+  });
+
+  it("v3 scorecards: v2 plus the new conditions as Minor; three disabled until their data exists; Hansa keeps OUTCOME_MISMATCH only", () => {
+    expect(DISABLED_UNTIL_DATA).toEqual(["UNRESPONSIVE_AGENT", "FALSE_ACTION_CLAIM", "SKIPPED_REQUIRED_STEP"]);
+    for (const s of V3_SCORECARDS) {
+      expect([s.from, s.version]).toEqual([2, 3]);
+      for (const c of s.conditions) {
+        expect(c).toMatchObject({ severity: "minor", enabled: !DISABLED_UNTIL_DATA.includes(c.condition_code) });
+        if (c.metric_key) expect(DEFAULT_V2_KEYS).toContain(c.metric_key);
+      }
+    }
+    const codes = (id: string) => V3_SCORECARDS.find((s) => s.scorecard_id === id)!.conditions.map((c) => c.condition_code);
+    expect(codes("default")).toEqual(PROPOSED_CONDITIONS.map((c) => c.code));
+    expect(codes("hansa")).toEqual(PROPOSED_CONDITIONS.map((c) => c.code).filter((c) => c !== "OUTCOME_MISRECORDED"));
+  });
+});
+
+const DEFAULT_V2_KEYS = SCORECARDS.find((s) => s.scorecard_id === "default" && s.version === 2)!.metrics.map((m) => m.key);

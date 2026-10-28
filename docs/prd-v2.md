@@ -195,7 +195,7 @@ Every definition states what does *not* count, as the existing loop definition d
 | `IGNORED_STOP_REQUEST` | Ignored a request to stop or for a human | Caller asked to end the call, not be called again, or speak to a human, and the agent kept going | Critical | S2 Conversation handled |
 | `UNAUTHORIZED_PROMISE` | Made a promise it cannot make | Promised discounts, guarantees, selection or outcomes beyond its authority | Critical | Query handling |
 | `UNPROFESSIONAL_CONDUCT` | Rude or unprofessional | Rude, dismissive, argumentative or inappropriate language | Critical | Communication & tone |
-| `AGENT_LOOP` (code is `"S"` in the current file) | Stuck in a loop | Same question or statement 3+ times after a clear answer, without progress; not a loop when re-asking after a missing or unclear reply | Major | S2 Conversation handled; Repetition |
+| `AGENT_LOOP` | Stuck in a loop | Same question or statement 3+ times after a clear answer, without progress; not a loop when re-asking after a missing or unclear reply | Major | S2 Conversation handled; Repetition |
 | `CALL_ERROR` (rule) | Call ended on a technical error | The call ended with `connection_error` or `system_error` | Critical | S2 Conversation handled |
 | `NO_AGENT_SPEECH` (rule) | Agent never spoke | Call connected but no agent turn in the transcript | Critical | S1 Connected |
 | `DISCRIMINATORY_QUESTION` (Hansa) | Asked a discriminatory question | Asked about age, religion, caste, marital status, pregnancy or family planning, or disability, unless the instructions require it for the role | Critical | Communication & tone; compliance |
@@ -203,7 +203,7 @@ Every definition states what does *not* count, as the existing loop definition d
 
 These are the seeded severities for the first scorecard template.
 
-The loop condition's code is currently `"S"`, which looks like a truncated value. Renaming it to `AGENT_LOOP` (with a migration for stored audits) keeps filters and exports readable.
+The loop condition's code is `AGENT_LOOP`. No stored audit uses the old `"S"` code (checked 2026-10-28), so no rename migration is needed.
 
 **Proposed additions**
 

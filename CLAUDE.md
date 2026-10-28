@@ -74,7 +74,8 @@ Other pieces:
   SELECT only, never phone numbers/tokens/join URLs); `bus.ts`/`call-source.service.ts`/`prompt.service.ts` are
   bus RPCs to integration-service and ai-service; `recording.service.ts` presigns S3 recordings (`audio/wav`).
 - `src/routes/` (Hono, under `/v1/audit`, one shared bearer token in `middleware/auth.ts`): `calls.ts` lists calls
-  live from the source table joined with the latest audit; `audits.ts` serves/creates audits.
+  live from the source table joined with the latest audit; `audits.ts` serves/creates audits. v2-only, 404 while
+  `AUDIT_V2_ENABLED` is off: `rescore.ts` and `conditions.ts` (failure-condition screen, `db/condition-store.ts`).
 - `src/services/ai.db.ts` / `vajra.db.ts`: optional read-only pools (`AI_DB_*`, `VAJRA_DB_*`, SELECT-only via
   `readonly-db.ts`). The v2 readers in `src/services/v2/` (agent instructions, Caller flow, knowledge base) never
   throw: a missing login or row is `null` + reason. Test them with `fake-db.ts` + `fixtures/readers/`, never a live DB.

@@ -82,6 +82,8 @@ Sign in to the dashboard with the value of `AUDIT_API_TOKEN`.
 
 v2 (`docs/prd-v2.md`) is off until `AUDIT_V2_ENABLED=true`. While it is off, every existing route returns
 exactly what it did before v2. The dashboard reads the flag from `GET /v1/audit/config` (`{ "data": { "v2_enabled": false } }`).
+With the flag on, the dashboard's *Failure conditions* page lists the v2 condition library and adds new conditions
+(label, definition, what does not count, severity) to scorecard drafts; they apply once the draft is published.
 
 ## Changes needed in the other services
 
