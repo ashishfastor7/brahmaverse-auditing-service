@@ -32,8 +32,8 @@ describe.skipIf(!dbTestsEnabled)("failure-condition screen (condition-store, /co
       const { conditions, scorecards } = await listConditions(sequelize);
       expect(conditions).toHaveLength(20);
       expect(scorecards.map((s) => [s.scorecard_id, s.published, s.draft, s.agents, s.metrics.length, s.pending])).toEqual([
-        ["default", 3, null, ["caller", "project-manager"], 10, []],
-        ["hansa", 3, null, ["hrms"], 10, []],
+        ["default", 4, null, ["caller", "project-manager"], 10, []],
+        ["hansa", 4, null, ["hrms"], 10, []],
       ]);
     }));
 
@@ -53,11 +53,11 @@ describe.skipIf(!dbTestsEnabled)("failure-condition screen (condition-store, /co
       const pending = { condition_code: "ASKED_FOR_THE_OTP", enabled: true, severity: "critical" as const, metric_key: null };
       const listed = await listConditions(sequelize);
       expect(listed.scorecards.map((s) => [s.scorecard_id, s.draft, s.pending])).toEqual([
-        ["default", 4, [pending]],
-        ["hansa", 4, [pending]],
+        ["default", 5, [pending]],
+        ["hansa", 5, [pending]],
       ]);
-      // Not live yet: the agents are still on v3.
-      expect((await loadActiveConfig(sequelize, "caller", null)).scorecard?.version).toBe(3);
+      // Not live yet: the agents are still on v4.
+      expect((await loadActiveConfig(sequelize, "caller", null)).scorecard?.version).toBe(4);
 
       // A second one joins the same draft; a Major one zeroes the metric it names.
       await addCondition(
@@ -73,14 +73,14 @@ describe.skipIf(!dbTestsEnabled)("failure-condition screen (condition-store, /co
       ]);
 
       const published = await publishDraft(sequelize, "default", "admin");
-      expect(published.version).toBe(4);
+      expect(published.version).toBe(5);
       const caller = (await loadActiveConfig(sequelize, "caller", null)).scorecard!;
-      expect(caller.version).toBe(4);
+      expect(caller.version).toBe(5);
       expect(caller.conditions.map((c) => c.condition_code)).toContain("READ_OUT_A_CARD_NUMBER");
-      expect((await loadActiveConfig(sequelize, "hrms", null)).scorecard?.version).toBe(3);
+      expect((await loadActiveConfig(sequelize, "hrms", null)).scorecard?.version).toBe(4);
 
       // Published: it can't be removed. Hansa's draft can still be thrown away.
-      expect(await failure(deleteCondition(sequelize, "ASKED_FOR_THE_OTP"))).toContain("used by published default v4");
+      expect(await failure(deleteCondition(sequelize, "ASKED_FOR_THE_OTP"))).toContain("used by published default v5");
       await discardDraft(sequelize, "hansa");
       expect((await listConditions(sequelize)).scorecards[1]).toMatchObject({ draft: null, pending: [] });
       expect(await failure(discardDraft(sequelize, "hansa"))).toContain("has no draft to discard");
@@ -119,7 +119,7 @@ describe.skipIf(!dbTestsEnabled)("failure-condition screen (condition-store, /co
       await createMigrator(sequelize, { quiet: true }).up();
       await createScorecardDraft(sequelize, "default", "admin");
       await sequelize.query(
-        "UPDATE scorecard_condition SET severity = 'major' WHERE scorecard_id = 'default' AND scorecard_version = 4 AND condition_code = 'WRONG_LANGUAGE'",
+        "UPDATE scorecard_condition SET severity = 'major' WHERE scorecard_id = 'default' AND scorecard_version = 5 AND condition_code = 'WRONG_LANGUAGE'",
       );
       expect((await listConditions(sequelize)).scorecards[0]!.pending).toEqual([
         { condition_code: "WRONG_LANGUAGE", enabled: true, severity: "major", metric_key: "language_match" },
@@ -130,7 +130,7 @@ describe.skipIf(!dbTestsEnabled)("failure-condition screen (condition-store, /co
     withTestDb(async (sequelize) => {
       await createMigrator(sequelize, { quiet: true }).up();
       await createScorecardDraft(sequelize, "default", "admin");
-      await sequelize.query("DELETE FROM metric WHERE scorecard_id = 'default' AND scorecard_version = 4 AND key = 'repetition'");
+      await sequelize.query("DELETE FROM metric WHERE scorecard_id = 'default' AND scorecard_version = 5 AND key = 'repetition'");
       expect(await failure(addCondition(sequelize, OTP, "admin"))).toContain("scorecard default has fewer than 10 metrics");
     }));
 
@@ -166,7 +166,7 @@ describe.skipIf(!dbTestsEnabled)("failure-condition screen (condition-store, /co
       expect((await send("POST", "/conditions", { ...OTP, label: "" })).status).toBe(400);
       expect((await send("POST", "/conditions", { ...OTP, code: "NEW_ONE", scorecards: ["nope"] })).status).toBe(404);
       const published = await send("POST", "/scorecards/default/publish");
-      expect([published.status, published.body.data.version]).toEqual([200, 4]);
+      expect([published.status, published.body.data.version]).toEqual([200, 5]);
       expect((await send("POST", "/scorecards/default/publish")).status).toBe(404);
       expect((await send("DELETE", "/conditions/ASKED_FOR_THE_OTP")).status).toBe(409);
       expect((await send("DELETE", "/scorecards/hansa/draft")).status).toBe(200);

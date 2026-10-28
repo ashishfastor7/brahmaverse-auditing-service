@@ -141,3 +141,29 @@ export function cutDocuments(queries: RecordedQuery[], maxChars: number): Record
       : q,
   );
 }
+
+// pg returns Date objects, which `anonymise` would walk as plain objects and empty
+const iso = (d: unknown) => (d ? new Date(d as string).toISOString() : null);
+
+/**
+ * A real call as `bun run record:transcripts` saves it to `fixtures/transcripts/`: only what the v2 checks read
+ * (no variables, phone numbers, recording or metadata), with times as ISO strings, anonymised. Pure.
+ */
+export function transcriptFixture(source: any, extraRedactions: string[] = []) {
+  const data = parseJson<any>(source.data, null);
+  const row = {
+    id: Number(source.id),
+    agent_id: source.agent_id,
+    status: source.status,
+    call_type: source.call_type,
+    voice_provider: source.voice_provider,
+    duration: source.duration,
+    ended_reason: source.ended_reason,
+    picked_at: iso(source.picked_at),
+    ends_at: iso(source.ends_at),
+    transcriptions: parseJson<unknown[]>(source.transcriptions, []),
+    outcome: parseJson<unknown>(source.outcome, null),
+    data: data && { agent_code: data.agent_code ?? null, config: { prompt_code: data.config?.prompt_code ?? null }, tools: data.tools ?? null },
+  };
+  return anonymise(row, redactionsFor(source, extraRedactions));
+}

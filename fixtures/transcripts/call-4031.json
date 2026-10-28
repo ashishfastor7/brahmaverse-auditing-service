@@ -1,0 +1,41 @@
+{
+  "_note": "Real call recorded by `bun run record:transcripts` and anonymised. Re-record rather than edit by hand.",
+  "recorded_at": "2026-10-28T09:10:29.763Z",
+  "id": 4031,
+  "agent_id": 4,
+  "status": "completed",
+  "call_type": "outbound",
+  "voice_provider": null,
+  "duration": 22,
+  "ended_reason": "system_error",
+  "picked_at": "2026-09-14T03:56:14.000Z",
+  "ends_at": "2026-09-14T03:56:36.000Z",
+  "transcriptions": [
+    {
+      "speaker": "user",
+      "text": "Hello"
+    },
+    {
+      "speaker": "user",
+      "text": "Hello"
+    },
+    {
+      "speaker": "user",
+      "text": "हाँ चलो अब आ के है दीदी क्या? अरे नहीं नहीं कॉल आया उसका ही।"
+    },
+    {
+      "speaker": "user",
+      "text": "ਅੱਛਾ ਅੱਛਾ।"
+    },
+    {
+      "speaker": "user",
+      "text": "Hello Hello"
+    },
+    {
+      "speaker": "agent",
+      "text": "Goodbye!"
+    }
+  ],
+  "outcome": null,
+  "data": null
+}

@@ -1,0 +1,97 @@
+{
+  "_note": "Real call recorded by `bun run record:transcripts` and anonymised. Re-record rather than edit by hand.",
+  "recorded_at": "2026-10-28T09:10:29.795Z",
+  "id": 3978,
+  "agent_id": 4,
+  "status": "completed",
+  "call_type": "outbound",
+  "voice_provider": null,
+  "duration": 109,
+  "ended_reason": "timeout",
+  "picked_at": "2026-09-13T10:40:10.000Z",
+  "ends_at": "2026-09-13T10:41:59.000Z",
+  "transcriptions": [
+    {
+      "speaker": "user",
+      "text": "Hello"
+    },
+    {
+      "speaker": "agent",
+      "text": "Hello <REDACTED>, this is Anjali. I have two minutes for an update on your three open tasks. How is the <REDACTED> User Manual progressing?"
+    },
+    {
+      "speaker": "user",
+      "text": "Actually"
+    },
+    {
+      "speaker": "user",
+      "text": "It's"
+    },
+    {
+      "speaker": "user",
+      "text": "I guess 20% done"
+    },
+    {
+      "speaker": "user",
+      "text": "But I am dependent on <REDACTED>"
+    },
+    {
+      "speaker": "agent",
+      "text": "What do you need from <REDACTED> to continue?"
+    },
+    {
+      "speaker": "user",
+      "text": "ಹಾಂ."
+    },
+    {
+      "speaker": "user",
+      "text": "He will give me a go ahead by reviewing"
+    },
+    {
+      "speaker": "user",
+      "text": "Uh, the manual I have prepared."
+    },
+    {
+      "speaker": "agent",
+      "text": "Let me find <REDACTED>."
+    },
+    {
+      "speaker": "agent",
+      "text": "Which <REDACTED> do you mean, <REDACTED>, <REDACTED> One, or <REDACTED> Two?"
+    },
+    {
+      "speaker": "user",
+      "text": "<REDACTED>"
+    },
+    {
+      "speaker": "agent",
+      "text": "Let me note that down."
+    },
+    {
+      "speaker": "agent",
+      "text": "Are you still there? I'm here whenever you're ready."
+    },
+    {
+      "speaker": "user",
+      "text": "Yes, I am here."
+    },
+    {
+      "speaker": "agent",
+      "text": "Is it <REDACTED>, without a surname?"
+    },
+    {
+      "speaker": "user",
+      "text": "Yes, it's <REDACTED> without a surname."
+    },
+    {
+      "speaker": "agent",
+      "text": "Let me record <REDACTED> as the blocker."
+    },
+    {
+      "speaker": "agent",
+      "text": "I'm still not hearing anything, so I'll end the call here. Feel free to reach out again anytime — have a great day!"
+    }
+  ],
+  "outcome": null,
+  "data": null
+}

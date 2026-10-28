@@ -1,0 +1,97 @@
+{
+  "_note": "Real call recorded by `bun run record:transcripts` and anonymised. Re-record rather than edit by hand.",
+  "recorded_at": "2026-10-28T09:10:29.577Z",
+  "id": 2587,
+  "agent_id": 1,
+  "status": "completed",
+  "call_type": "outbound",
+  "voice_provider": null,
+  "duration": 121,
+  "ended_reason": "agent_hangup",
+  "picked_at": null,
+  "ends_at": "2026-07-18T10:33:21.415Z",
+  "transcriptions": [
+    {
+      "speaker": "user",
+      "text": "(New Call) Respond as if you are answering the phone."
+    },
+    {
+      "speaker": "user",
+      "text": " Hello."
+    },
+    {
+      "speaker": "agent",
+      "text": "Hi <NAME>, this is Anjali from <REDACTED>. I'm calling to confirm your availability for the Associate Product Manager2 interview — this is just a quick scheduling call, not the interview itself."
+    },
+    {
+      "speaker": "user",
+      "text": " Okay."
+    },
+    {
+      "speaker": "agent",
+      "text": "Before we schedule a time, I just want to check what slots are available. Let me check what's available."
+    },
+    {
+      "speaker": "agent",
+      "text": "Hello, are you still there?"
+    },
+    {
+      "speaker": "user",
+      "text": " Yes, I'm dead."
+    },
+    {
+      "speaker": "agent",
+      "text": "We have a slot available on the 20th of July at 2 o'clock. Would that work for you?"
+    },
+    {
+      "speaker": "agent",
+      "text": "Hello, are you still there?"
+    },
+    {
+      "speaker": "user",
+      "text": " Yes."
+    },
+    {
+      "speaker": "agent",
+      "text": "Your"
+    },
+    {
+      "speaker": "user",
+      "text": " Um,"
+    },
+    {
+      "speaker": "user",
+      "text": " Do you have any slot on D18 today?"
+    },
+    {
+      "speaker": "agent",
+      "text": "We have a slot available today at 8 o'clock. Would you like to switch to that time instead?"
+    },
+    {
+      "speaker": "user",
+      "text": " Sure."
+    },
+    {
+      "speaker": "agent",
+      "text": "There was a scheduling issue with that time. Let me offer you another option. We have a slot available on the 21st of July at 10 o'clock. Would that work for you?"
+    },
+    {
+      "speaker": "user",
+      "text": " Sure."
+    },
+    {
+      "speaker": "agent",
+      "text": "There was a scheduling issue with that time. Let me offer you another option. We have a slot available on the 22nd of July at 11 o'clock. Would that work for you?"
+    },
+    {
+      "speaker": "user",
+      "text": " Do you have any slots at 18th from 4 o'clock to 4.15, 4.20?"
+    },
+    {
+      "speaker": "agent",
+      "text": "Our team will follow up directly to finalize a time. Thanks so much for your time, <NAME>. Have a great day. "
+    }
+  ],
+  "outcome": null,
+  "data": null
+}

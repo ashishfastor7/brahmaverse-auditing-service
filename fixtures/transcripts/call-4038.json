@@ -1,0 +1,85 @@
+{
+  "_note": "Real call recorded by `bun run record:transcripts` and anonymised. Re-record rather than edit by hand.",
+  "recorded_at": "2026-10-28T09:10:29.827Z",
+  "id": 4038,
+  "agent_id": 4,
+  "status": "completed",
+  "call_type": "outbound",
+  "voice_provider": null,
+  "duration": 85,
+  "ended_reason": "caller_hangup",
+  "picked_at": "2026-09-14T04:39:28.000Z",
+  "ends_at": "2026-09-14T04:40:53.000Z",
+  "transcriptions": [
+    {
+      "speaker": "user",
+      "text": "Hello"
+    },
+    {
+      "speaker": "agent",
+      "text": "Hello, this is Anjali. I have two minutes to check one open task with you. Where does checking the due date stand?"
+    },
+    {
+      "speaker": "user",
+      "text": "अच्छा।"
+    },
+    {
+      "speaker": "user",
+      "text": "Actually, I completed it."
+    },
+    {
+      "speaker": "user",
+      "text": "30% as I mentioned earlier but I am blocked by <REDACTED> test"
+    },
+    {
+      "speaker": "user",
+      "text": "Uh, as he'll be providing me"
+    },
+    {
+      "speaker": "user",
+      "text": "some documents to carry on with my task"
+    },
+    {
+      "speaker": "agent",
+      "text": "What do you need from <REDACTED> to continue?"
+    },
+    {
+      "speaker": "user",
+      "text": "Uh, some documents."
+    },
+    {
+      "speaker": "agent",
+      "text": "Let me note that blocker."
+    },
+    {
+      "speaker": "agent",
+      "text": "Let me save the task update."
+    },
+    {
+      "speaker": "user",
+      "text": "Okay"
+    },
+    {
+      "speaker": "agent",
+      "text": "I need one detail to save this accurately. Roughly what percent is complete now?"
+    },
+    {
+      "speaker": "user",
+      "text": "Thirty"
+    },
+    {
+      "speaker": "agent",
+      "text": "Thank you for specifying that you are 30 percent complete and waiting for documents. Goodbye."
+    },
+    {
+      "speaker": "user",
+      "text": "Okay"
+    },
+    {
+      "speaker": "user",
+      "text": "ਤੇ ਪੀੜ ਵਾਲਾ ਵੀ ਸਹੀ ਹੋਣਾ ਚਾਹੀਦਾ।"
+    }
+  ],
+  "outcome": null,
+  "data": null
+}
