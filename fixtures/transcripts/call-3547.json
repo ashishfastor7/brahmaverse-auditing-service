@@ -1,0 +1,227 @@
+{
+  "_note": "Real call recorded by `bun run record:transcripts` and anonymised. Re-record rather than edit by hand.",
+  "recorded_at": "2026-10-28T09:10:29.730Z",
+  "id": 3547,
+  "agent_id": 9,
+  "status": "completed",
+  "call_type": "outbound",
+  "voice_provider": null,
+  "duration": 286,
+  "ended_reason": "agent_hangup",
+  "picked_at": "2026-09-06T14:05:18.000Z",
+  "ends_at": "2026-09-06T14:10:03.000Z",
+  "transcriptions": [
+    {
+      "speaker": "user",
+      "text": "(New Call) Respond as if you are answering the phone."
+    },
+    {
+      "speaker": "agent",
+      "text": "\nHello, this is Anjani from <REDACTED>. I'm calling to help you with your CRM needs"
+    },
+    {
+      "speaker": "user",
+      "text": " Okay."
+    },
+    {
+      "speaker": "agent",
+      "text": "\nHello <NAME>, this is Anjali from <REDACTED>. I'm calling to help you with your CRM needs and understand how we might be able to support your business. Could you tell me a bit about what you're looking for in a CRM"
+    },
+    {
+      "speaker": "user",
+      "text": " Currently I am starting a website development business but I am unable to reach out to new clients. Can you help me with that?"
+    },
+    {
+      "speaker": "agent",
+      "text": "\nI understand you're starting a website development business and looking for help reaching new clients. <REDACTED> can definitely help with lead management and client outreach.\n\nTo better understand your needs, could you tell me what's the name of your company?"
+    },
+    {
+      "speaker": "user",
+      "text": " Test privately entered."
+    },
+    {
+      "speaker": "agent",
+      "text": "\nTest Private Limited - got it. How many people are currently on your sales or customer-facing team?"
+    },
+    {
+      "speaker": "user",
+      "text": " 59"
+    },
+    {
+      "speaker": "agent",
+      "text": "\n59 team members - that's quite a substantial team. Are you currently using any CRM or sales automation platform?"
+    },
+    {
+      "speaker": "user",
+      "text": " No."
+    },
+    {
+      "speaker": "agent",
+      "text": "\nNo current CRM - that's a great opportunity to implement one from the ground up. What email address should we use for follow-up?"
+    },
+    {
+      "speaker": "user",
+      "text": " <REDACTED>"
+    },
+    {
+      "speaker": "agent",
+      "text": "\n<email><REDACTED>. <EMAIL></ email> - I've got that. What date would you prefer for a product demo?"
+    },
+    {
+      "speaker": "user",
+      "text": " Any repeatment made again?"
+    },
+    {
+      "speaker": "agent",
+      "text": "\nI'd be happy to recommend a good time. How about this coming Friday, 12th September 2026? Would that work for you?"
+    },
+    {
+      "speaker": "user",
+      "text": " Yes."
+    },
+    {
+      "speaker": "agent",
+      "text": "\nGreat! What time would you prefer for the demo on Friday, 12th September"
+    },
+    {
+      "speaker": "user",
+      "text": " Still feeling it."
+    },
+    {
+      "speaker": "agent",
+      "text": "\nPerfect, 2:00 PM it is. What is your approximate monthly budget for CRM or sales automation?"
+    },
+    {
+      "speaker": "user",
+      "text": " 10,000."
+    },
+    {
+      "speaker": "agent",
+      "text": "\n10,000 per month - noted. What is your primary reason for looking for a CRM solution? Is it for Lead Management, Customer Support, Marketing Automation, Reporting"
+    },
+    {
+      "speaker": "user",
+      "text": " Lead manager."
+    },
+    {
+      "speaker": "agent",
+      "text": "\nLead Management - perfect. Which areas would you like to improve with a CRM solution? For example, Lead Tracking, Follow-up Automation, Customer Communication, or Sales Pipeline Management?"
+    },
+    {
+      "speaker": "user",
+      "text": " self pipeline management and automation."
+    },
+    {
+      "speaker": "agent",
+      "text": "\nSales Pipeline Management and Automation - got it. Thanks, <NAME>. I've noted that you're evaluating <REDACTED> for Test Private Limited. Your team has 59 sales members, and your primary use case is Lead Management. Your preferred demo date is 12th September 2026 at 2:00 PM. We'll use <REDACTED><EMAIL> for follow-up. I'll help you with the next step.\n\nWhat is your job title or role in the company?"
+    },
+    {
+      "speaker": "user",
+      "text": " QA automation"
+    },
+    {
+      "speaker": "agent",
+      "text": "\nQA Automation - understood. How many active customers does your business currently serve?"
+    },
+    {
+      "speaker": "user",
+      "text": " 300"
+    },
+    {
+      "speaker": "agent",
+      "text": "\n300 active customers - got it. Would you like to receive product updates from us?"
+    },
+    {
+      "speaker": "user",
+      "text": " Yes."
+    },
+    {
+      "speaker": "agent",
+      "text": "\nGreat! I have your work email as <REDACTED><EMAIL> - should I use that for our communications?"
+    },
+    {
+      "speaker": "user",
+      "text": " Yes."
+    },
+    {
+      "speaker": "agent",
+      "text": "\nPerfect. What date would you like us to follow up with you?"
+    },
+    {
+      "speaker": "user",
+      "text": " 7th September of 2026"
+    },
+    {
+      "speaker": "agent",
+      "text": "\n7th September 2026 - got it. What time of day is most convenient for a follow-up?"
+    },
+    {
+      "speaker": "user",
+      "text": " Uh, sleepy, um,"
+    },
+    {
+      "speaker": "agent",
+      "text": "\n3:00 PM - noted. What is the approximate amount you currently spend each month on your sales and customer-management tools?"
+    },
+    {
+      "speaker": "user",
+      "text": " 9,000"
+    },
+    {
+      "speaker": "agent",
+      "text": "\n9,000 per month - understood. Which industry best describes your business? Is it Technology, Healthcare, Finance, or Education?"
+    },
+    {
+      "speaker": "user",
+      "text": " Gracias."
+    },
+    {
+      "speaker": "agent",
+      "text": "\nTechnology - got it. Which communication channels does your team currently use to communicate with customers? For example, Phone, WhatsApp, Email, or SMS?"
+    },
+    {
+      "speaker": "user",
+      "text": " One email."
+    },
+    {
+      "speaker": "agent",
+      "text": "\nPhone and Email - understood. Thanks, <NAME> thank you for contacting with us, have a wonderful day\n"
+    },
+    {
+      "speaker": "agent",
+      "text": "\n"
+    }
+  ],
+  "outcome": {
+    "finishConversation": {
+      "status": "completed",
+      "data": {
+        "company_name": "Test Private Limited",
+        "sales_team_size": 59,
+        "uses_existing_crm": false,
+        "followup_email": "<REDACTED><EMAIL>",
+        "demo_preferred_date": "12th September 2026",
+        "demo_preferred_time": "2:00 PM",
+        "monthly_crm_budget": 10000,
+        "primary_use_case": "Lead Management",
+        "improvement_areas": [
+          "Sales Pipeline Management",
+          "Automation"
+        ],
+        "job_title": "QA Automation",
+        "active_customer_count": 300,
+        "receive_product_updates": true,
+        "work_email": "<REDACTED><EMAIL>",
+        "followup_date": "7th September 2026",
+        "followup_time": "3:00 PM",
+        "current_tool_spend": 9000,
+        "business_industry": "Technology",
+        "customer_channels": [
+          "Phone",
+          "Email"
+        ]
+      }
+    }
+  },
+  "data": null
+}

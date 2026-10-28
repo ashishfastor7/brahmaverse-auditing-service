@@ -233,6 +233,9 @@ export const CONDITION_LIBRARY: LibraryCondition[] = [
   },
 ];
 
+/** The `ended_reason` values `CALL_ERROR` flags, as its definition says (v1: `fail_on_ended_reasons`). */
+export const CALL_ERROR_ENDED_REASONS = ["connection_error", "system_error"];
+
 /** A condition code from its label, e.g. "Asked for the OTP" → `ASKED_FOR_THE_OTP`. */
 export const codeFromLabel = (label: string) =>
   label

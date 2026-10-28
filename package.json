@@ -10,6 +10,7 @@
     "eval:planted": "bun src/scripts/eval-planted.ts",
     "record:fixture": "bun src/scripts/record-judge-fixture.ts",
     "record:readers": "bun src/scripts/record-reader-fixture.ts",
+    "record:transcripts": "bun src/scripts/record-transcripts.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test src",
     "test:db": "AUDIT_TEST_DB=true bun test .db.test"

@@ -1,0 +1,193 @@
+{
+  "_note": "Real call recorded by `bun run record:transcripts` and anonymised. Re-record rather than edit by hand.",
+  "recorded_at": "2026-10-28T09:18:33.423Z",
+  "id": 4570,
+  "agent_id": 9,
+  "status": "completed",
+  "call_type": "outbound",
+  "voice_provider": "brahmaverse",
+  "duration": 103,
+  "ended_reason": "hangup",
+  "picked_at": "2026-10-12T12:10:14.000Z",
+  "ends_at": "2026-10-12T12:11:57.000Z",
+  "transcriptions": [
+    {
+      "speaker": "agent",
+      "text": "Hi, am I talking to <NAME>?"
+    },
+    {
+      "speaker": "user",
+      "text": "Yes"
+    },
+    {
+      "speaker": "agent",
+      "text": "Great. Hi <NAME>, this is Rohan calling from <CAMPAIGN_NAME>. I noticed you'd recently looked into AI for growing your business, so I wanted to check - is now an okay time for a quick chat?"
+    },
+    {
+      "speaker": "user",
+      "text": "Yes, we can have a chat now."
+    },
+    {
+      "speaker": "agent",
+      "text": "Are you already using any AI in your business, or is it still early days?"
+    },
+    {
+      "speaker": "user",
+      "text": "I'm already in the AI."
+    },
+    {
+      "speaker": "agent",
+      "text": "That's great that you're ahead of most. We help tie it straight to revenue. We basically run your sales and marketing on autopilot with a CRM that follows with your lead. What does your business do, and who are your customers?"
+    },
+    {
+      "speaker": "user",
+      "text": "I"
+    },
+    {
+      "speaker": "agent",
+      "text": "Sorry, I didn't catch that. What does your business do, and who are your customers?"
+    },
+    {
+      "speaker": "user",
+      "text": "We are looking at manufacturing and mostly our staff mostly"
+    },
+    {
+      "speaker": "agent",
+      "text": "Got it, thanks. How do you currently handle new leads and follow-ups?"
+    },
+    {
+      "speaker": "user",
+      "text": "I"
+    },
+    {
+      "speaker": "user",
+      "text": "Manually"
+    },
+    {
+      "speaker": "agent",
+      "text": "Sorry, I didn't catch that. How do you currently handle new leads and follow-ups?"
+    },
+    {
+      "speaker": "user",
+      "text": "Manually."
+    },
+    {
+      "speaker": "agent",
+      "text": "Since you're handling things manually right now, switching to an automated system would save you a lot of time and help you convert more leads. Anything else you'd like to know?"
+    },
+    {
+      "speaker": "user",
+      "text": "Like what your company actually does, can you please let me know that."
+    },
+    {
+      "speaker": "agent",
+      "text": "We're an AI Growth Engine that combines software with managed services to help businesses attract, capture, nurture, and convert leads. We bring together tools like CRM, automated follow-ups, SEO, and advertising into one platform. What else is on your mind?"
+    }
+  ],
+  "outcome": null,
+  "data": {
+    "agent_code": "caller",
+    "config": {
+      "prompt_code": "caller_base_prompt"
+    },
+    "tools": {
+      "items": [
+        {
+          "name": "evaluateExpression",
+          "context": {}
+        },
+        {
+          "name": "finishConversation",
+          "context": {},
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "completed",
+                  "failed"
+                ]
+              },
+              "data": {
+                "type": "object",
+                "properties": {
+                  "name_confirmed": {
+                    "type": "boolean"
+                  },
+                  "quick_chat": {
+                    "type": "string"
+                  },
+                  "is_AI_used": {
+                    "type": "string",
+                    "description": "Are you already using any AI in your business, or is it still early days?"
+                  },
+                  "callback_preferred_datetime": {
+                    "type": "string",
+                    "description": "No problem, when would be a better time to catch you?"
+                  },
+                  "business_type": {
+                    "type": "string",
+                    "description": "What does the prospect's business do, and who are their customers?"
+                  },
+                  "lead_handling": {
+                    "type": "string",
+                    "description": "How does the prospect currently handle new leads and follow-ups?"
+                  },
+                  "twenty_min_demo": {
+                    "type": "string"
+                  },
+                  "questions": {
+                    "type": "string"
+                  },
+                  "is_contact_whatsapp_no": {
+                    "type": "string",
+                    "description": "Great, is this number you're calling from also your WhatsApp?"
+                  },
+                  "whatsapp_no": {
+                    "type": "number",
+                    "description": "Can you please say your whatsapp number?"
+                  },
+                  "country_code": {
+                    "type": "number",
+                    "description": "Can you please say your country code?"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "status"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "search_knowledgebase",
+          "context": {
+            "document_ids": [
+              1070
+            ]
+          }
+        }
+      ],
+      "context": {
+        "conversation_id": 2105,
+        "contact_id": 2500,
+        "workflow_id": 326,
+        "workflow_execution_id": 711,
+        "conversation_node_id": "start-conv-1",
+        "campaign_id": 135,
+        "campaign_name": "<CAMPAIGN_NAME>",
+        "document_group": "caller",
+        "document_ids": [
+          1070
+        ]
+      }
+    }
+  }
+}

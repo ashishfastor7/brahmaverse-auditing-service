@@ -20,6 +20,7 @@ bun test src/audit/audit.test.ts -t "ruleFailures"   # single file / test name f
 bun run eval:planted            # REAL judge on fixtures/planted (needs only OPENAI_API_KEY); exits 1 on any miss; output in eval-output/
 bun run replay --db --call-id 3507 [--force]         # audit past calls from voice_call_logs (also --agent-id, --from/--to, --limit, --file, --rpc)
 bun run record:readers --call-id 4570 [--redact "Acme"]  # real rows for the v2 readers into fixtures/readers/recorded/ (needs AI_DB_*, VAJRA_DB_*); review before committing
+bun run record:transcripts --call-id 4572 [--call-id …] [--redact "Acme"]  # anonymised calls into fixtures/transcripts/ for the signal tests; read every file before committing
 ```
 
 Lint: no linter or lint script; the checks are `bun run typecheck` and `npm run build` in `dashboard/` (both tsc).

@@ -12,6 +12,7 @@ import {
   recordingDb,
   redactionsFor,
   replayDb,
+  transcriptFixture,
   type RecordedFixture,
   type RecordedQuery,
 } from "./recorded-fixture";
@@ -186,5 +187,42 @@ describe("cutDocuments", () => {
       },
       queries[1],
     ]);
+  });
+});
+
+describe("transcriptFixture (record:transcripts)", () => {
+  const source = {
+    id: "4572",
+    business_id: 657,
+    agent_id: 9,
+    status: "completed",
+    call_type: "outbound",
+    voice_provider: "brahmaverse",
+    duration: 120,
+    ended_reason: "agent_hangup",
+    phone_number: "+919812345678",
+    recording_url: "https://bucket/x.wav",
+    meta_data: { name: "Asha Rao" },
+    picked_at: new Date("2026-10-12T12:10:14Z"),
+    ends_at: null,
+    transcriptions: JSON.stringify([{ speaker: "agent", text: "Hi Asha, this is Rohan from Acme. Is 9812345678 your number?" }]),
+    outcome: { whatsapp_no: 9812345678, email: "asha@example.com" },
+    data: { agent_code: "caller", config: { prompt_code: "p", variables: { name: "Asha Rao", prompt: "long" } }, tools: { items: [] } },
+  };
+
+  it("keeps only what the checks read, with times as ISO strings (pg Dates would be emptied)", () => {
+    const f = transcriptFixture(source);
+    expect(Object.keys(f)).toEqual([
+      "id", "agent_id", "status", "call_type", "voice_provider", "duration", "ended_reason", "picked_at", "ends_at", "transcriptions", "outcome", "data",
+    ]);
+    expect([f.picked_at, f.ends_at]).toEqual(["2026-10-12T12:10:14.000Z", null]);
+    expect(f.data).toEqual({ agent_code: "caller", config: { prompt_code: "p" }, tools: { items: [] } });
+  });
+
+  it("anonymises names from the metadata, extra terms, phones and emails", () => {
+    const f = transcriptFixture(source, ["Acme"]);
+    expect(f.transcriptions).toEqual([{ speaker: "agent", text: "Hi <NAME>, this is Rohan from <REDACTED>. Is <PHONE> your number?" }]);
+    expect(f.outcome).toEqual({ whatsapp_no: "<PHONE>", email: "<EMAIL>" });
+    expect(JSON.stringify(f)).not.toMatch(/Asha|Acme|9812345678|recording/);
   });
 });

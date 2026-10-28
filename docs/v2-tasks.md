@@ -47,6 +47,8 @@ Rules for every task (CLAUDE.md "v2 rules"):
     per-message timing, the same for `brahmaverse` (Vani) calls, and how long past calls stay available.
   - Write the findings in `docs/v2-timing.md` with a recommendation (provider timing or a diarisation step on the
     mono audio) and unblock or re-plan the timing-dependent tasks below.
+  - Waiting on it (step 9, 2026-10-28): S2 silence gaps. The S2 rule parts in `system-checks.ts` skip them, and every
+    signal's `ts_start`/`ts_end` is null until a timing source exists.
 - [x] **P0-6 v2 weighted score, pure** (§4.2)
   - `src/audit/v2/score.ts`: `weightedScore(metrics, weights)` implements the §4.2 formula with N/A metrics
     dropped and weights re-normalised, and `passes(score, threshold, autoFailZero, criticalFlagged)`.
@@ -150,9 +152,22 @@ Rules for every task (CLAUDE.md "v2 rules"):
     from text), S4 (required variables present in `outcome`). LLM parts of S2–S4 come from the judge.
   - Required outputs come from the call's save-tool schema in `data.tools` (its `required` list), falling back to
     the goal config's required outputs on calls without `data`. How S4 scores a call that saved no outcome (most
-    calls) follows Open #8. Unit tests use `fixtures/real/call-sample.json`.
+    calls) follows Open #8. Unit tests use call 4570 (`fixtures/transcripts/call-4570.json`).
   - Each check returns Pass/Fail/N/A with reason and evidence. The system goal passes when every applicable
     check passes. Unit tests per check.
+  - Step 9 (rule parts done): `src/audit/v2/system-checks.ts` over a `CallRecord` (`call-record.ts`, from the stored
+    row). Each returns `{ result: pass | fail | na, reason, value, evidence: [{ turns, ts_start, ts_end }] }`, timestamps
+    null; `systemGoal` passes when every applicable check passes (S3 is N/A until the judge gives it).
+    - S1: N/A when not `completed` or `unjoined` (stored with `status = 'completed'` on old rows). A missing
+      `picked_at` (a few older rows) passes when the caller spoke.
+    - S2: ended-by fails only on the `CALL_ERROR` reasons; real values also include `caller_hangup`, `bot_hangup`,
+      `timeout` and `completed`. Loop: the Repetition metric's params; a different agent line in between is progress,
+      and a repeat after a reply of ≤ `unclear_reply_max_words` words is a re-ask. No response: a caller question
+      after the agent's last turn on a call the agent or an error ended (205 of 716 `agent_hangup` calls end on a
+      caller turn, mostly "Okay, bye"). **Silence gaps are skipped**: `docs/v2-timing.md` doesn't exist yet (P0-5).
+    - S4: required outputs from the save tool's schema: the `required` list of its one object property (Caller
+      `data`, Hansa `outcome`), else its own. Caller requires no saved field, so S4 is N/A on Caller calls.
+  - Not done: the LLM parts of S2–S4 and S3 itself (P1-4, P1-7).
 - [ ] **P1-6 Business goal** (§3.2)
   - Outcome `ACHIEVED | PARTIAL | NOT_ACHIEVED | NOT_APPLICABLE`, with required outputs extracted from the
     transcript/outcome and a not-achieved reason from the §3.2 taxonomy.
@@ -186,10 +201,17 @@ Rules for every task (CLAUDE.md "v2 rules"):
     bands) and repetition (agent-turn similarity, LLM confirms) as pure functions with params from
     `metric.params`. No timing is needed.
   - Unit tests with Hindi/English mixed lines.
+  - Step 9 (rule parts done): `stallingFiller` and `repetition` in `src/audit/v2/signals.ts`; params in migration
+    0011 (`default` v4, `hansa` v4; agents moved from v3). Repetition groups agent turns by character-trigram
+    similarity, so the "… is that right / correct?" variants stay together. The LLM confirmation is P1-7.
 - [ ] **P1-11 Language match metric** (§4.3)
   - Per-turn language ID (pick a library and note its size) and the `WRONG_LANGUAGE` rule input. Borrowed
     English words in Hindi speech don't count.
   - Unit tests on mixed-language fixtures.
+  - Step 9 (rule part done): `languageMatch` in `src/audit/v2/signals.ts`, no library (0 KB). Unicode script by
+    letter majority (so English words in a Devanagari line don't flip it), and a romanised-Hindi word list for Latin
+    text; under `min_words` is `und`. The caller switches after `switch_turns` turns in a new language; it fails after
+    `mismatch_turns` agent turns not in it. Marathi in Devanagari reads as `hi`.
 - [ ] **P1-12 Text-detectable failure conditions** (§4.5)
   - Add `PREMATURE_HANGUP`, `WRONG_LANGUAGE`, `CONTINUED_AFTER_WRONG_PERSON`, `PUSHY_AFTER_DECLINE`,
     `DENIED_BEING_AI`, `SENSITIVE_DATA_EXPOSED`, `OFF_SCOPE_ADVICE`, `OUTCOME_MISRECORDED` to the library, each
@@ -351,7 +373,7 @@ so their owners can decide; no task here depends on them.
 ## Open
 
 Ambiguities in the PRD and places where it disagrees with the code. Each needs a decision before the tasks that
-depend on it. Items keep their original numbers so references elsewhere stay valid; resolved ones (#1, #2, #3, #4,
+depend on it. Items keep their original numbers so references elsewhere stay valid; resolved ones (#1, #2, #3, #4, #8,
 #9, #10, #12, #14, #20) are in **Decisions** below.
 
 - **#5 Timestamps.** §3.1 S2, §4.3, §5 (items 4–5), §7 (`ts_start`/`ts_end`) and §8 #4–5 assume timing data.
@@ -387,10 +409,6 @@ depend on it. Items keep their original numbers so references elsewhere stay val
     - Grounding reads the documents over the ai-service DB login (P0-12, needs O1); Qdrant isn't needed.
     - The per-call scope is in `voice_call_logs.data.tools` (confirmed 2026-10-22), on calls from late September
       2026 on.
-- **#8 Disposition for S4.** The PRD checks "disposition" and saved variables. Calls only have `outcome`, and it is
-  empty on most calls. The required outputs are known per call (the save-tool schema in `data.tools`). Still to
-  decide: is S4 checked only against the call record, and does a call that saved nothing fail S4 or count as N/A?
-  (Also a PRD open question.)
 - **#11 Prompt versions.** Agent prompts aren't pinned per call: ai-service edits them in place, so an old call is
   graded against today's prompt. This weakens "every verdict traceable" and the side-by-side week. Pinning needs an
   ai-service change (outside, not planned). Here we store the prompt `version` we read and flag audits of calls
@@ -451,3 +469,12 @@ depend on it. Items keep their original numbers so references elsewhere stay val
 - **#14 Minor for one week.** Manual. New conditions are Minor in the library and on scorecards; raising one to its
   PRD severity is a deliberate new scorecard version, never automatic. The PRD target is noted in
   `src/audit/v2/conditions.ts`.
+- **#8 S4 when nothing was saved.** N/A. S4 checks only the call record: the required outputs (save-tool schema, else
+  the goal config) must be present in `outcome`. An empty `outcome` is N/A (often the caller hung up before the save
+  step, which S3 judges); an outcome missing a required field fails. Implemented in step 9 (`checkDataSaved`).
+- **Step 9 params.** Signal thresholds live in metric params, so migration 0011 publishes `default` v4 and `hansa` v4
+  (v3 plus Repetition, Stalling & filler and Language match params) and moves the agents. Language ID is our own
+  script + word-list rule, not a library: short turns and romanised Hindi defeat trigram detectors.
+- **Real transcript fixtures.** `bun run record:transcripts` saves anonymised calls to `fixtures/transcripts/`
+  (no variables, phones, recording or metadata). Older calls have no variables, so staff and company names said aloud
+  need `--redact`; read every file before committing.

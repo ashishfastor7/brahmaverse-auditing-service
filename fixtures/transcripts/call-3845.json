@@ -1,0 +1,161 @@
+{
+  "_note": "Real call recorded by `bun run record:transcripts` and anonymised. Re-record rather than edit by hand.",
+  "recorded_at": "2026-10-28T09:10:29.860Z",
+  "id": 3845,
+  "agent_id": 4,
+  "status": "completed",
+  "call_type": "outbound",
+  "voice_provider": null,
+  "duration": 143,
+  "ended_reason": "caller_hangup",
+  "picked_at": "2026-09-12T09:16:11.000Z",
+  "ends_at": "2026-09-12T09:18:34.000Z",
+  "transcriptions": [
+    {
+      "speaker": "agent",
+      "text": "Hi <NAME>, I’m Anjali. Do you have about two minutes for a quick check-in on your open task?"
+    },
+    {
+      "speaker": "user",
+      "text": "Okay"
+    },
+    {
+      "speaker": "agent",
+      "text": "Thanks. Let’s start with the Test task—what’s the current state, and what has changed since your last update?"
+    },
+    {
+      "speaker": "user",
+      "text": "I is 20% done"
+    },
+    {
+      "speaker": "agent",
+      "text": "Got it—Test is 20% complete. Are you blocked by"
+    },
+    {
+      "speaker": "user",
+      "text": "And I'm blocked on"
+    },
+    {
+      "speaker": "user",
+      "text": "Final number"
+    },
+    {
+      "speaker": "agent",
+      "text": "What does “Final number” refer to, and what are you waiting for?"
+    },
+    {
+      "speaker": "user",
+      "text": "Nahi, I am waiting."
+    },
+    {
+      "speaker": "user",
+      "text": "Final"
+    },
+    {
+      "speaker": "user",
+      "text": "Fine"
+    },
+    {
+      "speaker": "agent",
+      "text": "I want to make sure I have that right—who are you waiting on? I want to make sure I have that right—who are you waiting on?"
+    },
+    {
+      "speaker": "user",
+      "text": "One minute, let me check."
+    },
+    {
+      "speaker": "agent",
+      "text": "Sure, take your time. Who are you waiting on, and what’s holding up the Test task?"
+    },
+    {
+      "speaker": "user",
+      "text": "Yeah"
+    },
+    {
+      "speaker": "user",
+      "text": "I'm waiting on username final my number"
+    },
+    {
+      "speaker": "agent",
+      "text": "Could you repeat the person’s name clearly? I want to record the right teammate."
+    },
+    {
+      "speaker": "user",
+      "text": "Final my name number"
+    },
+    {
+      "speaker": "agent",
+      "text": "I’m not sure I caught the name. Could you say the person’s name one more time, slowly?"
+    },
+    {
+      "speaker": "user",
+      "text": "Ya final"
+    },
+    {
+      "speaker": "user",
+      "text": "Space, My Space, Number"
+    },
+    {
+      "speaker": "agent",
+      "text": "Let me confirm the name."
+    },
+    {
+      "speaker": "agent",
+      "text": "I found a teammate named Final my number. Is that who you’re waiting on?"
+    },
+    {
+      "speaker": "user",
+      "text": "Yeah"
+    },
+    {
+      "speaker": "agent",
+      "text": "I’ll record the blocker now."
+    },
+    {
+      "speaker": "agent",
+      "text": "Test is 20% complete and blocked while you wait on Final my number. Is there anything else to add before I close this out?"
+    },
+    {
+      "speaker": "user",
+      "text": "Yeah, I'm waiting for designs."
+    },
+    {
+      "speaker": "user",
+      "text": "from his end"
+    },
+    {
+      "speaker": "agent",
+      "text": "Understood—you’re waiting for the designs from Final my number. Let me update that note."
+    },
+    {
+      "speaker": "user",
+      "text": "Okay"
+    },
+    {
+      "speaker": "agent",
+      "text": "Thanks, <NAME>. I’ve captured that Test is 20% complete and blocked pending designs from Final my number. Goodbye."
+    },
+    {
+      "speaker": "user",
+      "text": "Okay"
+    },
+    {
+      "speaker": "agent",
+      "text": "Let me save this update."
+    },
+    {
+      "speaker": "agent",
+      "text": "Goodbye."
+    },
+    {
+      "speaker": "user",
+      "text": "Okay"
+    },
+    {
+      "speaker": "user",
+      "text": "But the cool okay"
+    }
+  ],
+  "outcome": null,
+  "data": null
+}

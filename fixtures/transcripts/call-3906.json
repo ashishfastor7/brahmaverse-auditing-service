@@ -1,0 +1,97 @@
+{
+  "_note": "Real call recorded by `bun run record:transcripts` and anonymised. Re-record rather than edit by hand.",
+  "recorded_at": "2026-10-28T09:10:29.893Z",
+  "id": 3906,
+  "agent_id": 4,
+  "status": "completed",
+  "call_type": "outbound",
+  "voice_provider": null,
+  "duration": 74,
+  "ended_reason": "caller_hangup",
+  "picked_at": "2026-09-12T17:58:12.000Z",
+  "ends_at": "2026-09-12T17:59:26.000Z",
+  "transcriptions": [
+    {
+      "speaker": "user",
+      "text": "Hello"
+    },
+    {
+      "speaker": "user",
+      "text": "Hello"
+    },
+    {
+      "speaker": "agent",
+      "text": "Hello, I’m Anjali. I’m calling to ask you 3 short questions. What is your name?"
+    },
+    {
+      "speaker": "user",
+      "text": "My name is"
+    },
+    {
+      "speaker": "user",
+      "text": "<REDACTED>"
+    },
+    {
+      "speaker": "agent",
+      "text": "Let me note that down."
+    },
+    {
+      "speaker": "agent",
+      "text": "What is your age?"
+    },
+    {
+      "speaker": "user",
+      "text": "Uh, 50 year old."
+    },
+    {
+      "speaker": "agent",
+      "text": "Let me note that down."
+    },
+    {
+      "speaker": "user",
+      "text": "Yeah"
+    },
+    {
+      "speaker": "agent",
+      "text": "What is your role in this company?"
+    },
+    {
+      "speaker": "user",
+      "text": "Hello"
+    },
+    {
+      "speaker": "agent",
+      "text": "What is your role in this company?"
+    },
+    {
+      "speaker": "user",
+      "text": "Yeah, I am with you."
+    },
+    {
+      "speaker": "agent",
+      "text": "What is your role in this company?"
+    },
+    {
+      "speaker": "user",
+      "text": "software engineer"
+    },
+    {
+      "speaker": "agent",
+      "text": "Let me note that down."
+    },
+    {
+      "speaker": "user",
+      "text": "Hello"
+    },
+    {
+      "speaker": "agent",
+      "text": "That is all the questions. Goodbye."
+    },
+    {
+      "speaker": "user",
+      "text": "Okay"
+    }
+  ],
+  "outcome": null,
+  "data": null
+}

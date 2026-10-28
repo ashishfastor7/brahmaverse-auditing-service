@@ -20,7 +20,7 @@ const failure = (p: Promise<unknown>) =>
     (e: Error) => e.message,
   );
 
-describe.skipIf(!dbTestsEnabled)("v2 config (migrations 0003–0010, config-store)", () => {
+describe.skipIf(!dbTestsEnabled)("v2 config (migrations 0003–0011, config-store)", () => {
   it("seeds the condition library, goal config v1 per agent, the v1 templates and the 10-metric scorecards", () =>
     withTestDb(async (sequelize) => {
       await createMigrator(sequelize, { quiet: true }).up();
@@ -44,16 +44,18 @@ describe.skipIf(!dbTestsEnabled)("v2 config (migrations 0003–0010, config-stor
         { scorecard_id: "default", version: 1, status: "published", based_on: null, metrics: 5, total: 100 },
         { scorecard_id: "default", version: 2, status: "published", based_on: 1, metrics: 10, total: 100 },
         { scorecard_id: "default", version: 3, status: "published", based_on: 2, metrics: 10, total: 100 },
+        { scorecard_id: "default", version: 4, status: "published", based_on: 3, metrics: 10, total: 100 },
         { scorecard_id: "hansa", version: 1, status: "published", based_on: null, metrics: 5, total: 100 },
         { scorecard_id: "hansa", version: 2, status: "published", based_on: 1, metrics: 10, total: 100 },
         { scorecard_id: "hansa", version: 3, status: "published", based_on: 2, metrics: 10, total: 100 },
+        { scorecard_id: "hansa", version: 4, status: "published", based_on: 3, metrics: 10, total: 100 },
       ]);
       expect(
         await all(sequelize, "SELECT agent_code, scorecard_id, scorecard_version FROM scorecard_assignment ORDER BY agent_code"),
       ).toEqual([
-        { agent_code: "caller", scorecard_id: "default", scorecard_version: 3 },
-        { agent_code: "hrms", scorecard_id: "hansa", scorecard_version: 3 },
-        { agent_code: "project-manager", scorecard_id: "default", scorecard_version: 3 },
+        { agent_code: "caller", scorecard_id: "default", scorecard_version: 4 },
+        { agent_code: "hrms", scorecard_id: "hansa", scorecard_version: 4 },
+        { agent_code: "project-manager", scorecard_id: "default", scorecard_version: 4 },
       ]);
 
       const v2 = (await loadScorecard(sequelize, "default", 2))!;
@@ -97,13 +99,43 @@ describe.skipIf(!dbTestsEnabled)("v2 config (migrations 0003–0010, config-stor
       expect(hansaV3).not.toContain("OUTCOME_MISRECORDED");
       expect(hansaV3).toContain("OUTCOME_MISMATCH");
       expect(hansaV3).toHaveLength(v3.conditions.length + 1);
+
+      // v4 (0011): v3 with the signal params; everything else unchanged, Hansa included.
+      const params = await import("./migrations/0011-signal-params.data");
+      for (const id of ["default", "hansa"]) {
+        const [from, to] = [(await loadScorecard(sequelize, id, 3))!, (await loadScorecard(sequelize, id, 4))!];
+        expect(to.conditions).toEqual(from.conditions);
+        for (const [i, m] of to.metrics.entries()) {
+          const { id: _a, params: p, ...rest } = m;
+          const { id: _b, params: old, ...was } = from.metrics[i]!;
+          expect(rest).toEqual(was);
+          expect(p).toEqual(params.SIGNAL_PARAMS[m.key] ?? old);
+        }
+      }
+    }));
+
+  it("0011 down puts the agents back on v3 and removes v4", () =>
+    withTestDb(async (sequelize) => {
+      const migrator = createMigrator(sequelize, { quiet: true });
+      await migrator.up();
+      await migrator.down();
+      expect(
+        await all(sequelize, "SELECT agent_code, scorecard_id, scorecard_version FROM scorecard_assignment ORDER BY agent_code"),
+      ).toEqual([
+        { agent_code: "caller", scorecard_id: "default", scorecard_version: 3 },
+        { agent_code: "hrms", scorecard_id: "hansa", scorecard_version: 3 },
+        { agent_code: "project-manager", scorecard_id: "default", scorecard_version: 3 },
+      ]);
+      expect(await all(sequelize, "SELECT 1 FROM scorecard WHERE version = 4")).toEqual([]);
+      expect(await all(sequelize, "SELECT 1 FROM metric WHERE scorecard_version = 4")).toEqual([]);
+      expect(await failure(sequelize.query("DELETE FROM scorecard WHERE scorecard_id = 'default' AND version = 3"))).toContain("is published");
     }));
 
   it("0010 down puts the agents back on v2 and removes v3 and the new conditions", () =>
     withTestDb(async (sequelize) => {
       const migrator = createMigrator(sequelize, { quiet: true });
       await migrator.up();
-      await migrator.down();
+      await migrator.down({ to: "0010-proposed-conditions" });
       expect(
         await all(sequelize, "SELECT agent_code, scorecard_id, scorecard_version FROM scorecard_assignment ORDER BY agent_code"),
       ).toEqual([
@@ -182,45 +214,45 @@ describe.skipIf(!dbTestsEnabled)("v2 config (migrations 0003–0010, config-stor
   it("publishing a draft creates a new version; the old one stays exactly as it was", () =>
     withTestDb(async (sequelize) => {
       await createMigrator(sequelize, { quiet: true }).up();
-      const v3 = await loadScorecard(sequelize, "default", 3);
+      const v4 = await loadScorecard(sequelize, "default", 4);
 
       const draft = await createScorecardDraft(sequelize, "default", "admin");
-      expect([draft.version, draft.status, draft.based_on, draft.published_at]).toEqual([4, "draft", 3, null]);
-      expect(draft.metrics.map(({ id: _, ...m }) => m)).toEqual(v3!.metrics.map(({ id: _, ...m }) => m));
-      expect(draft.conditions).toEqual(v3!.conditions);
-      expect(await failure(createScorecardDraft(sequelize, "default", "admin"))).toContain("already has a draft (version 4)");
+      expect([draft.version, draft.status, draft.based_on, draft.published_at]).toEqual([5, "draft", 4, null]);
+      expect(draft.metrics.map(({ id: _, ...m }) => m)).toEqual(v4!.metrics.map(({ id: _, ...m }) => m));
+      expect(draft.conditions).toEqual(v4!.conditions);
+      expect(await failure(createScorecardDraft(sequelize, "default", "admin"))).toContain("already has a draft (version 5)");
 
       // A draft can be edited, and is never the active version.
       await sequelize.query(
-        "UPDATE metric SET weight = 20 WHERE scorecard_id = 'default' AND scorecard_version = 4 AND key = 'flow_adherence'",
+        "UPDATE metric SET weight = 20 WHERE scorecard_id = 'default' AND scorecard_version = 5 AND key = 'flow_adherence'",
       );
       expect(await failure(publishScorecard(sequelize, "default", "admin"))).toContain("weights total 110, not 100");
-      expect((await loadActiveConfig(sequelize, "caller", null)).scorecard?.version).toBe(3);
+      expect((await loadActiveConfig(sequelize, "caller", null)).scorecard?.version).toBe(4);
       await sequelize.query(
-        "UPDATE metric SET weight = 0 WHERE scorecard_id = 'default' AND scorecard_version = 4 AND key = 'stalling_filler'",
+        "UPDATE metric SET weight = 0 WHERE scorecard_id = 'default' AND scorecard_version = 5 AND key = 'stalling_filler'",
       );
 
       const published = await publishScorecard(sequelize, "default", "admin");
-      expect([published.version, published.status]).toEqual([4, "published"]);
+      expect([published.version, published.status]).toEqual([5, "published"]);
       expect(published.published_at).toBeInstanceOf(Date);
-      expect((await loadActiveConfig(sequelize, "caller", null)).scorecard?.version).toBe(4);
-      expect((await loadActiveConfig(sequelize, "project-manager", null)).scorecard?.version).toBe(4);
-      expect((await loadActiveConfig(sequelize, "hrms", null)).scorecard).toMatchObject({ scorecard_id: "hansa", version: 3 });
-      expect(await loadScorecard(sequelize, "default", 3)).toEqual(v3);
+      expect((await loadActiveConfig(sequelize, "caller", null)).scorecard?.version).toBe(5);
+      expect((await loadActiveConfig(sequelize, "project-manager", null)).scorecard?.version).toBe(5);
+      expect((await loadActiveConfig(sequelize, "hrms", null)).scorecard).toMatchObject({ scorecard_id: "hansa", version: 4 });
+      expect(await loadScorecard(sequelize, "default", 4)).toEqual(v4);
       expect(
-        await failure(sequelize.query("UPDATE metric SET weight = 10 WHERE scorecard_version = 4 AND key = 'stalling_filler'")),
+        await failure(sequelize.query("UPDATE metric SET weight = 10 WHERE scorecard_version = 5 AND key = 'stalling_filler'")),
       ).toContain("cannot be changed");
       expect(await failure(publishScorecard(sequelize, "default", "admin"))).toContain("has no draft to publish");
       expect(await failure(createScorecardDraft(sequelize, "nope", "admin"))).toContain("no published version");
-      // Publishing moved the agents that were on default v3 (Caller and Project manager); Hansa is on its own scorecard.
+      // Publishing moved the agents that were on default v4 (Caller and Project manager); Hansa is on its own scorecard.
       expect(
         await all(
           sequelize,
           "SELECT agent_code, scorecard_version, assigned_by FROM scorecard_assignment WHERE scorecard_id = 'default' ORDER BY 1",
         ),
       ).toEqual([
-        { agent_code: "caller", scorecard_version: 4, assigned_by: "admin" },
-        { agent_code: "project-manager", scorecard_version: 4, assigned_by: "admin" },
+        { agent_code: "caller", scorecard_version: 5, assigned_by: "admin" },
+        { agent_code: "project-manager", scorecard_version: 5, assigned_by: "admin" },
       ]);
 
       const goalDraft = await createGoalDraft(sequelize, "caller", "admin");
@@ -245,16 +277,16 @@ describe.skipIf(!dbTestsEnabled)("v2 config (migrations 0003–0010, config-stor
       await assignScorecard(sequelize, "hrms", "default", 2, "admin");
       expect(await versions()).toEqual(before);
       expect((await loadActiveConfig(sequelize, "hrms", null)).scorecard).toMatchObject({ scorecard_id: "default", version: 2 });
-      expect((await loadActiveConfig(sequelize, "caller", null)).scorecard).toMatchObject({ scorecard_id: "default", version: 3 });
-      expect((await loadActiveConfig(sequelize, "project-manager", null)).scorecard).toMatchObject({ scorecard_id: "default", version: 3 });
+      expect((await loadActiveConfig(sequelize, "caller", null)).scorecard).toMatchObject({ scorecard_id: "default", version: 4 });
+      expect((await loadActiveConfig(sequelize, "project-manager", null)).scorecard).toMatchObject({ scorecard_id: "default", version: 4 });
 
       // Only published versions with at least 10 metrics (never the 5 × 20), only known agents.
       expect(await failure(assignScorecard(sequelize, "hrms", "hansa", 1, "admin"))).toContain("fewer than 10 metrics");
       expect(await failure(assignScorecard(sequelize, "caller", "default", 1, "admin"))).toContain("fewer than 10 metrics");
       await createScorecardDraft(sequelize, "default", "admin");
-      expect(await failure(assignScorecard(sequelize, "project-manager", "default", 4, "admin"))).toContain("is not published");
+      expect(await failure(assignScorecard(sequelize, "project-manager", "default", 5, "admin"))).toContain("is not published");
       expect(await failure(assignScorecard(sequelize, "sales-bot", "default", 2, "admin"))).toContain("unknown agent sales-bot");
-      expect((await loadActiveConfig(sequelize, "project-manager", null)).scorecard?.version).toBe(3);
+      expect((await loadActiveConfig(sequelize, "project-manager", null)).scorecard?.version).toBe(4);
       // A copy of the 5 × 20 can't be published either.
       expect(
         await failure(
@@ -292,11 +324,11 @@ describe.skipIf(!dbTestsEnabled)("v2 config (migrations 0003–0010, config-stor
     withTestDb(async (sequelize) => {
       await createMigrator(sequelize, { quiet: true }).up();
       await createScorecardDraft(sequelize, "default", "admin");
-      await sequelize.query("DELETE FROM scorecard WHERE scorecard_id = 'default' AND version = 4");
+      await sequelize.query("DELETE FROM scorecard WHERE scorecard_id = 'default' AND version = 5");
       const parts =
-        "SELECT 1 FROM metric WHERE scorecard_version = 4 UNION ALL SELECT 1 FROM scorecard_condition WHERE scorecard_version = 4";
+        "SELECT 1 FROM metric WHERE scorecard_version = 5 UNION ALL SELECT 1 FROM scorecard_condition WHERE scorecard_version = 5";
       expect(await all(sequelize, parts)).toEqual([]);
-      expect((await createScorecardDraft(sequelize, "default", "admin")).version).toBe(4);
+      expect((await createScorecardDraft(sequelize, "default", "admin")).version).toBe(5);
 
       await createGoalDraft(sequelize, "caller", "admin");
       expect(await failure(createGoalDraft(sequelize, "caller", "admin"))).toContain("already has a draft (version 2)");
@@ -409,7 +441,7 @@ describe.skipIf(!dbTestsEnabled)("v2 config (migrations 0003–0010, config-stor
       const hansa = await loadActiveConfig(sequelize, null, 1);
       expect([hansa.scorecard?.scorecard_id, hansa.scorecard?.version, hansa.goal?.agent_code, hansa.goal?.version]).toEqual([
         "hansa",
-        3,
+        4,
         "hrms",
         1,
       ]);
@@ -420,9 +452,9 @@ describe.skipIf(!dbTestsEnabled)("v2 config (migrations 0003–0010, config-stor
       expect(hansa.goal?.system_checks).toEqual({ silence_limit_s: 8, required_variables: [], flow_steps: null });
 
       const caller = await loadActiveConfig(sequelize, "CALLER", null);
-      expect([caller.scorecard?.scorecard_id, caller.scorecard?.version, caller.scorecard?.metrics.length]).toEqual(["default", 3, 10]);
+      expect([caller.scorecard?.scorecard_id, caller.scorecard?.version, caller.scorecard?.metrics.length]).toEqual(["default", 4, 10]);
       const pm = await loadActiveConfig(sequelize, null, 4);
-      expect([pm.scorecard?.scorecard_id, pm.scorecard?.version, pm.goal?.agent_code]).toEqual(["default", 3, "project-manager"]);
+      expect([pm.scorecard?.scorecard_id, pm.scorecard?.version, pm.goal?.agent_code]).toEqual(["default", 4, "project-manager"]);
 
       expect(await loadActiveConfig(sequelize, null, 999)).toEqual({ scorecard: null, goal: null, reason: "unknown_agent" });
     }));
