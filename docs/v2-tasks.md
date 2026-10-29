@@ -260,11 +260,17 @@ Rules for every task (CLAUDE.md "v2 rules"):
   - The server resolves the current list filters to call ids (completed calls only), with an optional random
     sample of N and a minimum-duration skip. The dialog shows the count and cost before confirming.
   - `trigger_mode = 'filter' | 'sample'` is stored. Test: the sample is reproducible from a stored seed.
-- [ ] **P1-17 Shared admin login** (§4.4, §5 item 7, §7, §8 #14)
+- [x] **P1-17 Shared admin login** (§4.4, §5 item 7, §7, §8 #14)
   - Replace the shared bearer token with one admin username/password login (credentials in `src/env.ts`, password
     stored hashed, session token returned to the dashboard). No roles: a signed-in user can do everything.
   - Record `triggered_by` (the login) on audits and batches. Wrong credentials get 401; every `/v1/audit/*` route
     except health needs a session.
+  - Step 12: `AUDIT_ADMIN_USERNAME` / `AUDIT_ADMIN_PASSWORD` (dev defaults `admin` / `password`, refused with
+    `NODE_ENV=production`), password hashed with argon2id at startup. `POST /auth/login`, `/auth/logout`, `GET /auth/me`
+    (`src/routes/auth.ts`); sessions in `audit_session` (migration 0014, token stored as SHA-256), `AUDIT_SESSION_HOURS`
+    (12); 10 failures per address in 15 minutes → 429. `requireSession` sets the username, which audits, re-scores and
+    condition add/publish record. Batches have no route yet: P1-15 sets `audit_batch.created_by` from `signedInUser(c)`.
+    Dashboard sign-in page built on the design system (`docs/design-system.md`).
 - [ ] **P1-18 Scorecard and goal admin** (§3.2, §4, §8 #14)
   - Create a draft, edit metrics/weights/conditions/severity, publish as a new version, and log every change
     (what and when; "who" is always the shared login). *Save as default* from the sliders creates a draft or a

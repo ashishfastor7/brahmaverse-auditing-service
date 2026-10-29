@@ -7,6 +7,14 @@ import { ZodError } from "zod";
 import { createMigrator } from "./migrator";
 import { rescoreAudit, saveRescore } from "./rescore";
 import { dbTestsEnabled, withTestDb } from "./test-db";
+import type { AuthEnv } from "@/middleware/auth";
+
+/** The routers read the signed-in user that the app's session middleware sets; here it's always "admin". */
+const signedIn = () =>
+  new Hono<AuthEnv>().use(async (c, next) => {
+    c.set("username", "admin");
+    await next();
+  });
 
 /** The error message, or null if it worked. (Bun 1.2's `expect(...).rejects` hangs on Sequelize errors.) */
 const failure = (p: Promise<unknown>) =>
@@ -210,7 +218,7 @@ describe.skipIf(!dbTestsEnabled)("re-scores (P1-9)", () => {
       await createMigrator(sequelize, { quiet: true }).up();
       const id = await seedAudit(sequelize);
       let v2 = true;
-      const app = new Hono().route(
+      const app = signedIn().route(
         "/v1/audit",
         rescoreRouter(
           () => sequelize,

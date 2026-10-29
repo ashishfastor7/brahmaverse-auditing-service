@@ -121,6 +121,7 @@ const ALL_TABLES = [
   "audit_check",
   "audit_rescore",
   "audit_results",
+  "audit_session",
   "daily_rollup",
   "failure_condition",
   "failure_flag",

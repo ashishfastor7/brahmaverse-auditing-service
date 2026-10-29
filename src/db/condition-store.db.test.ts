@@ -8,6 +8,14 @@ import { addCondition, deleteCondition, discardDraft, listConditions, publishDra
 import { createScorecardDraft, loadActiveConfig } from "./config-store";
 import { createMigrator } from "./migrator";
 import { dbTestsEnabled, withTestDb } from "./test-db";
+import type { AuthEnv } from "@/middleware/auth";
+
+/** The routers read the signed-in user that the app's session middleware sets; here it's always "admin". */
+const signedIn = () =>
+  new Hono<AuthEnv>().use(async (c, next) => {
+    c.set("username", "admin");
+    await next();
+  });
 
 const all = <T extends object>(sequelize: Sequelize, sql: string) => sequelize.query<T>(sql, { type: QueryTypes.SELECT });
 /** The error message, or null if it worked. (Bun 1.2's `expect(...).rejects` hangs on Sequelize errors.) */
@@ -138,7 +146,7 @@ describe.skipIf(!dbTestsEnabled)("failure-condition screen (condition-store, /co
     withTestDb(async (sequelize) => {
       await createMigrator(sequelize, { quiet: true }).up();
       let v2 = false;
-      const app = new Hono().route(
+      const app = signedIn().route(
         "/v1/audit",
         conditionsRouter(
           () => sequelize,

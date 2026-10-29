@@ -64,7 +64,10 @@ export const env = createEnv({
       .transform((v) => v || undefined),
 
     PORT: z.coerce.number().default(8095),
-    AUDIT_API_TOKEN: z.string().min(1).default("change-me"),
+    // Dashboard sign-in: one admin login, no roles. The defaults are for local dev only; production refuses them.
+    AUDIT_ADMIN_USERNAME: z.string().min(1).default("admin"),
+    AUDIT_ADMIN_PASSWORD: z.string().min(1).default("password"),
+    AUDIT_SESSION_HOURS: z.coerce.number().positive().default(12),
     AUDIT_SUBSCRIBE: bool(false),
     AUDIT_INCLUDE_PLAYGROUND: bool(false),
     AUDIT_REVIEW_THRESHOLD: z.coerce.number().min(0).max(1).default(0.7),

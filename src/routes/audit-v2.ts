@@ -1,12 +1,10 @@
 import { AuditRequestError, type RunOptionsV2, runAuditV2 } from "@/audit/v2/run-audit";
 import { getSourceCall } from "@/services/call-source.db";
+import { type AuthEnv, signedInUser } from "@/middleware/auth";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { Sequelize } from "sequelize";
 import { z } from "zod";
-
-/** The shared login (P1-17 replaces the bearer token with it); audits record it as `triggered_by`. */
-const SHARED_LOGIN = "admin";
 
 const body = z.object({ weights: z.record(z.string(), z.number()).optional() });
 
@@ -23,14 +21,14 @@ export function auditV2Router(
   readCall: (id: number) => Promise<any | null> = getSourceCall,
   judge?: RunOptionsV2["judge"],
 ) {
-  const router = new Hono();
+  const router = new Hono<AuthEnv>();
   router.post("/v2/calls/:id/audit", async (c) => {
     const id = Number(c.req.param("id"));
     if (!v2Enabled() || !Number.isInteger(id)) throw new HTTPException(404, { message: "Call not found" });
     const { weights } = body.parse(await c.req.json().catch(() => ({})));
     const raw = await readCall(id);
     if (!raw) throw new HTTPException(404, { message: "Call not found" });
-    const options: RunOptionsV2 = { weights, force: true, judge, triggeredBy: SHARED_LOGIN, triggerMode: "single" };
+    const options: RunOptionsV2 = { weights, force: true, judge, triggeredBy: signedInUser(c), triggerMode: "single" };
     const row = await runAuditV2(db(), raw, options).catch((e) => {
       if (e instanceof AuditRequestError) throw new HTTPException(400, { message: e.message });
       throw new HTTPException(502, { message: `Audit failed: ${(e as Error).message}` });

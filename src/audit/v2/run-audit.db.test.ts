@@ -11,6 +11,14 @@ import { HTTPException } from "hono/http-exception";
 import { QueryTypes, type Sequelize } from "sequelize";
 import { ZodError } from "zod";
 import { AuditRequestError, runAuditV2 } from "./run-audit";
+import type { AuthEnv } from "@/middleware/auth";
+
+/** The routers read the signed-in user that the app's session middleware sets; here it's always "admin". */
+const signedIn = () =>
+  new Hono<AuthEnv>().use(async (c, next) => {
+    c.set("username", "admin");
+    await next();
+  });
 
 const MODEL = "gpt-5.4-mini-2026-03-17";
 const loopRow = () => plantedRow(cases.find((c) => c.name === "agent-loop")!, 4242);
@@ -118,7 +126,7 @@ describe.skipIf(!dbTestsEnabled)("runAuditV2 (P1-8)", () => {
     withTestDb(async (sequelize) => {
       await createMigrator(sequelize, { quiet: true }).up();
       let v2 = false;
-      const app = new Hono().route(
+      const app = signedIn().route(
         "/v1/audit",
         auditV2Router(
           () => sequelize,
@@ -149,7 +157,7 @@ describe.skipIf(!dbTestsEnabled)("runAuditV2 (P1-8)", () => {
     withTestDb(async (sequelize) => {
       await createMigrator(sequelize, { quiet: true }).up();
       let judge: Judge = fixtureJudge("hansa-agent-loop", "v2");
-      const app = new Hono().route(
+      const app = signedIn().route(
         "/v1/audit",
         auditV2Router(
           () => sequelize,

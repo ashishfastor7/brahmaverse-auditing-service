@@ -1,11 +1,9 @@
 import { RescoreError, saveRescore } from "@/db/rescore";
+import { type AuthEnv, signedInUser } from "@/middleware/auth";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { Sequelize } from "sequelize";
 import { z } from "zod";
-
-/** The shared login (P1-17 replaces the bearer token with it); re-scores record it as `created_by`. */
-const SHARED_LOGIN = "admin";
 
 const body = z.object({ weights: z.record(z.string(), z.number()) });
 
@@ -16,12 +14,12 @@ const body = z.object({ weights: z.record(z.string(), z.number()) });
  * tests can pass their own.
  */
 export function rescoreRouter(db: () => Sequelize, v2Enabled: () => boolean) {
-  const router = new Hono();
+  const router = new Hono<AuthEnv>();
   router.post("/audits/:id/rescore", async (c) => {
     const id = Number(c.req.param("id"));
     if (!v2Enabled() || !Number.isInteger(id)) throw new HTTPException(404, { message: "Audit not found" });
     const { weights } = body.parse(await c.req.json().catch(() => ({})));
-    const rescore = await saveRescore(db(), id, weights, SHARED_LOGIN).catch((e) => {
+    const rescore = await saveRescore(db(), id, weights, signedInUser(c)).catch((e) => {
       throw e instanceof RescoreError ? new HTTPException(e.status, { message: e.message }) : e;
     });
     if (!rescore) throw new HTTPException(404, { message: "Audit not found" });
