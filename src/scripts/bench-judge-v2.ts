@@ -1,5 +1,5 @@
 /**
- * Compares judge models on the v2 pipeline (`auditCallV2`): the planted cases (synthetic, Hansa `hrms` scorecard from
+ * Compares judge models on the v2 pipeline (`auditCallV2`): the planted cases (synthetic, each on its agent's scorecard from
  * the audit DB) and, with --call-id, real calls read from voice_call_logs. Each model grades each call --runs times.
  * Manual only: one OpenAI call per audit (two on a retry). Nothing is written to the audit DB; every answer goes to
  * eval-output/bench-v2/.
@@ -9,9 +9,8 @@
  */
 import type { Judge } from "@/audit/audit-call";
 import { createOpenAIJudge } from "@/audit/judge/openai-judge";
-import { normalizeCall } from "@/audit/normalize";
 import { type AuditResultV2, auditCallV2 } from "@/audit/v2/audit-call";
-import { toCallRecord } from "@/audit/v2/call-record";
+import { type AgentConfig, plantedContext } from "@/audit/v2/eval/run";
 import { type AuditContextV2, loadAuditContextV2 } from "@/audit/v2/run-audit";
 import { sequelize } from "@/db";
 import { loadActiveConfig, loadConditionDefinitions } from "@/db/config-store";
@@ -19,7 +18,7 @@ import { env } from "@/env";
 import { fetchSourceCalls } from "@/services/call-source.db";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
-import { agentPrompt, cases, plantedMissesV2, plantedRow } from "../../fixtures/planted/cases";
+import { cases, plantedAgent, plantedMissesV2 } from "../../fixtures/planted/cases";
 
 const { values: args } = parseArgs({
   options: {
@@ -48,29 +47,19 @@ const REAL_EXPECT: Record<number, (r: AuditResultV2) => string[]> = {
 type Item = { name: string; context: AuditContextV2; check: (r: AuditResultV2) => string[] };
 
 async function plantedItems(): Promise<Item[]> {
-  const config = await loadActiveConfig(sequelize, "hrms", null);
-  if (config.reason !== null) throw new Error(`no hrms config: ${config.reason}`);
-  const enabled = config.scorecard.conditions.filter((c) => c.enabled).map((c) => c.condition_code);
-  const definitions = await loadConditionDefinitions(sequelize, enabled);
-  return cases.filter((c) => !args.case || args.case.includes(c.name)).map((c) => {
-    const raw = plantedRow(c, 900000);
-    return {
-      name: c.name,
-      check: (r) => plantedMissesV2(c, r),
-      context: {
-        input: normalizeCall(raw, {}),
-        record: toCallRecord(raw),
-        agentLabel: "Hansa (HR)",
-        scorecard: config.scorecard,
-        goal: config.goal,
-        weights: Object.fromEntries(config.scorecard.metrics.map((m) => [m.key, m.weight])),
-        definitions,
-        instructions: agentPrompt,
-        instructionsMissing: null,
-        flow: { source: "prompt", text: agentPrompt.system_prompt, reason: "no Vajra conversation on this call" },
-      },
-    };
-  });
+  const configs = new Map<string, AgentConfig>();
+  const items: Item[] = [];
+  for (const c of cases.filter((x) => !args.case || args.case.includes(x.name))) {
+    const agentCode = plantedAgent(c).agent_code;
+    if (!configs.has(agentCode)) {
+      const config = await loadActiveConfig(sequelize, agentCode, null);
+      if (config.reason !== null) throw new Error(`no ${agentCode} config: ${config.reason}`);
+      const enabled = config.scorecard.conditions.filter((x) => x.enabled).map((x) => x.condition_code);
+      configs.set(agentCode, { scorecard: config.scorecard, goal: config.goal, definitions: await loadConditionDefinitions(sequelize, enabled) });
+    }
+    items.push({ name: c.name, check: (r) => plantedMissesV2(c, r), context: plantedContext(c, configs.get(agentCode)!) });
+  }
+  return items;
 }
 
 async function realItems(): Promise<Item[]> {

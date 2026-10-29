@@ -8,6 +8,7 @@
     "migrate:down": "bun src/db/migrate.ts down",
     "replay": "bun src/scripts/replay.ts",
     "eval:planted": "bun src/scripts/eval-planted.ts",
+    "eval:v2": "bun src/scripts/eval-v2.ts",
     "bench:judge": "bun src/scripts/bench-judge-v2.ts",
     "record:fixture": "bun src/scripts/record-judge-fixture.ts",
     "record:readers": "bun src/scripts/record-reader-fixture.ts",

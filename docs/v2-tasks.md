@@ -231,7 +231,7 @@ Rules for every task (CLAUDE.md "v2 rules"):
     letter majority (so English words in a Devanagari line don't flip it), and a romanised-Hindi word list for Latin
     text; under `min_words` is `und`. The caller switches after `switch_turns` turns in a new language; it fails after
     `mismatch_turns` agent turns not in it. Marathi in Devanagari reads as `hi`.
-- [ ] **P1-12 Text-detectable failure conditions** (§4.5)
+- [x] **P1-12 Text-detectable failure conditions** (§4.5)
   - Add `PREMATURE_HANGUP`, `WRONG_LANGUAGE`, `CONTINUED_AFTER_WRONG_PERSON`, `PUSHY_AFTER_DECLINE`,
     `DENIED_BEING_AI`, `SENSITIVE_DATA_EXPOSED`, `OFF_SCOPE_ADVICE`, `OUTCOME_MISRECORDED` to the library, each
     with a "does not count" clause, starting as Minor.
@@ -240,6 +240,9 @@ Rules for every task (CLAUDE.md "v2 rules"):
     clause, on `default` v3 and `hansa` v3 (agents moved from v2). `UNRESPONSIVE_AGENT`, `FALSE_ACTION_CLAIM` and
     `SKIPPED_REQUIRED_STEP` are disabled until their data exists (P0-5, P0-13, P0-11; enabling them is P3-5).
     `OUTCOME_MISRECORDED` is only on `default` (Hansa has `OUTCOME_MISMATCH`). Planted fixtures are still to do.
+  - Step 11: one `v2_only` planted case per condition in `fixtures/planted/cases.ts` (the `OUTCOME_MISRECORDED` one is a
+    Caller call on `default`), checked by `bun run eval:v2`, not `eval:planted` (v1's rubric doesn't know these codes).
+    `planted-coverage.test.ts` fails when an enabled LLM condition has no case. All 19 cases pass on 2026-10-29.
 - [ ] **P1-13 Batch runner** (§7)
   - `audit_batch` table (migration), in-process worker with a concurrency limit, progress counts, cancel, and
     resume after restart. It only runs batches a user created.
@@ -273,15 +276,37 @@ Rules for every task (CLAUDE.md "v2 rules"):
     drafts. *Publish* makes a draft the new version and moves its agents; *Discard draft* throws it away. A condition
     no published version uses can be removed. API: `src/routes/conditions.ts`, `src/db/condition-store.ts`. Still
     open: editing metrics, weights and existing conditions' severity or on/off, and the change log.
-- [ ] **P1-19 Golden set and agreement gate** (§8 #2, §9 success metrics)
-  - Import human scores for 50–100 calls. A command measures per-metric agreement (within one scale point)
-    using recorded judge runs.
-  - Publishing a scorecard or judge-prompt change is blocked below 85%.
+- [x] **P1-19 Agreement eval, planted tests and the review-built golden set** (§8 #2, §9 success metrics)
+  - No up-front scoring. The golden set is the latest review per call (agree, dispute or blind spot-check) with
+    `in_golden_set = true`. A migration (up/down) adds `kind` (`normal` | `blind`), the reviewer's expected
+    values and `in_golden_set` to the `review` table.
+  - Every enabled text-detectable failure condition has a planted case in `fixtures/planted/cases.ts`.
+  - `bun run eval:v2` reports per-metric and per-check agreement (within one scale point), exact pass/fail and
+    business-outcome agreement, precision/recall per failure code, the same for blind checks only, and the
+    step 16 gate status. Reports go to `docs/evals/`, with no transcripts. Judge responses are cached by call id
+    and judge prompt version.
+  - `bun run eval:v2 --compare <version>` fails if a planted case breaks or any agreement drops. A rubric or
+    judge-prompt change is kept only if it passes. Over 150 golden rows, the oldest plain agrees are offered for
+    retirement; blind rows and disputes that led to a fix are never retired.
+  - Tests use the fixture judge and recorded review rows.
+  - Step 11: migration 0013 adds `kind`, `expected_pass_fail`, `expected_business_outcome`, `expected_failure_codes`,
+    `corrected_checks` and `in_golden_set` to `review`; `corrected_scores` (0007) holds metric corrections by key. On a
+    normal review a null means "the audit was right", on a blind one "not given"; a blind review must give pass/fail,
+    business outcome and failure codes. `loadGoldenSet` (`src/db/golden-set.ts`); the eval is `src/audit/v2/eval/`
+    (`agreement.ts` pure, `run.ts` `evaluate`, `report.ts`, `judge-cache.ts`) and `src/scripts/eval-v2.ts`. The cache key
+    is the exact request (model, messages, schema) per call under the prompt version, so a rubric change re-runs. The
+    gate's "failure codes" number is same-set agreement per call. Reasons for the top 5 are console only.
+  - Publishing is not blocked (decided 2026-10-29; PRD §8 #2 asks for it): a scorecard or goal change is checked
+    before publishing with `eval:v2 --draft --compare <version>` (`loadDraftConfig`, saved as `…-draft.md`). Revisit a
+    hard block once the golden set has blind spot-checks (step 16).
 - [ ] **P1-20 Scorecard simulation** (§8 #3)
   - Re-score the last N audits with draft weights and show the pass-rate change before publishing. No LLM call.
-- [ ] **P1-21 Side-by-side week report** (§9)
+- [ ] **P1-21 Side-by-side week report and switch-over gate** (§9)
   - A command or page comparing v1 and v2 results on the same calls (pass rate, score shift, top changed
     calls), so the jump can be explained before the dashboard switches.
+  - Gate before switching v2 on for everyone: at least 30 blind spot-checks (P2-18), with at least 85% agreement
+    on pass/fail, business outcome and failure codes, and no Critical failure code below 90% precision.
+    Disputes and agrees don't count toward it.
 
 ## P2 — Call view and dashboard
 
@@ -295,8 +320,9 @@ Rules for every task (CLAUDE.md "v2 rules"):
   - List of re-audits and re-scores with scorecard version, goal version and weights. Opening an older one
     shows it read-only.
 - [ ] **P2-4 Human review actions** (§5 item 7)
-  - `review` table (migration). Agree / dispute a metric with corrected score and note / flag for review,
-    recorded with the reviewer. Disputes feed the golden set (P1-19).
+  - `review` table (migration). Agree with the whole audit; dispute any metric, system check, the business
+    outcome or a failure code with the right answer and a note; flag for review. Recorded with the reviewer and
+    `kind = 'normal'`. Agrees and disputes feed the golden set (P1-19).
   - The `review` table exists (step 6, migration 0007).
 - [ ] **P2-5 Review queue** (§8 #7)
   - Low confidence, disputes, AI-failure bucket and a random 5% sample, with reviewer agreement stats.
@@ -333,6 +359,13 @@ Rules for every task (CLAUDE.md "v2 rules"):
 - [ ] **P2-17 Call timeline** (§5 item 4) — blocked on P0-5
   - Markers for stalls, interruptions, loops, dead air and language switches. Clicking one seeks the audio and
     scrolls the transcript.
+- [ ] **P2-18 Blind spot-checks** (§8 #2, §8 #7, §9)
+  - A *Spot-check* page picks random already-audited v2 calls (default 5 per agent per week). It never starts an
+    audit, and says so when too few audits exist.
+  - Shows the transcript and recording with the judge's verdict hidden. The reviewer enters pass/fail, business
+    outcome and failure codes; the judge's verdict is revealed only after saving. Saved as `kind = 'blind'`.
+  - Tests: the verdict isn't in the API response before the blind review is saved; the sample is random and
+    reproducible from a stored seed.
 
 ## P3 — Advanced audio and later additions
 

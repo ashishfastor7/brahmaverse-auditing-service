@@ -225,13 +225,13 @@ describe.skipIf(!dbTestsEnabled)("migrations", () => {
       );
       expect(violated).toBe("audit_results_v1_source_call_id_rubric_version");
 
-      const refused = await migrator.down().then(
+      const refused = await migrator.down({ to: "0012-audit-results-v2-history" }).then(
         () => null,
         (e: Error) => e.message,
       );
       expect(refused).toContain("v2 re-audits keep several rows, e.g. call 1 r (3 rows)");
       await sequelize.query("DELETE FROM audit_results WHERE engine = 'v2'");
-      await migrator.down();
+      await migrator.down({ to: "0012-audit-results-v2-history" });
       expect((await schema(sequelize)).indexes).toContain(BASELINE_INDEXES[3]);
     }));
 

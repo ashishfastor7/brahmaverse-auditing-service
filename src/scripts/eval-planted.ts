@@ -19,7 +19,8 @@ if (!env.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not set");
 
 const judge = createOpenAIJudge({ apiKey: env.OPENAI_API_KEY, model: env.AUDIT_JUDGE_MODEL, reasoningEffort: env.AUDIT_JUDGE_REASONING_EFFORT });
 
-const selected = cases.filter((c) => !args.only || c.name === args.only);
+// v2-only cases plant conditions v1's Hansa rubric doesn't know; `bun run eval:v2` runs them.
+const selected = cases.filter((c) => !c.v2_only && (!args.only || c.name === args.only));
 mkdirSync("eval-output", { recursive: true });
 console.log(`judge ${env.AUDIT_JUDGE_MODEL} (${env.AUDIT_JUDGE_REASONING_EFFORT ?? "temperature 0"}), rubric ${hansaRubric.version}, ${selected.length} case(s)\n`);
 

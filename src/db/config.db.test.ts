@@ -371,7 +371,7 @@ describe.skipIf(!dbTestsEnabled)("v2 config (migrations 0003–0011, config-stor
       );
       await q(
         `INSERT INTO review (audit_id, reviewer, verdict, corrected_scores, note)
-         VALUES (${audit}, 'admin', 'dispute', '{"${repetition}": 9}', 'not a loop')`,
+         VALUES (${audit}, 'admin', 'dispute', '{"repetition": 9}', 'not a loop')`,
       );
       await q(`INSERT INTO release_marker (agent_code, type, version, occurred_at) VALUES ('caller', 'scorecard', 'default@2', now())`);
       await q(

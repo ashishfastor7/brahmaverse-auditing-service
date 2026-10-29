@@ -18,6 +18,9 @@ bun run test                    # = bun test src; unit tests with a stub judge, 
 bun run test:db                 # *.db.test.ts on a throwaway DB on the DB_* server (created, then dropped)
 bun test src/audit/audit.test.ts -t "ruleFailures"   # single file / test name filter
 bun run eval:planted            # REAL judge on fixtures/planted (needs only OPENAI_API_KEY); exits 1 on any miss; output in eval-output/
+bun run eval:v2 [--only-planted] [--compare v2-1]  # REAL v2 judge on planted cases + golden set (review rows); report in docs/evals/,
+                                                   # judge answers cached in eval-output/judge-cache/; keep a rubric/prompt change only if --compare passes
+                                                   # before publishing a scorecard/goal change: --draft --compare v2-1 (grades with the drafts)
 bun run bench:judge --model <id> --model <id> [--call-id 4422]  # REAL judge: compare v2 models; eval-output/bench-v2/
 bun run replay --db --call-id 3507 [--force]         # audit past calls from voice_call_logs (also --agent-id, --from/--to, --limit, --file, --rpc)
                                                      # --engine v2 [--print] audits with v2; --show-prompt writes the judge request only

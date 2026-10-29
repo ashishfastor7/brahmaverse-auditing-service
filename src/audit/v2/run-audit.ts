@@ -2,7 +2,7 @@ import { normalizeCall } from "@/audit/normalize";
 import { agentFor } from "@/audit/rubrics";
 import { skipReason } from "@/audit/rules";
 import type { AgentPrompt, AuditInput } from "@/audit/types";
-import { loadActiveConfig, loadConditionDefinitions } from "@/db/config-store";
+import { loadActiveConfig, loadConditionDefinitions, loadDraftConfig } from "@/db/config-store";
 import { env } from "@/env";
 import { readAgentInstructions } from "@/services/v2/agent-instructions";
 import { type CallerFlow, readCallerFlow } from "@/services/v2/caller-flow";
@@ -41,9 +41,14 @@ export type ContextOrSkip = { context: AuditContextV2; skip: null } | { context:
  * Pipeline step 1 for one call: resolves the agent's published scorecard and goal (`loadActiveConfig`), the weights for
  * this run (the scorecard's defaults unless given; `validateWeights`), the enabled conditions' definitions, and the
  * readers (instructions, then the flow, falling back to the prompt text). A call that can't be audited (not completed,
- * playground, no transcript, no config) is a skip with the reason. Throws on weights it can't use.
+ * playground, no transcript, no config) is a skip with the reason. Throws on weights it can't use. `draft` (only
+ * `eval:v2 --draft`) grades with the agent's unpublished drafts instead (`loadDraftConfig`).
  */
-export async function loadAuditContextV2(db: Sequelize, raw: any, opts: { weights?: Record<string, number> } = {}): Promise<ContextOrSkip> {
+export async function loadAuditContextV2(
+  db: Sequelize,
+  raw: any,
+  opts: { weights?: Record<string, number>; draft?: boolean } = {},
+): Promise<ContextOrSkip> {
   const base = normalizeCall(raw);
   // agent_code is missing on many call rows; resolve it from agent_id, as v1 does
   const agent = agentFor(base.agent_code, base.agent_id);
@@ -51,7 +56,7 @@ export async function loadAuditContextV2(db: Sequelize, raw: any, opts: { weight
   const skip = skipReason(input, { includePlayground: env.AUDIT_INCLUDE_PLAYGROUND });
   if (skip) return { context: null, skip, input };
 
-  const config = await loadActiveConfig(db, input.agent_code, input.agent_id);
+  const config = await (opts.draft ? loadDraftConfig : loadActiveConfig)(db, input.agent_code, input.agent_id);
   if (config.reason !== null) return { context: null, skip: config.reason.toUpperCase(), input };
   const { scorecard, goal } = config;
   if (scorecard.metrics.length < MIN_METRICS) {
