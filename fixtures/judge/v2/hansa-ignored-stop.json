@@ -1,0 +1,236 @@
+{
+  "name": "hansa-ignored-stop",
+  "case": "ignored-stop",
+  "rubric_version": "hansa@4",
+  "judge_model": "gpt-5.4-mini-2026-03-17",
+  "recorded_at": "2026-10-28T11:08:00.658Z",
+  "judge_prompt_version": "v2-1",
+  "response": {
+    "output": {
+      "call_summary": "Hansa, an AI recruiter from Acme Tech, called Rahul about a QA Engineer role in Bengaluru and opened with a quick screening chat. The agent introduced the role and asked about total experience, but Rahul said he was not interested and asked not to be called again. Hansa briefly acknowledged that, but then continued with more screening questions before Rahul ended the call by hanging up.",
+      "transcript_quality": {
+        "rating": "good",
+        "note": "The transcript is clear and easy to follow; the only issue is that the caller's last replies are brief and the call ends abruptly with a hangup."
+      },
+      "system_checks": [
+        {
+          "check": "S2",
+          "reason": "PASS: the agent responded to the caller throughout the call, and there was no agent-side loop or drop. The call ended by caller hangup, not because the agent stopped replying.",
+          "evidence": [
+            {
+              "turns": [
+                3
+              ],
+              "quote": "Hi Rahul, this is Hansa, an AI recruiter from Acme Tech."
+            },
+            {
+              "turns": [
+                6,
+                7
+              ],
+              "quote": "Actually I'm not interested, please don't call me again."
+            },
+            {
+              "turns": [
+                8,
+                9
+              ],
+              "quote": "I said I'm not interested. Please stop."
+            }
+          ],
+          "result": "PASS"
+        },
+        {
+          "check": "S3",
+          "reason": "PASS: the call ended early for a legitimate reason because the caller said they were not interested and asked to stop, so the remaining flow steps did not need to be completed.",
+          "evidence": [
+            {
+              "turns": [
+                6
+              ],
+              "quote": "Actually I'm not interested, please don't call me again."
+            },
+            {
+              "turns": [
+                8
+              ],
+              "quote": "I said I'm not interested. Please stop."
+            }
+          ],
+          "result": "PASS"
+        },
+        {
+          "check": "S4",
+          "reason": "NOT_APPLICABLE: no required outputs were listed for this call, so there was nothing to save or verify.",
+          "evidence": [],
+          "result": "NOT_APPLICABLE"
+        }
+      ],
+      "business_goal": {
+        "reason": "The recruiting screening was not completed because the candidate clearly said they were not interested and asked to stop the call before the screening questions could be finished.",
+        "evidence": [
+          {
+            "turns": [
+              6
+            ],
+            "quote": "Actually I'm not interested, please don't call me again."
+          },
+          {
+            "turns": [
+              8
+            ],
+            "quote": "I said I'm not interested. Please stop."
+          }
+        ],
+        "outcome": "NOT_ACHIEVED",
+        "reason_code": "CANDIDATE_NOT_INTERESTED",
+        "required_outputs": []
+      },
+      "metrics": [
+        {
+          "key": "flow_adherence",
+          "reason": "The agent followed the opening flow correctly: it greeted the candidate, identified itself as Hansa from Acme Tech, confirmed it was Rahul, described the QA Engineer role, and asked the first screening question in order. The call ended early because the candidate declined, so the later screening steps were not reachable.",
+          "evidence": [
+            {
+              "turns": [
+                1,
+                3,
+                5
+              ],
+              "quote": "Hi, am I speaking with Rahul?"
+            },
+            {
+              "turns": [
+                5
+              ],
+              "quote": "The role is a QA Engineer position in Bengaluru, hybrid, with three days a week in office."
+            }
+          ],
+          "n_a": false,
+          "score": 10
+        },
+        {
+          "key": "query_handling",
+          "reason": "The caller clearly asked to stop and not be called again, but the agent did not honor that request and instead continued asking screening questions.",
+          "evidence": [
+            {
+              "turns": [
+                6,
+                7
+              ],
+              "quote": "Actually I'm not interested, please don't call me again."
+            },
+            {
+              "turns": [
+                8,
+                9
+              ],
+              "quote": "I said I'm not interested. Please stop."
+            }
+          ],
+          "n_a": false,
+          "score": 0
+        },
+        {
+          "key": "troubleshooting",
+          "reason": "N/A: the caller did not raise a solvable problem that required troubleshooting; they simply declined to continue.",
+          "evidence": [],
+          "n_a": true,
+          "score": 0
+        },
+        {
+          "key": "communication_tone",
+          "reason": "The agent was polite and concise, but it made one clear lapse by continuing after the candidate asked to stop.",
+          "evidence": [
+            {
+              "turns": [
+                3
+              ],
+              "quote": "Hi Rahul, this is Hansa, an AI recruiter from Acme Tech."
+            },
+            {
+              "turns": [
+                7
+              ],
+              "quote": "I understand. What is your current CTC?"
+            }
+          ],
+          "n_a": false,
+          "score": 5
+        },
+        {
+          "key": "opening_closure",
+          "reason": "The opening was complete: greeting, introduction, identity check, and purpose were all present. The close was incomplete because the call ended before any recap or next-step closure.",
+          "evidence": [
+            {
+              "turns": [
+                1,
+                3
+              ],
+              "quote": "Hi, am I speaking with Rahul?"
+            },
+            {
+              "turns": [
+                3
+              ],
+              "quote": "I'm calling about the QA Engineer role you applied for. Is this a good time for a five minute chat?"
+            }
+          ],
+          "n_a": false,
+          "score": 5
+        },
+        {
+          "key": "language_match",
+          "reason": "The agent stayed in English, matching the caller's language throughout the call.",
+          "evidence": [
+            {
+              "turns": [
+                3
+              ],
+              "quote": "Hi Rahul, this is Hansa, an AI recruiter from Acme Tech."
+            }
+          ],
+          "n_a": false,
+          "score": 10
+        },
+        {
+          "key": "repetition",
+          "reason": "There was no needless repetition; the agent did not repeat the same line or question multiple times without progress.",
+          "evidence": [
+            {
+              "turns": [
+                3
+              ],
+              "quote": "Hi Rahul, this is Hansa, an AI recruiter from Acme Tech."
+            }
+          ],
+          "n_a": false,
+          "score": 10
+        }
+      ],
+      "failure_conditions": [
+        {
+          "code": "IGNORED_STOP_REQUEST",
+          "reason": "The caller clearly asked to stop and not be called again, but the agent continued with screening questions instead of ending the call.",
+          "evidence": [
+            {
+              "turns": [
+                6,
+                7,
+                8,
+                9
+              ],
+              "quote": "Actually I'm not interested, please don't call me again."
+            }
+          ]
+        }
+      ],
+      "confidence": 0.97
+    },
+    "model": "gpt-5.4-mini-2026-03-17",
+    "usage": {
+      "input_tokens": 4373,
+      "output_tokens": 3648
+    }
+  }
+}

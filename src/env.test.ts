@@ -48,4 +48,35 @@ describe("env defaults", () => {
       VAJRA_DB_SSL: true,
     });
   });
+
+  it("leaves the v2 judge model unset (v2 audits refuse to run) with reasoning effort medium", () => {
+    expect(defaults(["AUDIT_V2_JUDGE_MODEL", "AUDIT_V2_JUDGE_REASONING_EFFORT"])).toEqual({
+      AUDIT_V2_JUDGE_MODEL: null,
+      AUDIT_V2_JUDGE_REASONING_EFFORT: "medium",
+    });
+  });
+});
+
+/** Loads env.ts in a fresh process with these values set; the parsed values, or null when it rejects them. */
+function load(values: Record<string, string>, keys: string[]): Record<string, unknown> | null {
+  const dir = mkdtempSync(join(tmpdir(), "audit-env-"));
+  try {
+    const script = `const { env } = await import(${JSON.stringify(join(import.meta.dir, "env.ts"))});
+      console.log(JSON.stringify(Object.fromEntries(${JSON.stringify(keys)}.map((k) => [k, env[k] ?? null]))));`;
+    const run = Bun.spawnSync([process.execPath, "-e", script], { cwd: dir, env: { ...process.env, ...values } });
+    return run.exitCode === 0 ? JSON.parse(run.stdout.toString()) : null;
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+describe("AUDIT_V2_JUDGE_MODEL (PRD §9: a pinned model, not an alias)", () => {
+  const keys = ["AUDIT_V2_JUDGE_MODEL"];
+  it("takes a dated id", () => {
+    expect(load({ AUDIT_V2_JUDGE_MODEL: "gpt-5.4-mini-2026-03-17" }, keys)).toEqual({ AUDIT_V2_JUDGE_MODEL: "gpt-5.4-mini-2026-03-17" });
+  });
+  it("refuses an alias, and treats empty as unset", () => {
+    expect(load({ AUDIT_V2_JUDGE_MODEL: "gpt-5.6-luna" }, keys)).toBeNull();
+    expect(load({ AUDIT_V2_JUDGE_MODEL: "" }, keys)).toEqual({ AUDIT_V2_JUDGE_MODEL: null });
+  });
 });

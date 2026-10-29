@@ -1,6 +1,7 @@
 import { sequelize } from "@/db/connection";
 import { env } from "@/env";
 import { requireToken } from "@/middleware/auth";
+import { auditV2Router } from "@/routes/audit-v2";
 import audits from "@/routes/audits";
 import calls from "@/routes/calls";
 import { conditionsRouter } from "@/routes/conditions";
@@ -39,6 +40,13 @@ app.route(
 app.route(
   "/v1/audit",
   conditionsRouter(
+    () => sequelize,
+    () => env.AUDIT_V2_ENABLED,
+  ),
+);
+app.route(
+  "/v1/audit",
+  auditV2Router(
     () => sequelize,
     () => env.AUDIT_V2_ENABLED,
   ),

@@ -51,6 +51,17 @@ export const env = createEnv({
       .enum(["minimal", "low", "medium", "high", ""])
       .optional()
       .transform((v) => v || undefined),
+    // v2 judge (PRD §9 risks): a dated snapshot, never an alias, so a model update can't move scores silently. Stored on
+    // every v2 audit. Reasoning models reject temperature; temperature 0 is sent only when no reasoning effort is set.
+    AUDIT_V2_JUDGE_MODEL: z
+      .string()
+      .regex(/-\d{4}-\d{2}-\d{2}$/, "must be a dated model id ending in -YYYY-MM-DD, not an alias")
+      .optional()
+      .or(z.literal("").transform(() => undefined)),
+    AUDIT_V2_JUDGE_REASONING_EFFORT: z
+      .enum(["minimal", "low", "medium", "high", ""])
+      .default("medium")
+      .transform((v) => v || undefined),
 
     PORT: z.coerce.number().default(8095),
     AUDIT_API_TOKEN: z.string().min(1).default("change-me"),

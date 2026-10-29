@@ -9,6 +9,7 @@ import * as reportingTables from "./0008-reporting-tables";
 import * as auditRescore from "./0009-audit-rescore";
 import * as proposedConditions from "./0010-proposed-conditions";
 import * as signalParams from "./0011-signal-params";
+import * as auditHistory from "./0012-audit-results-v2-history";
 
 /** Every migration, in order. Add new ones at the end with the next number; never edit one that has been applied. */
 export const migrations = [
@@ -23,4 +24,5 @@ export const migrations = [
   { name: "0009-audit-rescore", ...auditRescore },
   { name: "0010-proposed-conditions", ...proposedConditions },
   { name: "0011-signal-params", ...signalParams },
+  { name: "0012-audit-results-v2-history", ...auditHistory },
 ];

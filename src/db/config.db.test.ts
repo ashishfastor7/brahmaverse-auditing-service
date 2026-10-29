@@ -117,7 +117,7 @@ describe.skipIf(!dbTestsEnabled)("v2 config (migrations 0003–0011, config-stor
   it("0011 down puts the agents back on v3 and removes v4", () =>
     withTestDb(async (sequelize) => {
       const migrator = createMigrator(sequelize, { quiet: true });
-      await migrator.up();
+      await migrator.up({ to: "0011-signal-params" });
       await migrator.down();
       expect(
         await all(sequelize, "SELECT agent_code, scorecard_id, scorecard_version FROM scorecard_assignment ORDER BY agent_code"),

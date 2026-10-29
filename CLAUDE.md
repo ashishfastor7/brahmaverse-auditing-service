@@ -18,7 +18,9 @@ bun run test                    # = bun test src; unit tests with a stub judge, 
 bun run test:db                 # *.db.test.ts on a throwaway DB on the DB_* server (created, then dropped)
 bun test src/audit/audit.test.ts -t "ruleFailures"   # single file / test name filter
 bun run eval:planted            # REAL judge on fixtures/planted (needs only OPENAI_API_KEY); exits 1 on any miss; output in eval-output/
+bun run bench:judge --model <id> --model <id> [--call-id 4422]  # REAL judge: compare v2 models; eval-output/bench-v2/
 bun run replay --db --call-id 3507 [--force]         # audit past calls from voice_call_logs (also --agent-id, --from/--to, --limit, --file, --rpc)
+                                                     # --engine v2 [--print] audits with v2; --show-prompt writes the judge request only
 bun run record:readers --call-id 4570 [--redact "Acme"]  # real rows for the v2 readers into fixtures/readers/recorded/ (needs AI_DB_*, VAJRA_DB_*); review before committing
 bun run record:transcripts --call-id 4572 [--call-id …] [--redact "Acme"]  # anonymised calls into fixtures/transcripts/ for the signal tests; read every file before committing
 ```
@@ -84,6 +86,10 @@ Other pieces:
   versioned, draft → publish; the DB rejects any change to a published version. `loadActiveConfig`
   (`src/db/config-store.ts`) returns an agent's published scorecard and goal. v1 rubrics stay in code, and v1 responses
   leave out `V1_EXCLUDED` columns.
+- v2 engine (`src/audit/v2/`): `facts.ts` (signals, rule checks) → `audit-call.ts` (`auditCallV2`, pure apart from the
+  judge; one retry, then `needs_review`) → `computeScore`. `run-audit.ts` (`runAuditV2`) inserts `engine = 'v2'` rows and
+  supersedes the call's previous one. Bump `JUDGE_PROMPT_VERSION` (`v2/judge/prompt.ts`) on any wording change, after
+  approval, and re-record `fixtures/judge/v2/`. `AUDIT_V2_JUDGE_MODEL` takes dated ids only.
 - `src/env.ts`: all config via `@t3-oss/env-core` + zod; add new env vars there and to `.env.example`.
 - `src/index.ts` sets Bun `idleTimeout: 255` because on-demand audits hold the request open for the judge call.
 - `patches/`: unapplied changes for other repos; never depend on them (recordings need `AWS_*`, no agent prompt).

@@ -1,4 +1,4 @@
-import { type MetricResult, type Score, computeScore } from "@/audit/v2/score";
+import { type MetricResult, type Score, computeScore, validateWeights } from "@/audit/v2/score";
 import type { Flag } from "@/audit/v2/severity";
 import { QueryTypes, type Sequelize } from "sequelize";
 import { loadScorecard } from "./config-store";
@@ -40,14 +40,8 @@ export async function rescoreAudit(
   const scorecard = (await loadScorecard(db, audit.scorecard_id, audit.scorecard_version))!;
 
   const keys = scorecard.metrics.map((m) => m.key);
-  for (const [key, weight] of Object.entries(weights)) {
-    if (!keys.includes(key))
-      throw new RescoreError(`unknown metric ${key} for scorecard ${audit.scorecard_id} version ${audit.scorecard_version}`, 400);
-    if (!(weight >= 0)) throw new RescoreError(`${key} has a negative weight`, 400);
-    if (Math.abs(weight * 10 - Math.round(weight * 10)) > 1e-9) throw new RescoreError(`${key} has more than one decimal`, 400);
-  }
-  const total = Object.values(weights).reduce((sum, w) => sum + Math.round(w * 10), 0);
-  if (total !== 1000) throw new RescoreError(`weights total ${total / 10}, not 100`, 400);
+  const errors = validateWeights(weights, keys);
+  if (errors.length) throw new RescoreError(errors[0]!, 400);
 
   const stored = await select<MetricResult>(
     `SELECT m.key, r.score::float8 AS score, r.max::float8 AS max, r.n_a

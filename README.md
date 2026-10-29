@@ -39,7 +39,7 @@ payload), so agents are matched on `agent_id` too (`src/audit/rubrics/index.ts`)
 | `sentiment` | The other party's mood at the start and end. |
 | `auditor_confidence` | How far to trust this audit. Below `AUDIT_REVIEW_THRESHOLD`, the call is flagged for human review. |
 | `rubric_version` | Which rubric produced the score. Bump it when the rubric changes so old and new scores aren't mixed. |
-| `engine` (column) | `v1` (this audit) or `v2` (the upcoming engine). The current API and dashboard only read `v1` rows, so a v2 audit never changes them. |
+| `engine` (column) | `v1` (this audit) or `v2` (see "v2 audits"). The current API and dashboard only read `v1` rows, so a v2 audit never changes them. |
 
 Every quote the judge cites is checked against the transcript. Quotes that aren't found are marked
 in the result and lower the confidence.
@@ -85,6 +85,32 @@ exactly what it did before v2. The dashboard reads the flag from `GET /v1/audit/
 With the flag on, the dashboard's *Failure conditions* page lists the v2 condition library and adds new conditions
 (label, definition, what does not count, severity) to scorecard drafts; they apply once the draft is published.
 
+### v2 audits
+
+With the flag on, `POST /v1/audit/v2/calls/:id/audit` (optional body `{ "weights": { "<metric>": 10, … } }`, total 100;
+default: the scorecard's) audits one call with the v2 engine. `bun run replay --db --call-id 4422 --engine v2 --print`
+does the same from the command line and prints the judge's raw JSON. v1 audits keep working side by side.
+
+- **Config:** the agent's published scorecard (10 metrics) and goal config. Needs `AUDIT_V2_JUDGE_MODEL`, a dated
+  model id (`gpt-5.4-mini-2026-03-17`, chosen by benchmark on 2026-10-28: `bun run bench:judge`); aliases are refused.
+- **Judge input:** turn-numbered transcript, call variables, the agent's instructions (ai-service `prompts`) and flow
+  (Vajra workflow, else the prompt text), the business goal, the metrics the judge scores, the enabled conditions, and
+  the measured facts (S1, S2 rule parts, S4 fields, repetition, stalling and filler words, language per turn), which it
+  must not contradict. Weight-0 metrics are not sent.
+- **Judge output:** strict JSON: S2–S4, business goal (outcome, reason code, required outputs), one entry per metric
+  (score, n/a, reason, evidence), flagged conditions, confidence, summary. An answer that isn't valid JSON, cites a
+  turn the call doesn't have, or deducts points without evidence is retried once; after a second bad answer the audit
+  is kept with `needs_review` (a parseable answer is used without the bad evidence; otherwise only the rule parts).
+- **Result:** code computes the score (`computeScore`: weights, N/A re-normalised, Major zeroes its metric, Critical
+  fails the call, under the threshold fails). A check fails if its rule part or the judge's part fails, so a loop the
+  rule measured fails S2 even if the judge disagrees; a Critical or Major flag also fails the check it rolls up to
+  (e.g. `IGNORED_STOP_REQUEST` → S2). Stalling & filler words is scored by code; interruptions and
+  pronunciation are N/A until timing and audio exist.
+- **Storage:** `audit_results` rows with `engine = 'v2'`, plus `audit_check`, `metric_result` and `failure_flag`.
+  Every audit inserts a new row; when it completes, the call's previous v2 row gets `superseded_by`. A judge error
+  marks only the new row `failed`. Unless forced, a call already audited with the same scorecard, goal, weights,
+  prompt version and model returns the existing audit. Each row stores the model and `judge_prompt_version`.
+
 ## Changes needed in the other services
 
 These live in `patches/` and are **not applied**. Apply them on a branch in each repo:
@@ -111,7 +137,13 @@ bun run test:db                 # migrations up -> down -> up, a snapshot of eve
                                 # (created and dropped on the DB_* server)
 bun run eval:planted            # real judge on 10 planted-defect Hansa calls; exits 1 on any miss
 bun run record:fixture --case wrong-salary   # real judge on one planted case -> fixtures/judge/hansa-wrong-salary.json
+bun run record:fixture --engine v2 --case agent-loop   # v2 judge (hansa v4) -> fixtures/judge/v2/hansa-agent-loop.json
+bun run bench:judge --model <id> --model <id> [--runs 2] [--call-id 4422]   # compare judge models on v2; eval-output/bench-v2/
 ```
+
+v2 fixtures live in `fixtures/judge/v2/`; `v2-*` ones are hand-edited copies of a recording (malformed JSON, a
+missing turn, a deduction without evidence) for the retry tests, and say so in `note`. Re-record the v2 fixtures
+after changing the v2 judge prompt (bump `JUDGE_PROMPT_VERSION`) or `AUDIT_V2_JUDGE_MODEL`.
 
 Tests never call OpenAI: `src/test-preload.ts` (loaded by `bunfig.toml`) makes creating the OpenAI client throw
 under `bun test`. Use `fixtureJudge(name)` to replay a recorded judge output instead. `record:fixture` is manual

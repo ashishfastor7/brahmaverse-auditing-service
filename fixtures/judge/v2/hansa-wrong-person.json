@@ -1,0 +1,171 @@
+{
+  "name": "hansa-wrong-person",
+  "case": "wrong-person",
+  "rubric_version": "hansa@4",
+  "judge_model": "gpt-5.4-mini-2026-03-17",
+  "recorded_at": "2026-10-28T11:08:03.202Z",
+  "judge_prompt_version": "v2-1",
+  "response": {
+    "output": {
+      "call_summary": "The agent made an outbound recruiting call for Rahul about the QA Engineer role, but Rahul's father answered and said Rahul was not there. The agent apologized, said she would try again later, and ended the call politely. No screening questions were completed because the call ended on a wrong-person check.",
+      "transcript_quality": {
+        "rating": "good",
+        "note": "The transcript is short but clear, with no significant garbling or language issues."
+      },
+      "system_checks": [
+        {
+          "check": "S2",
+          "reason": "The agent responded appropriately through the end of the call, and the call ended because the other party said Rahul was not there; there was no loop or agent-side drop.",
+          "evidence": [
+            {
+              "turns": [
+                2
+              ],
+              "quote": "No, this is his father. Rahul is not here."
+            },
+            {
+              "turns": [
+                3
+              ],
+              "quote": "No problem, sorry to disturb you. I'll try again later. Have a good day!"
+            }
+          ],
+          "result": "PASS"
+        },
+        {
+          "check": "S3",
+          "reason": "The call ended early for a legitimate reason: the person who answered said they were Rahul's father and that Rahul was not there.",
+          "evidence": [
+            {
+              "turns": [
+                2
+              ],
+              "quote": "No, this is his father. Rahul is not here."
+            }
+          ],
+          "result": "PASS"
+        },
+        {
+          "check": "S4",
+          "reason": "No outcome fields were saved for this call, so there is nothing to compare against the transcript.",
+          "evidence": [],
+          "result": "NOT_APPLICABLE"
+        }
+      ],
+      "business_goal": {
+        "reason": "This was a wrong-person contact, so the recruiting purpose could not be completed with Rahul's answers or confirmation.",
+        "evidence": [
+          {
+            "turns": [
+              2
+            ],
+            "quote": "No, this is his father. Rahul is not here."
+          }
+        ],
+        "outcome": "NOT_APPLICABLE",
+        "reason_code": "WRONG_PERSON",
+        "required_outputs": []
+      },
+      "metrics": [
+        {
+          "key": "flow_adherence",
+          "reason": "Only the opening identity check was attempted, and it was incomplete: the agent did not say she was Hansa from Acme Tech or ask if it was a good time before learning Rahul was unavailable.",
+          "evidence": [
+            {
+              "turns": [
+                1
+              ],
+              "quote": "Hi, am I speaking with Rahul?"
+            },
+            {
+              "turns": [
+                3
+              ],
+              "quote": "No problem, sorry to disturb you. I'll try again later. Have a good day!"
+            }
+          ],
+          "n_a": false,
+          "score": 4
+        },
+        {
+          "key": "query_handling",
+          "reason": "N/A: the caller did not ask any question or raise an objection that needed answering.",
+          "evidence": [],
+          "n_a": true,
+          "score": 0
+        },
+        {
+          "key": "troubleshooting",
+          "reason": "N/A: the caller did not raise a problem that required troubleshooting.",
+          "evidence": [],
+          "n_a": true,
+          "score": 0
+        },
+        {
+          "key": "communication_tone",
+          "reason": "The agent was polite, concise, and appropriately non-pushy after learning it was the wrong person.",
+          "evidence": [
+            {
+              "turns": [
+                3
+              ],
+              "quote": "No problem, sorry to disturb you. I'll try again later. Have a good day!"
+            }
+          ],
+          "n_a": false,
+          "score": 10
+        },
+        {
+          "key": "opening_closure",
+          "reason": "The call had a polite closing, but the opening was incomplete: the agent did not introduce herself as Hansa from Acme Tech, and there was no role description or next-step recap.",
+          "evidence": [
+            {
+              "turns": [
+                1
+              ],
+              "quote": "Hi, am I speaking with Rahul?"
+            },
+            {
+              "turns": [
+                3
+              ],
+              "quote": "No problem, sorry to disturb you. I'll try again later. Have a good day!"
+            }
+          ],
+          "n_a": false,
+          "score": 5
+        },
+        {
+          "key": "language_match",
+          "reason": "The call stayed in English throughout, matching the caller.",
+          "evidence": [
+            {
+              "turns": [
+                1,
+                2,
+                3
+              ],
+              "quote": "Hi, am I speaking with Rahul?"
+            }
+          ],
+          "n_a": false,
+          "score": 10
+        },
+        {
+          "key": "repetition",
+          "reason": "No line or phrase was repeated needlessly.",
+          "evidence": [],
+          "n_a": false,
+          "score": 10
+        }
+      ],
+      "failure_conditions": [],
+      "confidence": 0.98
+    },
+    "model": "gpt-5.4-mini-2026-03-17",
+    "usage": {
+      "input_tokens": 4254,
+      "output_tokens": 2880
+    }
+  }
+}

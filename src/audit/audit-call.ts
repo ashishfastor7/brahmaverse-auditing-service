@@ -7,10 +7,10 @@ import { JUDGE_SCALE, POINTS_PER_CATEGORY, SCORECARD } from "./rubrics/types";
 import { auditorConfidence, overallScore, qualityScore } from "./score";
 import type { AgentPrompt, AuditInput, AuditResult, FailureReason, MetricResult } from "./types";
 
-export type JudgeCall = {
-  messages: ReturnType<typeof buildJudgeMessages>;
-  schema: ReturnType<typeof judgeJsonSchema>;
-};
+export type JudgeMessage = { role: "system" | "user" | "assistant"; content: string };
+/** One judge request: v1's (`buildJudgeMessages`, `judgeJsonSchema`) or v2's (`src/audit/v2/judge/`). */
+export type JudgeCall = { messages: JudgeMessage[]; schema: Record<string, unknown>; schemaName?: string };
+/** `output` is the parsed JSON; with `rawOnInvalidJson` (v2) a reply that isn't JSON comes back as its raw string. */
 export type JudgeResponse = { output: unknown; model: string; usage: { input_tokens: number; output_tokens: number } };
 /** Anything that can grade a call — OpenAI in production, a stub in tests. */
 export type Judge = (call: JudgeCall) => Promise<JudgeResponse>;
