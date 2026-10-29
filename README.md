@@ -70,7 +70,7 @@ dashboard/            Vite + React dashboard (call list, call detail)
 ## Setup
 
 ```bash
-cp .env.example .env            # fill in DB_PASSWORD, MESSAGE_BUS_PASSWORD, OPENAI_API_KEY, AUDIT_API_TOKEN
+cp .env.example .env            # fill in DB_PASSWORD, MESSAGE_BUS_PASSWORD, OPENAI_API_KEY, AUDIT_ADMIN_PASSWORD
 export NPM_TOKEN=<GitHub PAT with read:packages>   # for @fastor7/message-bus
 bun install
 bun run migrate                 # creates the database, then applies pending migrations (src/db/migrations/)
@@ -80,7 +80,12 @@ bun run dev                     # API on :8095 (AUDIT_SUBSCRIBE=true also audits
 cd dashboard && cp .env.example .env && npm install && npm run dev   # dashboard on :5175
 ```
 
-Sign in to the dashboard with the value of `AUDIT_API_TOKEN`.
+Sign in to the dashboard with `AUDIT_ADMIN_USERNAME` / `AUDIT_ADMIN_PASSWORD` (default `admin` / `password`, for local
+dev only: the API refuses the default password when `NODE_ENV=production` and warns otherwise). A sign-in lasts
+`AUDIT_SESSION_HOURS` (12). Every `/v1/audit/*` route except `health` and `auth/login` needs the session token as
+`Authorization: Bearer <token>`; get one from `POST /v1/audit/auth/login` with `{ "username", "password" }`.
+Audits, re-scores and published conditions record the signed-in username (`triggered_by` / `created_by`). After 10
+failed sign-ins from one address in 15 minutes, that address gets 429 until the window ends.
 
 v2 (`docs/prd-v2.md`) is off until `AUDIT_V2_ENABLED=true`. While it is off, every existing route returns
 exactly what it did before v2. The dashboard reads the flag from `GET /v1/audit/config` (`{ "data": { "v2_enabled": false } }`).
@@ -240,7 +245,9 @@ itself (serving it as `audio/wav`, since archived files were stored with the wro
 - **Prompt versions aren't pinned per call.** ai-service edits prompt rows in place, so an old call is graded against the current prompt. The version used is recorded on each result.
 - **Ultravox transcripts have no timestamps**, so evidence points to a turn, not a moment in the audio.
 - **The judge varies on borderline calls.** Re-running the same call can flip a borderline failure. Treat single borderline failures as "check this", and use the transcript links.
-- **The dashboard uses one shared token.** It's an internal tool for now; per-business access would reuse the existing user JWTs.
+- **One shared admin login, no roles.** Everyone signed in can do everything, and `triggered_by` can't tell people apart. Per-user accounts and roles come later.
+- **Changing the password doesn't end existing sessions.** They last until they expire (`AUDIT_SESSION_HOURS`). To sign everyone out now, run `DELETE FROM audit_session` on the audit DB.
+- **The sign-in throttle counts by connecting address and lives in memory.** Behind a proxy every client shares the proxy's address, so 10 bad tries lock everyone out for 15 minutes; a restart clears it.
 - **The planted cases are synthetic.** They prove the judge catches each defect, not that it agrees with your reviewers. For v2, `eval:v2` measures that on the golden set, which fills up from reviews (none exist until the review buttons, P2-4 / P2-18).
 - **One judge call per audit.** Scores vary a little between runs; re-running and comparing (self-consistency) would tighten confidence.
 

@@ -1,65 +1,259 @@
 @import "tailwindcss";
 
-/* Tokens. Status colours are the reserved good/warning/serious/critical steps and always ship with
-   an icon + label; text never wears a status colour. */
+/* Design tokens in three layers; docs/design-system.md explains each one.
+   1. Base values: raw colours and scales, the same in both themes. Nothing outside this file uses them.
+   2. Meanings: what a colour is for (surface, ink, accent, status, focus). The only layer that changes with the theme.
+   3. Component tokens: card, tile, badge, row, input, button, slider, dialog. Built from meanings only.
+   Status colours are the reserved good/warning/serious/critical steps and always ship with an icon + label;
+   text never wears a status colour. */
+
+/* 1. Base values */
 :root {
-  --bg: #f7f7f5;
-  --surface: #ffffff;
-  --surface-sunken: #f1f1ee;
-  --border: #e4e4df;
-  --ink: #1b1b19;
-  --ink-2: #4a4a45;
-  --ink-muted: #75756e;
-  --accent: #2a6fdb;
-  --accent-track: #d9e6fa;
-  --highlight: #fff4cc;
-  --good: #0ca30c;
-  --warning: #fab219;
-  --serious: #ec835a;
-  --critical: #d03b3b;
-  --good-soft: #e3f5e3;
-  --warning-soft: #fdf1d6;
-  --serious-soft: #fcebe3;
-  --critical-soft: #f9e2e2;
+  --stone-0: #ffffff;
+  --stone-50: #f7f7f5;
+  --stone-100: #f1f1ee;
+  --stone-150: #eeeeea;
+  --stone-200: #e4e4df;
+  --stone-300: #c4c4bd;
+  --stone-400: #94948c;
+  --stone-450: #8f8f88;
+  --stone-500: #6b6b65;
+  --stone-600: #4a4a45;
+  --stone-700: #33332f;
+  --stone-800: #222220;
+  --stone-850: #1a1a19;
+  --stone-950: #121211;
+
+  --blue-100: #d9e6fa;
+  --blue-200: #8db7f5;
+  --blue-300: #6ea2f2;
+  --blue-500: #2a6fdb;
+  --blue-600: #1f5bbd;
+  --blue-800: #253552;
+
+  --green-100: #e3f5e3;
+  --green-500: #0ca30c;
+  --green-900: #17301a;
+  --amber-100: #fdf1d6;
+  --amber-400: #fab219;
+  --amber-900: #352a12;
+  --yellow-100: #fff4cc;
+  --yellow-900: #3d3517;
+  --orange-100: #fcebe3;
+  --orange-400: #ec835a;
+  --orange-900: #3a2419;
+  --red-100: #f9e2e2;
+  --red-400: #e05252;
+  --red-500: #d03b3b;
+  --red-900: #3b1c1c;
+
+  /* Type: size / line height. Five sizes; 14 is the working size. */
+  --text-meta: 12px;
+  --text-meta--lh: 16px;
+  --text-body: 14px;
+  --text-body--lh: 20px;
+  --text-lead: 16px;
+  --text-lead--lh: 24px;
+  --text-title: 20px;
+  --text-title--lh: 28px;
+  --text-figure: 24px;
+  --text-figure--lh: 32px;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+
+  /* Space: 4px steps (Tailwind's own spacing uses the same base). */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  --radius-tight: 4px;
+  --radius-control: 6px;
+  --radius-panel: 12px;
+  --radius-pill: 9999px;
+
+  /* Motion: short and ease-out; nothing a reviewer waits on. */
+  --motion-instant: 100ms;
+  --motion-fast: 150ms;
+  --motion-base: 200ms;
+  --motion-slow: 300ms;
+  --motion-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --motion-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --press-scale: 0.97;
+}
+
+/* 2. Meanings, light */
+:root {
+  --bg: var(--stone-50);
+  --surface: var(--stone-0);
+  --surface-sunken: var(--stone-100);
+  --border: var(--stone-200);
+  --border-control: var(--stone-450);
+  --ink: var(--stone-850);
+  --ink-2: var(--stone-600);
+  --ink-muted: var(--stone-500);
+  --accent: var(--blue-500);
+  --accent-hover: var(--blue-600);
+  --accent-ink: var(--stone-0);
+  --accent-track: var(--blue-100);
+  --primary: var(--stone-850);
+  --primary-hover: var(--stone-700);
+  --primary-ink: var(--stone-0);
+  --highlight: var(--yellow-100);
+  --good: var(--green-500);
+  --warning: var(--amber-400);
+  --serious: var(--orange-400);
+  --critical: var(--red-500);
+  --good-soft: var(--green-100);
+  --warning-soft: var(--amber-100);
+  --serious-soft: var(--orange-100);
+  --critical-soft: var(--red-100);
+  --focus-ring: var(--blue-500);
+  --overlay: rgb(18 18 17 / 0.4);
+  --elevation-raised: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 16px rgb(0 0 0 / 0.08);
+  --elevation-overlay: 0 2px 4px rgb(0 0 0 / 0.04), 0 16px 48px rgb(0 0 0 / 0.16);
   color-scheme: light;
 }
 
+/* 2. Meanings, dark: the system setting unless the toggle picked light … */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #121211;
-    --surface: #1a1a19;
-    --surface-sunken: #222220;
-    --border: #33332f;
-    --ink: #eeeeea;
-    --ink-2: #c4c4bd;
-    --ink-muted: #94948c;
-    --accent: #6ea2f2;
-    --accent-track: #253552;
-    --highlight: #3d3517;
-    --good-soft: #17301a;
-    --warning-soft: #352a12;
-    --serious-soft: #3a2419;
-    --critical-soft: #3b1c1c;
+    --bg: var(--stone-950);
+    --surface: var(--stone-850);
+    --surface-sunken: var(--stone-800);
+    --border: var(--stone-700);
+    --border-control: var(--stone-500);
+    --ink: var(--stone-150);
+    --ink-2: var(--stone-300);
+    --ink-muted: var(--stone-400);
+    --accent: var(--blue-300);
+    --accent-hover: var(--blue-200);
+    --accent-ink: var(--stone-950);
+    --accent-track: var(--blue-800);
+    --primary: var(--stone-150);
+    --primary-hover: var(--stone-0);
+    --primary-ink: var(--stone-950);
+    --highlight: var(--yellow-900);
+    --critical: var(--red-400);
+    --good-soft: var(--green-900);
+    --warning-soft: var(--amber-900);
+    --serious-soft: var(--orange-900);
+    --critical-soft: var(--red-900);
+    --focus-ring: var(--blue-300);
+    --overlay: rgb(0 0 0 / 0.6);
+    --elevation-raised: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 16px rgb(0 0 0 / 0.4);
+    --elevation-overlay: 0 2px 4px rgb(0 0 0 / 0.3), 0 16px 48px rgb(0 0 0 / 0.6);
     color-scheme: dark;
   }
 }
 
+/* … or the toggle picked dark. Keep both dark blocks identical. */
 :root[data-theme="dark"] {
-  --bg: #121211;
-  --surface: #1a1a19;
-  --surface-sunken: #222220;
-  --border: #33332f;
-  --ink: #eeeeea;
-  --ink-2: #c4c4bd;
-  --ink-muted: #94948c;
-  --accent: #6ea2f2;
-  --accent-track: #253552;
-  --highlight: #3d3517;
-  --good-soft: #17301a;
-  --warning-soft: #352a12;
-  --serious-soft: #3a2419;
-  --critical-soft: #3b1c1c;
+  --bg: var(--stone-950);
+  --surface: var(--stone-850);
+  --surface-sunken: var(--stone-800);
+  --border: var(--stone-700);
+  --border-control: var(--stone-500);
+  --ink: var(--stone-150);
+  --ink-2: var(--stone-300);
+  --ink-muted: var(--stone-400);
+  --accent: var(--blue-300);
+  --accent-hover: var(--blue-200);
+  --accent-ink: var(--stone-950);
+  --accent-track: var(--blue-800);
+  --primary: var(--stone-150);
+  --primary-hover: var(--stone-0);
+  --primary-ink: var(--stone-950);
+  --highlight: var(--yellow-900);
+  --critical: var(--red-400);
+  --good-soft: var(--green-900);
+  --warning-soft: var(--amber-900);
+  --serious-soft: var(--orange-900);
+  --critical-soft: var(--red-900);
+  --focus-ring: var(--blue-300);
+  --overlay: rgb(0 0 0 / 0.6);
+  --elevation-raised: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 16px rgb(0 0 0 / 0.4);
+  --elevation-overlay: 0 2px 4px rgb(0 0 0 / 0.3), 0 16px 48px rgb(0 0 0 / 0.6);
   color-scheme: dark;
+}
+
+/* 3. Component tokens (theme-free: they follow the meanings) */
+:root {
+  --card-bg: var(--surface);
+  --card-border: var(--border);
+  --card-radius: var(--radius-panel);
+  --card-padding: var(--space-4);
+  --card-header-padding: var(--space-2) var(--space-4);
+
+  --tile-bg: var(--surface);
+  --tile-border: var(--border);
+  --tile-radius: var(--radius-panel);
+  --tile-padding: var(--space-3) var(--space-4);
+  --tile-label: var(--ink-muted);
+  --tile-value: var(--ink);
+
+  --badge-height: 20px;
+  --badge-radius: var(--radius-control);
+  --badge-padding-x: 6px;
+  --badge-ink: var(--ink);
+
+  --row-height: 44px;
+  --row-border: var(--border);
+  --row-hover: var(--surface-sunken);
+  --row-selected: var(--accent-track);
+
+  --input-height: 36px;
+  --input-height-compact: 32px;
+  --input-bg: var(--surface);
+  --input-border: var(--border-control);
+  --input-border-hover: var(--ink-muted);
+  --input-border-focus: var(--accent);
+  --input-border-error: var(--critical);
+  --input-placeholder: var(--ink-muted);
+  --input-radius: var(--radius-control);
+  --input-padding-x: var(--space-3);
+
+  --button-height: 36px;
+  --button-height-compact: 32px;
+  --button-radius: var(--radius-control);
+  --button-padding-x: var(--space-4);
+  --button-primary-bg: var(--primary);
+  --button-primary-bg-hover: var(--primary-hover);
+  --button-primary-ink: var(--primary-ink);
+  --button-secondary-bg: var(--surface);
+  --button-secondary-bg-hover: var(--surface-sunken);
+  --button-secondary-border: var(--border-control);
+  --button-secondary-ink: var(--ink);
+  --button-ghost-bg-hover: var(--surface-sunken);
+  --button-ghost-ink: var(--ink-2);
+
+  --slider-track: var(--accent-track);
+  --slider-fill: var(--accent);
+  --slider-thumb: var(--surface);
+  --slider-thumb-border: var(--accent);
+  --slider-thumb-size: 16px;
+  --slider-track-height: 4px;
+
+  --dialog-bg: var(--surface);
+  --dialog-radius: var(--radius-panel);
+  --dialog-padding: var(--space-6);
+  --dialog-shadow: var(--elevation-overlay);
+  --dialog-backdrop: var(--overlay);
+  --dialog-width: 480px;
+
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --press-scale: 1;
+  }
 }
 
 @theme inline {
@@ -67,12 +261,19 @@
   --color-surface: var(--surface);
   --color-sunken: var(--surface-sunken);
   --color-line: var(--border);
+  --color-control: var(--border-control);
   --color-ink: var(--ink);
   --color-ink-2: var(--ink-2);
   --color-muted: var(--ink-muted);
   --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-ink: var(--accent-ink);
   --color-accent-track: var(--accent-track);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-ink: var(--primary-ink);
   --color-highlight: var(--highlight);
+  --color-focus: var(--focus-ring);
   --color-good: var(--good);
   --color-warning: var(--warning);
   --color-serious: var(--serious);
@@ -81,6 +282,9 @@
   --color-warning-soft: var(--warning-soft);
   --color-serious-soft: var(--serious-soft);
   --color-critical-soft: var(--critical-soft);
+  --shadow-raised: var(--elevation-raised);
+  --shadow-overlay: var(--elevation-overlay);
+  --ease-snap: var(--motion-ease-out);
   --font-sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
 }
 
@@ -93,4 +297,115 @@ body {
 
 .tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* Components built on the component tokens (ui.tsx wraps them). Motion: transform and opacity only; focus never
+   animates (it's keyboard-driven); hover only on devices that really hover. */
+@layer components {
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    height: var(--button-height);
+    padding: 0 var(--button-padding-x);
+    border: 1px solid transparent;
+    border-radius: var(--button-radius);
+    font-size: var(--text-body);
+    line-height: var(--text-body--lh);
+    font-weight: var(--weight-medium);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    transition:
+      transform var(--motion-instant) var(--motion-ease-out),
+      background-color var(--motion-fast) ease,
+      border-color var(--motion-fast) ease;
+  }
+  .btn:active:not(:disabled) {
+    transform: scale(var(--press-scale));
+  }
+  .btn:focus-visible {
+    outline: var(--focus-ring-width) solid var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
+  }
+  .btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+  .btn-compact {
+    height: var(--button-height-compact);
+    padding: 0 var(--space-3);
+  }
+  .btn-primary {
+    background: var(--button-primary-bg);
+    color: var(--button-primary-ink);
+  }
+  .btn-secondary {
+    background: var(--button-secondary-bg);
+    border-color: var(--button-secondary-border);
+    color: var(--button-secondary-ink);
+  }
+  .btn-ghost {
+    background: transparent;
+    color: var(--button-ghost-ink);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .btn-primary:hover:not(:disabled) {
+      background: var(--button-primary-bg-hover);
+    }
+    .btn-secondary:hover:not(:disabled) {
+      background: var(--button-secondary-bg-hover);
+    }
+    .btn-ghost:hover:not(:disabled) {
+      background: var(--button-ghost-bg-hover);
+      color: var(--ink);
+    }
+  }
+
+  .input {
+    width: 100%;
+    height: var(--input-height);
+    padding: 0 var(--input-padding-x);
+    border: 1px solid var(--input-border);
+    border-radius: var(--input-radius);
+    background: var(--input-bg);
+    color: var(--ink);
+    font-size: var(--text-body);
+    transition: border-color var(--motion-fast) ease;
+  }
+  .input::placeholder {
+    color: var(--input-placeholder);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .input:hover:not(:focus-visible) {
+      border-color: var(--input-border-hover);
+    }
+  }
+  .input:focus-visible {
+    border-color: var(--input-border-focus);
+    outline: var(--focus-ring-width) solid var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
+  }
+  .input[aria-invalid="true"] {
+    border-color: var(--input-border-error);
+  }
+
+  /* A message that appears in place (inline errors, notices): fades in and settles 4px; no travel with reduced motion. */
+  .enter-settle {
+    transition:
+      opacity var(--motion-base) var(--motion-ease-out),
+      transform var(--motion-base) var(--motion-ease-out);
+    @starting-style {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .enter-settle {
+      @starting-style {
+        transform: none;
+      }
+    }
+  }
 }

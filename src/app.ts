@@ -1,8 +1,12 @@
 import { sequelize } from "@/db/connection";
 import { env } from "@/env";
-import { requireToken } from "@/middleware/auth";
+import { adminCredentials } from "@/auth/credentials";
+import { dbSessionStore } from "@/auth/session-store";
+import { loginThrottle } from "@/auth/throttle";
+import { requireSession } from "@/middleware/auth";
 import { auditV2Router } from "@/routes/audit-v2";
 import audits from "@/routes/audits";
+import { authRouter } from "@/routes/auth";
 import calls from "@/routes/calls";
 import { conditionsRouter } from "@/routes/conditions";
 import config from "@/routes/config";
@@ -25,8 +29,19 @@ app.onError((err, c) => {
   return c.json({ status: false, message: "Something went wrong" }, 500);
 });
 
+const sessions = dbSessionStore(() => sequelize);
+
 app.get("/v1/audit/health", (c) => c.json({ status: true }));
-app.use("/v1/audit/*", requireToken);
+app.route(
+  "/v1/audit",
+  authRouter({
+    store: sessions,
+    check: adminCredentials(env.AUDIT_ADMIN_USERNAME, env.AUDIT_ADMIN_PASSWORD),
+    throttle: loginThrottle(),
+    sessionHours: env.AUDIT_SESSION_HOURS,
+  }),
+);
+app.use("/v1/audit/*", requireSession(sessions));
 app.route("/v1/audit", audits);
 app.route("/v1/audit", calls);
 app.route("/v1/audit", config);

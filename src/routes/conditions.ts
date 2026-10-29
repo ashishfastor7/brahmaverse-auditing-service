@@ -1,11 +1,9 @@
 import { ConditionError, addCondition, deleteCondition, discardDraft, listConditions, publishDraft } from "@/db/condition-store";
+import { type AuthEnv, signedInUser } from "@/middleware/auth";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { Sequelize } from "sequelize";
 import { z } from "zod";
-
-/** The shared login (P1-17 replaces the bearer token with it); drafts and published versions record it. */
-const SHARED_LOGIN = "admin";
 
 const newCondition = z.object({
   code: z.string().max(64).optional(),
@@ -26,7 +24,7 @@ const newCondition = z.object({
  * Takes the database and the flag so tests can pass their own.
  */
 export function conditionsRouter(db: () => Sequelize, v2Enabled: () => boolean) {
-  const router = new Hono();
+  const router = new Hono<AuthEnv>();
   const guard = <T>(work: () => Promise<T>) => {
     if (!v2Enabled()) throw new HTTPException(404, { message: "Not found" });
     return work().catch((e) => {
@@ -36,14 +34,16 @@ export function conditionsRouter(db: () => Sequelize, v2Enabled: () => boolean) 
 
   router.get("/conditions", async (c) => c.json({ data: await guard(() => listConditions(db())) }));
   router.post("/conditions", async (c) => {
-    const data = await guard(async () => addCondition(db(), newCondition.parse(await c.req.json().catch(() => ({}))), SHARED_LOGIN));
+    const data = await guard(async () => addCondition(db(), newCondition.parse(await c.req.json().catch(() => ({}))), signedInUser(c)));
     return c.json({ data }, 201);
   });
   router.delete("/conditions/:code", async (c) => {
     await guard(() => deleteCondition(db(), c.req.param("code")));
     return c.json({ data: null });
   });
-  router.post("/scorecards/:id/publish", async (c) => c.json({ data: await guard(() => publishDraft(db(), c.req.param("id"), SHARED_LOGIN)) }));
+  router.post("/scorecards/:id/publish", async (c) =>
+    c.json({ data: await guard(() => publishDraft(db(), c.req.param("id"), signedInUser(c))) }),
+  );
   router.delete("/scorecards/:id/draft", async (c) => {
     await guard(() => discardDraft(db(), c.req.param("id")));
     return c.json({ data: null });

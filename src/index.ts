@@ -5,6 +5,15 @@ import { sequelize } from "@/db";
 import { pendingMigrations } from "@/db/migrator";
 import { env } from "@/env";
 
+// admin / password is for local dev; never serve real call data behind it.
+if (env.AUDIT_ADMIN_PASSWORD === "password") {
+  if (process.env.NODE_ENV === "production") {
+    console.error("AUDIT_ADMIN_PASSWORD is still the default. Set a real password in .env, then start again.");
+    process.exit(1);
+  }
+  console.warn("warning: the dashboard sign-in uses the default password (local dev only). Set AUDIT_ADMIN_PASSWORD in .env.");
+}
+
 await sequelize.authenticate();
 console.log("database connected");
 

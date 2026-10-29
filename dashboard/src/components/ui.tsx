@@ -1,5 +1,5 @@
 import { AlertTriangle, CheckCircle2, CircleSlash, Clock, Eye, MinusCircle, XCircle } from "lucide-react";
-import type { ReactNode } from "react";
+import type { ButtonHTMLAttributes, ComponentProps, ReactNode } from "react";
 import type { AuditListRow, AuditStatus } from "../api";
 
 type Tone = "good" | "warning" | "serious" | "critical" | "neutral";
@@ -121,6 +121,33 @@ export const formatDuration = (secs: number | null) => {
   const s = Math.round(secs % 60);
   return m ? `${m}m ${s}s` : `${s}s`;
 };
+
+/** Button on the component tokens (`.btn` in index.css): one primary per screen, near-black; press scales to 0.97. */
+export function Button({
+  variant = "secondary",
+  compact = false,
+  className = "",
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "ghost"; compact?: boolean }) {
+  return <button {...props} className={`btn btn-${variant} ${compact ? "btn-compact" : ""} ${className}`} />;
+}
+
+/** Text input on the component tokens (`.input`); `aria-invalid` turns its border critical. */
+export function Input({ className = "", ...props }: ComponentProps<"input">) {
+  return <input {...props} className={`input ${className}`} />;
+}
+
+/** A label above its control, 14/500 with a 6px gap. */
+export function Field({ label, htmlFor, children }: { label: string; htmlFor: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={htmlFor} className="text-sm font-medium text-ink">
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
 
 export function Select({ label, value, onChange, options }: {
   label: string;

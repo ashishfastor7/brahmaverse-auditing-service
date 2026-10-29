@@ -21,6 +21,40 @@ export const tokenStore = {
 
 export class UnauthorizedError extends Error {}
 
+/** Why a sign-in didn't work: wrong credentials, too many tries (with the wait), or the service is unreachable. */
+export class SignInError extends Error {
+  constructor(
+    readonly reason: "credentials" | "throttled" | "unreachable",
+    readonly retryAfterSeconds = 0,
+  ) {
+    super(reason);
+  }
+}
+
+export const authApi = {
+  /** Signs in and keeps the session token for every later request. */
+  login: async (username: string, password: string) => {
+    const res = await fetch(`${BASE}/v1/audit/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    }).catch(() => null);
+    if (!res) throw new SignInError("unreachable");
+    if (res.status === 401) throw new SignInError("credentials");
+    if (res.status === 429) throw new SignInError("throttled", Number(res.headers.get("Retry-After")) || 60);
+    if (!res.ok) throw new SignInError("unreachable");
+    const { data } = (await res.json()) as { data: { token: string; username: string; expires_at: string } };
+    tokenStore.set(data.token);
+    return data;
+  },
+  /** Ends the session on the server (best effort) and forgets the token. */
+  logout: async () => {
+    await call("/auth/logout", { method: "POST" }).catch(() => {});
+    tokenStore.set(null);
+  },
+  me: () => call<{ data: { username: string } }>("/auth/me").then((r) => r.data),
+};
+
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}/v1/audit${path}`, {
     ...init,

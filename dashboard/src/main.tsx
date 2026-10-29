@@ -1,7 +1,7 @@
-import { QueryCache, QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { QueryCache, QueryClient, QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { api, configApi, tokenStore, UnauthorizedError } from "./api";
+import { api, authApi, configApi, tokenStore, UnauthorizedError } from "./api";
 import "./index.css";
 import { applyInitialTheme, ThemeToggle } from "./components/theme";
 import { CallDetail } from "./pages/CallDetail";
@@ -33,17 +33,41 @@ function AuditRedirect({ id }: { id: number }) {
 
 function App() {
   const [authed, setAuthed] = useState(() => Boolean(tokenStore.get()));
+  const [notice, setNotice] = useState<string | null>(null);
   const route = useHashRoute();
+  const queryClient = useQueryClient();
   const config = useQuery({ queryKey: ["config"], queryFn: configApi.get, enabled: authed, staleTime: Infinity });
+  const me = useQuery({ queryKey: ["me"], queryFn: authApi.me, enabled: authed, staleTime: Infinity });
   const v2 = config.data?.v2_enabled === true;
 
+  // A 401 anywhere means the session expired or was ended: back to sign-in, saying why.
   useEffect(() => {
-    const onLogout = () => setAuthed(false);
+    const onLogout = () => {
+      queryClient.clear();
+      setNotice("Your session ended. Sign in again to continue.");
+      setAuthed(false);
+    };
     window.addEventListener("audit:logout", onLogout);
     return () => window.removeEventListener("audit:logout", onLogout);
-  }, []);
+  }, [queryClient]);
 
-  if (!authed) return <Login onLogin={() => setAuthed(true)} />;
+  const signOut = async () => {
+    await authApi.logout();
+    queryClient.clear();
+    setNotice(null);
+    setAuthed(false);
+  };
+
+  if (!authed)
+    return (
+      <Login
+        notice={notice}
+        onLogin={() => {
+          setNotice(null);
+          setAuthed(true);
+        }}
+      />
+    );
 
   const [path, search = ""] = route.split("?");
   const call = path.match(/^\/calls\/(\d+)$/);
@@ -62,13 +86,12 @@ function App() {
             </a>
           )}
           <ThemeToggle />
-          <button
-            className="text-sm text-muted hover:text-ink"
-            onClick={() => {
-              tokenStore.set(null);
-              setAuthed(false);
-            }}
-          >
+          {me.data && (
+            <span className="hidden text-sm text-muted sm:inline">
+              Signed in as <span className="text-ink">{me.data.username}</span>
+            </span>
+          )}
+          <button className="text-sm text-muted hover:text-ink" onClick={signOut}>
             Sign out
           </button>
         </div>

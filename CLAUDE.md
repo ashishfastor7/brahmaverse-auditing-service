@@ -33,7 +33,8 @@ Prettier config (140 cols, double quotes, trailing commas) is in package.json bu
 
 Dashboard (`dashboard/`, Vite + React 19 + Tailwind 4 + TanStack Query, uses npm): `npm install && npm run dev`
 (:5175), `npm run build`. Copy `dashboard/.env.example`; `VITE_AUDIT_API_URL` defaults to http://localhost:8095;
-sign in with `AUDIT_API_TOKEN`. Re-run `eval:planted` after changing a rubric, the judge prompt, or the judge model.
+sign in with `AUDIT_ADMIN_USERNAME`/`AUDIT_ADMIN_PASSWORD` (admin/password in dev). UI tokens and rules: `docs/design-system.md`.
+Re-run `eval:planted` after changing a rubric, the judge prompt, or the judge model.
 
 ## v2 rules
 
@@ -79,7 +80,8 @@ Other pieces:
 - `src/services/`: `call-source.db.ts` reads `voice_call_logs` via a separate read-only connection (`SOURCE_DB_*`;
   SELECT only, never phone numbers/tokens/join URLs); `bus.ts`/`call-source.service.ts`/`prompt.service.ts` are
   bus RPCs to integration-service and ai-service; `recording.service.ts` presigns S3 recordings (`audio/wav`).
-- `src/routes/` (Hono, under `/v1/audit`, one shared bearer token in `middleware/auth.ts`): `calls.ts` lists calls
+- `src/routes/` (Hono, under `/v1/audit`; `auth.ts` signs in the one admin login, `requireSession` in `middleware/auth.ts`
+  guards the rest; record `signedInUser(c)` as who did it): `calls.ts` lists calls
   live from the source table joined with the latest audit; `audits.ts` serves/creates audits. v2-only, 404 while
   `AUDIT_V2_ENABLED` is off: `rescore.ts` and `conditions.ts` (failure-condition screen, `db/condition-store.ts`).
 - `src/services/ai.db.ts` / `vajra.db.ts`: optional read-only pools (`AI_DB_*`, `VAJRA_DB_*`, SELECT-only via

@@ -86,7 +86,7 @@ describe.skipIf(!dbTestsEnabled)("golden set (P1-19, migration 0013)", () => {
       expect(await refused(db, insert("corrected_checks", `'["S2"]'`))).toBe("review_corrected_checks_check");
       expect(await refused(db, insert("kind, expected_pass_fail", "'blind', 'PASS'"))).toBe("review_blind_answers_check");
 
-      await migrator.down();
+      await migrator.down({ to: "0013-review-golden-set" });
       const columns = await db.query<{ column_name: string }>(
         "SELECT column_name FROM information_schema.columns WHERE table_name = 'review' ORDER BY ordinal_position",
         { type: QueryTypes.SELECT },

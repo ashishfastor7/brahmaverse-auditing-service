@@ -37,7 +37,6 @@ const SOURCE_ROW = {
 const NO_ANSWER_ROW = { ...SOURCE_ROW, id: 5009, status: "no_answer", transcriptions: [], turns: 0 };
 /** Every audit timestamp is set to this, so the snapshot is the same on every run. */
 const AUDITED_AT = "2026-10-12T12:30:00.000Z";
-const auth = { Authorization: `Bearer ${env.AUDIT_API_TOKEN}` };
 
 /**
  * P0-2: with AUDIT_V2_ENABLED off, every existing route returns what it returned before v2 (the snapshot).
@@ -65,6 +64,11 @@ describe.skipIf(!dbTestsEnabled)("v1 routes", () => {
       }));
       const { tables } = await import("@/db");
       const { app } = await import("@/app");
+      const login = await app.request("/v1/audit/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ username: env.AUDIT_ADMIN_USERNAME, password: env.AUDIT_ADMIN_PASSWORD }),
+      });
+      const auth = { Authorization: `Bearer ${((await login.json()) as any).data.token}` };
       // Never write anywhere but the throwaway database.
       expect(tables.AuditResult.sequelize!.getDatabaseName()).toBe(name);
       expect(name.startsWith(TEST_DB_PREFIX)).toBe(true);

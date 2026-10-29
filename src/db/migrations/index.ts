@@ -11,6 +11,7 @@ import * as proposedConditions from "./0010-proposed-conditions";
 import * as signalParams from "./0011-signal-params";
 import * as auditHistory from "./0012-audit-results-v2-history";
 import * as reviewGoldenSet from "./0013-review-golden-set";
+import * as auditSession from "./0014-audit-session";
 
 /** Every migration, in order. Add new ones at the end with the next number; never edit one that has been applied. */
 export const migrations = [
@@ -27,4 +28,5 @@ export const migrations = [
   { name: "0011-signal-params", ...signalParams },
   { name: "0012-audit-results-v2-history", ...auditHistory },
   { name: "0013-review-golden-set", ...reviewGoldenSet },
+  { name: "0014-audit-session", ...auditSession },
 ];
