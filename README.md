@@ -58,8 +58,10 @@ src/audit/            the auditor (no I/O except the judge call)
 src/db/               audit_results model; migrations/ holds the numbered up/down schema changes
 src/background/       voicecall.ended subscriber
 src/routes/           dashboard API (/v1/audit/...)
-src/scripts/          replay (audit past calls), eval-planted (test the judge)
-fixtures/planted/     synthetic Hansa calls, each with one planted defect
+src/scripts/          replay (audit past calls), eval-planted / eval-v2 (test the judge)
+fixtures/planted/     synthetic calls (Hansa, one Caller), each with one planted defect
+fixtures/reviews/     recorded golden-set review rows, for the eval-v2 tests
+docs/evals/           saved eval-v2 reports (ids and numbers only)
 fixtures/judge/       recorded judge outputs on planted calls, replayed in tests by fixtureJudge(name)
 patches/              changes the other services need (see below)
 dashboard/            Vite + React dashboard (call list, call detail)
@@ -135,7 +137,9 @@ bun test                        # unit tests: rules, evidence checks, scoring, r
 bun run test:db                 # migrations up -> down -> up, a snapshot of every v1 GET route (flag off), and v1 routes
                                 # ignoring v2 rows, on a throwaway database
                                 # (created and dropped on the DB_* server)
-bun run eval:planted            # real judge on 10 planted-defect Hansa calls; exits 1 on any miss
+bun run eval:planted            # real v1 judge on the 10 v1 planted-defect Hansa calls; exits 1 on any miss
+bun run eval:v2                 # real v2 judge on all planted cases + the golden set; report in docs/evals/; exits 1 on a planted miss
+bun run eval:v2 --compare v2-1  # also exits 1 if a planted case broke or any agreement number dropped vs that saved report
 bun run record:fixture --case wrong-salary   # real judge on one planted case -> fixtures/judge/hansa-wrong-salary.json
 bun run record:fixture --engine v2 --case agent-loop   # v2 judge (hansa v4) -> fixtures/judge/v2/hansa-agent-loop.json
 bun run bench:judge --model <id> --model <id> [--runs 2] [--call-id 4422]   # compare judge models on v2; eval-output/bench-v2/
@@ -152,6 +156,36 @@ recording misses its case's expectations; re-record it after changing the rubric
 
 `eval:planted` needs only `OPENAI_API_KEY`, with no database or bus. Re-run it before changing the
 rubric, the judge prompt or the model. Full judge output is written to `eval-output/`.
+
+### v2 agreement eval (`eval:v2`)
+
+`bun run eval:v2` audits the planted cases (every enabled text-detectable failure condition has one) and the
+**golden set** with the current v2 judge, then reports agreement with the reviewers. It needs the audit DB,
+`SOURCE_DB_*` (golden calls' transcripts), `OPENAI_API_KEY` and `AUDIT_V2_JUDGE_MODEL`; `--only-planted` skips the
+golden set.
+
+- **Golden set:** per call, the latest agree / dispute review of a v2 audit with `review.in_golden_set = true`
+  (migration 0013). A `normal` review's answer is the reviewed audit's values with its corrections
+  (`expected_pass_fail`, `expected_business_outcome`, `expected_failure_codes`, `corrected_scores` by metric key,
+  `corrected_checks`); a `blind` spot-check's answer is only what the reviewer entered (pass/fail, business outcome,
+  failure codes).
+- **Numbers:** per metric agreement within one scale point (both N/A agrees), per system check, pass/fail and
+  business outcome (exact), failure codes (same set per call), precision and recall per failure code; the same for
+  blind spot-checks only; the step 16 gate (at least 30 blind checks, 85% on pass/fail, business outcome and failure
+  codes, no Critical code under 90% precision); the 5 calls with the biggest disagreements.
+- **Report:** `docs/evals/<date>-<judge prompt version>.md` holds ids, codes and numbers only (a same-day re-run
+  overwrites it). Judge reasons and reviewer notes for the biggest disagreements are printed, never saved.
+- **Cache:** judge answers are kept in `eval-output/judge-cache/<judge prompt version>/` per call and exact request, so
+  re-running unchanged calls makes no OpenAI calls; a changed rubric, reader output or model re-runs that call.
+- **`--compare <version | report path>`** measures the new run and the saved one on the golden calls they share. Keep a
+  rubric or judge-prompt change only if it passes.
+- **Before publishing a scorecard or goal change:** run `bun run eval:v2` once on the published config (the baseline),
+  make the draft, then `bun run eval:v2 --draft --compare <version>`. `--draft` grades with each agent's scorecard draft
+  (the one publishing would move it to) and goal draft, and saves to `<date>-<version>-draft.md`, never over the
+  baseline. Publish only if it passes. Real audits never use drafts. Nothing blocks *Publish* itself (decided
+  2026-10-29: the golden set is empty until reviews exist; revisit after step 16).
+- **Cap:** past 150 golden rows the report lists the oldest plain agrees to retire (`in_golden_set = false`); blind
+  rows and disputes are never offered.
 
 ## Dashboard
 
@@ -207,7 +241,7 @@ itself (serving it as `audio/wav`, since archived files were stored with the wro
 - **Ultravox transcripts have no timestamps**, so evidence points to a turn, not a moment in the audio.
 - **The judge varies on borderline calls.** Re-running the same call can flip a borderline failure. Treat single borderline failures as "check this", and use the transcript links.
 - **The dashboard uses one shared token.** It's an internal tool for now; per-business access would reuse the existing user JWTs.
-- **The planted cases are synthetic.** They prove the judge catches each defect, not that it agrees with your reviewers. Next step: hand-score ~30 real Hansa calls and compare.
+- **The planted cases are synthetic.** They prove the judge catches each defect, not that it agrees with your reviewers. For v2, `eval:v2` measures that on the golden set, which fills up from reviews (none exist until the review buttons, P2-4 / P2-18).
 - **One judge call per audit.** Scores vary a little between runs; re-running and comparing (self-consistency) would tighten confidence.
 
 **What counts as a loop.** Repeating a question 3+ times only fails the call when the agent ignored

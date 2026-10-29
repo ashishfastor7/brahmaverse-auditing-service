@@ -5,7 +5,8 @@
  *
  *   bun run record:fixture --case wrong-salary [--name hansa-wrong-salary]
  *   bun run record:fixture --engine v2 --case agent-loop [--name hansa-agent-loop] [--model <dated id>]
- *     v2 grades on the seeded `hansa` v4 scorecard and goal (seeded-config.ts) with AUDIT_V2_JUDGE_MODEL unless --model.
+ *     v2 grades on the case agent's seeded v4 scorecard and goal (seeded-config.ts) with AUDIT_V2_JUDGE_MODEL unless --model.
+ *     `v2_only` cases can only be recorded with --engine v2.
  */
 import { auditCall, type JudgeResponse } from "@/audit/audit-call";
 import { fixturesDir, type JudgeFixture } from "@/audit/judge/fixture-judge";
@@ -20,7 +21,7 @@ import { env } from "@/env";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
-import { agentPrompt, cases, plantedMisses, plantedMissesV2, plantedRow } from "../../fixtures/planted/cases";
+import { agentPrompt, cases, plantedAgent, plantedMisses, plantedMissesV2, plantedRow } from "../../fixtures/planted/cases";
 
 const { values: args } = parseArgs({
   options: { case: { type: "string" }, name: { type: "string" }, engine: { type: "string", default: "v1" }, model: { type: "string" } },
@@ -28,7 +29,9 @@ const { values: args } = parseArgs({
 const c = cases.find((x) => x.name === args.case);
 if (!c) throw new Error(`--case must be one of: ${cases.map((x) => x.name).join(", ")}`);
 const engine = args.engine === "v2" ? "v2" : "v1";
-const name = args.name ?? `hansa-${c.name}`;
+if (engine === "v1" && c.v2_only) throw new Error(`${c.name} plants a v2-only condition: use --engine v2`);
+const agent = plantedAgent(c);
+const name = args.name ?? `${agent.scorecard_id}-${c.name}`;
 if (!/^[a-z0-9-]+$/.test(name)) throw new Error("--name: lowercase letters, digits and dashes only");
 if (!env.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not set");
 
@@ -57,7 +60,7 @@ if (engine === "v1") {
   const model = args.model ?? env.AUDIT_V2_JUDGE_MODEL;
   if (!model) throw new Error("pass --model or set AUDIT_V2_JUDGE_MODEL");
   const openai = createOpenAIJudge({ apiKey: env.OPENAI_API_KEY, model, reasoningEffort: env.AUDIT_V2_JUDGE_REASONING_EFFORT, rawOnInvalidJson: true });
-  const scorecard = seededScorecard("hansa");
+  const scorecard = seededScorecard(agent.scorecard_id);
   const { result } = await auditCallV2(input, toCallRecord(raw), {
     // keep the first answer: a fixture is what the judge said, not what a retry fixed
     judge: async (call) => {
@@ -66,12 +69,12 @@ if (engine === "v1") {
       return r;
     },
     scorecard,
-    goal: seededGoal("hrms"),
+    goal: seededGoal(agent.agent_code as "hrms" | "caller"),
     weights: Object.fromEntries(scorecard.metrics.map((m) => [m.key, m.weight])),
     definitions: seededDefinitions(),
-    instructions: agentPrompt,
-    flow: { source: "prompt", text: agentPrompt.system_prompt, reason: "no Vajra conversation on this call" },
-    agentLabel: "Hansa (HR)",
+    instructions: agent.prompt,
+    flow: { source: "prompt", text: agent.prompt.system_prompt, reason: "no Vajra conversation on this call" },
+    agentLabel: agent.label,
     reviewThreshold: env.AUDIT_REVIEW_THRESHOLD,
   });
   rubricVersion = `${scorecard.scorecard_id}@${scorecard.version}`;

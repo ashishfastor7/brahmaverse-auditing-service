@@ -104,6 +104,28 @@ export async function loadActiveConfig(
   return { ...resolved, scorecard: await withParts(db, resolved.scorecard) };
 }
 
+/**
+ * `eval:v2 --draft`: `loadActiveConfig`, with the agent's scorecard draft when publishing it would move this agent to it
+ * (copied from its assigned version), and its goal config draft, where they exist. Never used for real audits.
+ */
+export async function loadDraftConfig(db: Sequelize, agent_code: string | null, agent_id: number | null): Promise<ResolvedConfig<ScorecardVersion>> {
+  const active = await loadActiveConfig(db, agent_code, agent_id);
+  if (active.reason !== null) return active;
+  const [scorecardDraft] = await select<{ version: number }>(
+    db,
+    "SELECT version FROM scorecard WHERE scorecard_id = $1 AND status = 'draft' AND based_on = $2",
+    [active.scorecard.scorecard_id, active.scorecard.version],
+  );
+  const [goalDraft] = await select<{ version: number }>(db, "SELECT version FROM goal_config WHERE agent_code = $1 AND status = 'draft'", [
+    active.goal.agent_code,
+  ]);
+  return {
+    scorecard: scorecardDraft ? (await loadScorecard(db, active.scorecard.scorecard_id, scorecardDraft.version))! : active.scorecard,
+    goal: goalDraft ? (await loadGoalConfig(db, active.goal.agent_code, goalDraft.version))! : active.goal,
+    reason: null,
+  };
+}
+
 /** The library definitions (label, definition, detection, rolls up to) of the given condition codes, for the v2 audit. */
 export function loadConditionDefinitions(db: Sequelize, codes: string[]): Promise<ConditionDefinition[]> {
   return select<ConditionDefinition>(db, "SELECT code, label, definition, detection, rolls_up_to FROM failure_condition WHERE code = ANY($1) ORDER BY code", [
