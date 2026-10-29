@@ -1,0 +1,184 @@
+{
+  "name": "hansa-good-call",
+  "case": "good-call",
+  "rubric_version": "hansa@4",
+  "judge_model": "gpt-5.4-mini-2026-03-17",
+  "recorded_at": "2026-10-28T11:07:58.083Z",
+  "judge_prompt_version": "v2-1",
+  "response": {
+    "output": {
+      "call_summary": "Hansa called Rahul on behalf of Acme Tech about the QA Engineer role. She confirmed it was a good time, gave a brief role description, and collected his experience, current CTC, expected CTC, notice period, and comfort with the Bengaluru hybrid schedule, confirming each answer back. She recapped the details and said the recruitment team would email next steps within two working days, and the call ended politely after Rahul thanked her.",
+      "transcript_quality": {
+        "rating": "good",
+        "note": "The transcript is clear and complete, with only minor normal phone-call brevity and no major garbling."
+      },
+      "system_checks": [
+        {
+          "check": "S2",
+          "reason": "The agent responded throughout the call and there was no sign of a loop or an agent-side drop; the caller ended the conversation with a goodbye.",
+          "evidence": [
+            {
+              "turns": [
+                3,
+                19
+              ],
+              "quote": "Hi Rahul, this is Hansa, an AI recruiter from Acme Tech."
+            }
+          ],
+          "result": "PASS"
+        },
+        {
+          "check": "S3",
+          "reason": "All required flow steps were reached in order: greeting and identity check, role description, each screening question, confirmation of answers, and the closing next-step message before the caller said goodbye.",
+          "evidence": [
+            {
+              "turns": [
+                3,
+                17,
+                18
+              ],
+              "quote": "Hi Rahul, this is Hansa, an AI recruiter from Acme Tech."
+            }
+          ],
+          "result": "PASS"
+        },
+        {
+          "check": "S4",
+          "reason": "No required outputs were listed for this call, so there was nothing to verify against the saved outcome.",
+          "evidence": [],
+          "result": "NOT_APPLICABLE"
+        }
+      ],
+      "business_goal": {
+        "reason": "The screening purpose was completed: the agent asked and confirmed all screening questions, and the candidate's interest was established when he agreed to continue the chat and answered all questions.",
+        "evidence": [
+          {
+            "turns": [
+              4,
+              5,
+              7,
+              9,
+              11,
+              13,
+              15,
+              17
+            ],
+            "quote": "Yes sure, go ahead."
+          }
+        ],
+        "outcome": "ACHIEVED",
+        "reason_code": "SCREENING_COMPLETED",
+        "required_outputs": []
+      },
+      "metrics": [
+        {
+          "key": "flow_adherence",
+          "reason": "The agent followed the required sequence: greeting and identity check, role summary, one-at-a-time screening questions, confirmation of each answer, and a proper close with next steps.",
+          "evidence": [
+            {
+              "turns": [
+                3,
+                5,
+                7,
+                9,
+                11,
+                13,
+                15,
+                17
+              ],
+              "quote": "Hi Rahul, this is Hansa, an AI recruiter from Acme Tech."
+            }
+          ],
+          "n_a": false,
+          "score": 10
+        },
+        {
+          "key": "query_handling",
+          "reason": "N/A: the caller did not ask any questions or raise any objections that required handling.",
+          "evidence": [],
+          "n_a": true,
+          "score": 0
+        },
+        {
+          "key": "troubleshooting",
+          "reason": "N/A: the caller raised no problem that required diagnosis or troubleshooting.",
+          "evidence": [],
+          "n_a": true,
+          "score": 0
+        },
+        {
+          "key": "communication_tone",
+          "reason": "The agent was polite, clear, and concise throughout, using a friendly phone-call style and confirming answers without sounding pushy.",
+          "evidence": [
+            {
+              "turns": [
+                3,
+                9,
+                17
+              ],
+              "quote": "Hi Rahul, this is Hansa, an AI recruiter from Acme Tech."
+            }
+          ],
+          "n_a": false,
+          "score": 10
+        },
+        {
+          "key": "opening_closure",
+          "reason": "The opening included greeting, introduction, identity check, and purpose; the close included a recap of the collected details and the next-step email timeline, followed by a polite goodbye.",
+          "evidence": [
+            {
+              "turns": [
+                1,
+                3,
+                17,
+                19
+              ],
+              "quote": "Hi, am I speaking with Rahul?"
+            }
+          ],
+          "n_a": false,
+          "score": 10
+        },
+        {
+          "key": "language_match",
+          "reason": "The conversation stayed in English throughout, matching the caller's language with no unnecessary switches.",
+          "evidence": [
+            {
+              "turns": [
+                3,
+                17
+              ],
+              "quote": "Hi Rahul, this is Hansa, an AI recruiter from Acme Tech."
+            }
+          ],
+          "n_a": false,
+          "score": 10
+        },
+        {
+          "key": "repetition",
+          "reason": "No line or phrase was repeated needlessly; confirmations were purposeful and the measured facts indicate no repeated agent line.",
+          "evidence": [
+            {
+              "turns": [
+                9,
+                13,
+                15,
+                17
+              ],
+              "quote": "So your current CTC is five point five lakh per annum, is that correct?"
+            }
+          ],
+          "n_a": false,
+          "score": 10
+        }
+      ],
+      "failure_conditions": [],
+      "confidence": 0.98
+    },
+    "model": "gpt-5.4-mini-2026-03-17",
+    "usage": {
+      "input_tokens": 4600,
+      "output_tokens": 1932
+    }
+  }
+}

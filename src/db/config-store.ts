@@ -10,6 +10,7 @@ import {
   validateGoalConfig,
   validateScorecard,
 } from "@/audit/v2/config";
+import type { ConditionDefinition } from "@/audit/v2/judge/prompt";
 import { QueryTypes, type Sequelize, type Transaction } from "sequelize";
 
 /**
@@ -101,6 +102,13 @@ export async function loadActiveConfig(
   const resolved = resolveConfig(agent, { assigned: assigned ?? null, goals });
   if (resolved.reason !== null) return resolved;
   return { ...resolved, scorecard: await withParts(db, resolved.scorecard) };
+}
+
+/** The library definitions (label, definition, detection, rolls up to) of the given condition codes, for the v2 audit. */
+export function loadConditionDefinitions(db: Sequelize, codes: string[]): Promise<ConditionDefinition[]> {
+  return select<ConditionDefinition>(db, "SELECT code, label, definition, detection, rolls_up_to FROM failure_condition WHERE code = ANY($1) ORDER BY code", [
+    codes,
+  ]);
 }
 
 /** The lineage's draft version, its latest published version, and the next free version number. */

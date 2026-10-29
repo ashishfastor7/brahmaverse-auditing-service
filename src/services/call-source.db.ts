@@ -23,9 +23,10 @@ function getPool(): Pool {
 
 export const sourceDbConfigured = () => Boolean(env.SOURCE_DB_HOSTNAME && env.SOURCE_DB_USERNAME);
 
-// Everything the auditor reads; phone numbers, tokens and join urls are deliberately not selected.
+// Everything the auditor reads (v2 also picked_at and system_ref_id); phone numbers, tokens and join urls are deliberately
+// not selected.
 const COLUMNS = `id, business_id, agent_id, status, call_type, provider, voice_provider, is_playground, duration,
-  ended_reason, recording_url, summary, transcriptions, outcome, meta_data, data, created_at, ends_at`;
+  ended_reason, recording_url, summary, transcriptions, outcome, meta_data, data, created_at, ends_at, picked_at, system_ref_id`;
 
 export type SourceQuery = {
   agent_ids?: number[];

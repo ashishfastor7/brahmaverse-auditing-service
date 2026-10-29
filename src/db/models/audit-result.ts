@@ -148,7 +148,8 @@ export const AuditResultTable = sequelize.define<AuditResultModel>(
     createdAt: "created_at",
     updatedAt: "updated_at",
     indexes: [
-      { unique: true, fields: ["source", "call_id", "rubric_version"] },
+      // v1 only (migration 0012): v2 re-audits add rows; the current one has no superseded_by
+      { unique: true, fields: ["source", "call_id", "rubric_version"], where: { engine: "v1" } },
       { fields: ["agent_code", "call_created_at"] },
       { fields: ["business_id", "call_created_at"] },
       { fields: ["status"] },

@@ -85,7 +85,7 @@ const WITH_ENGINE = {
   columns: [...BASELINE_COLUMNS, "engine|character varying|255|NO|'v1'::character varying"],
   indexes: BASELINE_INDEXES,
 };
-/** After every migration: plus the v2 audit fields (0006, 0009) and their indexes. */
+/** After every migration: plus the v2 audit fields (0006, 0009) and their indexes; the call key is v1-only (0012). */
 const LATEST = {
   columns: [
     ...WITH_ENGINE.columns,
@@ -110,8 +110,9 @@ const LATEST = {
     BASELINE_INDEXES[1],
     BASELINE_INDEXES[2],
     "CREATE INDEX audit_results_scorecard ON public.audit_results USING btree (scorecard_id, scorecard_version)",
-    BASELINE_INDEXES[3],
     BASELINE_INDEXES[4],
+    "CREATE UNIQUE INDEX audit_results_v1_source_call_id_rubric_version ON public.audit_results USING btree (source, call_id, rubric_version) WHERE ((engine)::text = 'v1'::text)",
+    "CREATE INDEX audit_results_v2_current ON public.audit_results USING btree (source, call_id) WHERE (((engine)::text = 'v2'::text) AND (superseded_by IS NULL))",
   ],
 };
 const ALL_TABLES = [
@@ -204,6 +205,34 @@ describe.skipIf(!dbTestsEnabled)("migrations", () => {
         (e: Error) => e.message,
       );
       expect(error).toContain("audit_results_engine_check");
+    }));
+
+  it("0012: v2 rows of one call pile up, v1 rows stay one per rubric version, and down refuses while v2 history exists", () =>
+    withTestDb(async (sequelize) => {
+      const migrator = createMigrator(sequelize, { quiet: true });
+      await migrator.up();
+      const insert = (engine: string) =>
+        sequelize.query(
+          `INSERT INTO audit_results (engine, source, call_id, business_id, rubric_version, call) VALUES ('${engine}', 's', 1, 2, 'r', '{}')`,
+        );
+      await insert("v2");
+      await insert("v2");
+      await insert("v1");
+      // Sequelize reports a unique violation as "Validation error"; the index is on the pg error
+      const violated = await insert("v1").then(
+        () => null,
+        (e: any) => e.original?.constraint ?? e.message,
+      );
+      expect(violated).toBe("audit_results_v1_source_call_id_rubric_version");
+
+      const refused = await migrator.down().then(
+        () => null,
+        (e: Error) => e.message,
+      );
+      expect(refused).toContain("v2 re-audits keep several rows, e.g. call 1 r (3 rows)");
+      await sequelize.query("DELETE FROM audit_results WHERE engine = 'v2'");
+      await migrator.down();
+      expect((await schema(sequelize)).indexes).toContain(BASELINE_INDEXES[3]);
     }));
 
   it("pendingMigrations (the startup check) lists what migrate would apply, without writing", () =>

@@ -13,6 +13,23 @@ export type FailedBy =
 
 export type Score = { score: number | null; passed: boolean; failedBy: FailedBy[] };
 
+/**
+ * Why a set of weights can't be used for an audit or a re-score of a scorecard with these metric keys; empty when it
+ * can. Weights are 0–100 with at most one decimal, total exactly 100, and name only the scorecard's metrics (a missing
+ * one is 0). PRD §4.4.
+ */
+export function validateWeights(weights: Record<string, number>, keys: string[]): string[] {
+  const errors: string[] = [];
+  for (const [key, weight] of Object.entries(weights)) {
+    if (!keys.includes(key)) errors.push(`unknown metric ${key}`);
+    else if (!(typeof weight === "number" && weight >= 0)) errors.push(`${key} has a negative weight`);
+    else if (Math.abs(weight * 10 - Math.round(weight * 10)) > 1e-9) errors.push(`${key} has more than one decimal`);
+  }
+  if (errors.length) return errors;
+  const total = Object.values(weights).reduce((sum, w) => sum + Math.round(w * 10), 0);
+  return total === 1000 ? [] : [`weights total ${total / 10}, not 100`];
+}
+
 /** Metrics that count toward the score: not N/A, scored, and weighted above 0 (a missing weight is 0). */
 const applicable = (metricResults: MetricResult[], weights: Record<string, number>) =>
   metricResults.filter((m) => !m.n_a && m.score !== null && (weights[m.key] ?? 0) > 0);

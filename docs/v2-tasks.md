@@ -147,6 +147,11 @@ Rules for every task (CLAUDE.md "v2 rules"):
     `evidence[{turns, ts_start, ts_end}]` (timestamps nullable), `confidence`.
   - A `JUDGE_PROMPT_VERSION` constant is stored on each audit. Snapshot tests of the prompt for two scorecards;
     weight-0 metrics are absent.
+  - Step 10: `src/audit/v2/judge/` (`prompt.ts`, `schema.ts`), version `v2-1`, wording approved 2026-10-28. The judge
+    scores the `llm` and `hybrid` metrics (7 of the 10); Stalling & filler is scored by code, interruptions and
+    pronunciation are N/A. The measured facts (`facts.ts`) are in the prompt as facts not to contradict. Evidence is
+    `{turns, quote}`, stored as `{turns, ts_start: null, ts_end: null, quote}`. Model: `AUDIT_V2_JUDGE_MODEL` (dated
+    ids only), see Decisions 2026-10-28.
 - [ ] **P1-5 System goal checks** (§3.1)
   - Pure rule parts: S1 (status, `picked_at`, at least one agent turn), S2 (ended-by, loop rule, no-response
     from text), S4 (required variables present in `outcome`). LLM parts of S2–S4 come from the judge.
@@ -173,12 +178,20 @@ Rules for every task (CLAUDE.md "v2 rules"):
     transcript/outcome and a not-achieved reason from the §3.2 taxonomy.
   - Goal rate = achieved ÷ applicable; `PARTIAL` doesn't count as achieved. The Partial share (partial ÷
     applicable) is returned next to it (Decisions, 2026-10-22). Unit tests.
+  - Step 10: the judge returns the outcome, a reason code from the goal config's list for that outcome, and the
+    required outputs (save-tool `required`, else `required_outputs`). PARTIAL is offered only when `partial_success`
+    is set (no seeded goal has it yet). `goalRate` in `src/audit/v2/business-goal.ts`; no route uses it yet (P2-7).
 - [ ] **P1-7 `auditCallV2`** (§7)
   - Pure apart from the injected judge: deterministic signals → judge → `applySeverity` → `weightedScore` →
     system/business goals.
   - Invalid JSON or evidence pointing at missing turns triggers one retry, then `needs_review` instead of a
     failed audit.
   - Fixture tests (P0-3) cover pass, critical fail, major zeroing, retry then needs-review.
+  - Step 10: `auditCallV2` in `src/audit/v2/audit-call.ts`. Each check combines its rule part and the judge's (FAIL
+    if either fails), so the loop rule fails S2 whatever the judge says; `AGENT_LOOP` is the judge's flag. Retry
+    triggers: not JSON, wrong shape, a missing turn, a deduction or FAIL without evidence, a reason code from another
+    outcome. After a second bad answer: a parseable one is used without the bad evidence; otherwise rule parts only
+    (no score, no business goal). Both set `needs_review`. Fixtures: `fixtures/judge/v2/` (4 recorded, 3 hand-edited).
 - [ ] **P1-8 `runAuditV2` persistence** (§5 item 8, §7)
   - Writes `engine = 'v2'` rows. A re-audit inserts a new row and sets `superseded_by` on the old one, storing
     `weights_used`, versions, cost and `trigger_mode`.
@@ -186,6 +199,12 @@ Rules for every task (CLAUDE.md "v2 rules"):
     and a test DB.
   - Step 7: write the v2 score to `audit_results.score` (one decimal, migration 0009), not `overall_score`, which
     is an integer and stays v1's.
+  - Step 10: `runAuditV2` in `src/audit/v2/run-audit.ts`; migration 0012 makes the one-row-per-(call, rubric version)
+    key v1-only. A completed audit supersedes the call's previous v2 rows (advisory lock per call); a failed one
+    supersedes nothing. Idempotency also keys on judge prompt version and model. Triggers: `POST
+    /v1/audit/v2/calls/:id/audit` (404 while the flag is off) and `replay --engine v2`. `triggered_by` is `admin`
+    (route) or `replay` until P1-17. `cost` is priced from `JUDGE_PRICES` in `src/audit/v2/cost.ts` (null for a
+    model without a price); the daily view and the pre-run estimate stay P2-12.
 - [x] **P1-9 Re-score without the LLM** (§4.4)
   - `POST /v1/audit/audits/:id/rescore` with new weights recomputes from the stored `metric_result` rows. No
     judge call, recorded as a re-score of the same audit.
@@ -374,7 +393,7 @@ so their owners can decide; no task here depends on them.
 
 Ambiguities in the PRD and places where it disagrees with the code. Each needs a decision before the tasks that
 depend on it. Items keep their original numbers so references elsewhere stay valid; resolved ones (#1, #2, #3, #4, #8,
-#9, #10, #12, #14, #20) are in **Decisions** below.
+#9, #10, #12, #14, #17, #20, #21) are in **Decisions** below.
 
 - **#5 Timestamps.** §3.1 S2, §4.3, §5 (items 4–5), §7 (`ts_start`/`ts_end`) and §8 #4–5 assume timing data.
   Stored transcripts have none and stored recordings are mono (checked 2026-10-22). Whether the provider API has
@@ -423,13 +442,17 @@ depend on it. Items keep their original numbers so references elsewhere stay val
   `no_answer` + `failed`, everything else excluded.
 - **#16 Re-audit history in v1.** v1 re-audits overwrite in place. Should v1 keep that until the flag is on, with
   history v2-only (as planned in P1-8)?
-- **#17 Pinned judge model.** §9 asks for a pinned model version. `AUDIT_JUDGE_MODEL` defaults to an alias; which
-  dated model id do we pin?
 - **#18 PII to the LLM before P2-13.** Transcripts and variables go to OpenAI unredacted today, and §8 puts
   redaction in Phase 2. Is that acceptable for the P1 batch audits, which send many more calls?
 - **#19 Default pass threshold and final metric list** stay open in the PRD (§4.3, §9). P1-1 seeds today's values
   until they are decided. The default list is now 10 metrics (stalling phrases and filler words merged), each starting at 10%. The
   slider mockup shows "Pass if score ≥ 60" while §4.2 says 40; the threshold is still to be decided.
+- **#22 S4 when an outcome was saved but no output is required.** The judge alternates between PASS and N/A on the
+  same call (benchmark 2026-10-28). Neither fails the system goal, but the S4 wording could say which. Needs a prompt
+  change (approval, `v2-2`).
+- **#23 `goal_config.system_checks.flow_steps` is not read.** Step 10 takes the flow from Vajra or the prompt text only.
+  Using the override needs a new prompt section (e.g. `# Flow (steps from the goal config)` when there is no Vajra flow)
+  and `v2-2`. No seeded goal sets it; left for P1-18, where admins can set it.
 
 ## Decisions
 
@@ -475,6 +498,29 @@ depend on it. Items keep their original numbers so references elsewhere stay val
 - **Step 9 params.** Signal thresholds live in metric params, so migration 0011 publishes `default` v4 and `hansa` v4
   (v3 plus Repetition, Stalling & filler and Language match params) and moves the agents. Language ID is our own
   script + word-list rule, not a library: short turns and romanised Hindi defeat trigram detectors.
+- **#21 Flags fail the system check they roll up to.** A Critical or Major flag fails each S-check in its library
+  `rolls_up_to` (PRD §4.5), e.g. `IGNORED_STOP_REQUEST` → S2, `OUTCOME_MISMATCH` → S4; Minor flags are counted only.
+  Found by the step 10 benchmark: the planted ignored-stop call failed (Critical) with system goal PASS. The check lists
+  the flags in `flags`. No change to scores or to the judge prompt.
+- **#17 Pinned judge model: `gpt-5.4-mini-2026-03-17`** (`AUDIT_V2_JUDGE_MODEL`, reasoning effort medium, so no
+  temperature: reasoning models reject it). The key has no dated `gpt-5.6-luna` (v1's alias). `bun run bench:judge`
+  graded the 10 planted cases and calls 4422 and 4578, two runs each, on seven models. Expectations are in
+  `fixtures/planted/cases.ts` (`V2_CAPS`, `V2_ALSO_OK`); prices are OpenAI's standard rates on 2026-10-28.
+
+  | Model | Correct | Quotes real | Score change between runs, mean/max | Time | Cost per audit |
+  | --- | --- | --- | --- | --- | --- |
+  | gpt-5.5-2026-04-23 | 23/24 | 100% | 1.5/5.0 | 30 s | $0.089 |
+  | gpt-5.4-2026-03-05 | 24/24 | 100% | 2.6/13.8 | 39 s | $0.059 |
+  | **gpt-5.4-mini-2026-03-17** | 23/24 | 100% | 2.6/8.3 | 18 s | $0.019 |
+  | gpt-5-mini-2025-08-07 | 20/24 | 100% | 2.7/8.3 | 50 s | $0.011 |
+  | gpt-5.4-nano-2026-03-17 | 18/24 | 99% | 3.7/12.1 | 21 s | $0.004 |
+  | gpt-4.1-mini-2025-04-14 (temperature 0) | 10/24 | 78% | 2.3/10.0 | 9 s | $0.004 |
+  | gpt-5.6-luna (alias) | 21/24 | 98% | 6.1/16.7 | 18 s | $0.003 |
+
+  5.4-mini is as accurate as 5.5 at about a fifth of the cost; 5.5 is a little steadier between runs. 5-mini and
+  5.4-nano missed `OUTCOME_MISMATCH` on both runs; 4.1-mini invented quotes. Anthropic's Haiku 5.5 and Sonnet 5.5 at
+  low effort are still to be benchmarked (needs an `ANTHROPIC_API_KEY` and `@anthropic-ai/sdk`, which `bun add` can
+  only install with `NPM_TOKEN` set).
 - **Real transcript fixtures.** `bun run record:transcripts` saves anonymised calls to `fixtures/transcripts/`
   (no variables, phones, recording or metadata). Older calls have no variables, so staff and company names said aloud
   need `--redact`; read every file before committing.

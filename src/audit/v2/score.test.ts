@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { Metric, ScorecardCondition } from "./config";
-import { type MetricResult, computeScore, passes, weightedScore } from "./score";
+import { type MetricResult, computeScore, passes, validateWeights, weightedScore } from "./score";
 import type { Flag } from "./severity";
 
 const metric = (key: string, auto_fail = false) => ({ key, auto_fail }) as Pick<Metric, "key" | "auto_fail">;
@@ -184,5 +184,19 @@ describe("computeScore with failure-condition severity (PRD §4.5)", () => {
         ],
       },
     });
+  });
+});
+
+describe("validateWeights (PRD §4.4)", () => {
+  const keys = ["a", "b", "c"];
+  it("accepts weights totalling 100 with one decimal; a missing metric is 0", () => {
+    expect(validateWeights({ a: 50, b: 50 }, keys)).toEqual([]);
+    expect(validateWeights({ a: 33.3, b: 33.3, c: 33.4 }, keys)).toEqual([]);
+  });
+  it("rejects unknown metrics, negatives, a second decimal and a total other than 100", () => {
+    expect(validateWeights({ a: 50, z: 50 }, keys)).toEqual(["unknown metric z"]);
+    expect(validateWeights({ a: 110, b: -10 }, keys)).toEqual(["b has a negative weight"]);
+    expect(validateWeights({ a: 50.05, b: 49.95 }, keys)).toEqual(["a has more than one decimal", "b has more than one decimal"]);
+    expect(validateWeights({ a: 50 }, keys)).toEqual(["weights total 50, not 100"]);
   });
 });

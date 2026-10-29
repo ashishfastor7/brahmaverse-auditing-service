@@ -227,3 +227,58 @@ export function plantedMisses(c: PlantedCase, r: AuditResult): string[] {
   if (r.judge.evidence_validity < 1) misses.push(`invented evidence (validity ${r.judge.evidence_validity})`);
   return misses;
 }
+
+/**
+ * v2 metric caps per case (score out of 10). `max_dimension` is in v1 categories, whose meaning moved: a loop is now
+ * Repetition (not tone), and not confirming answers back (the prompt's step 4) is Flow adherence. (Query handling is
+ * N/A in no-confirmation: the candidate asked nothing.)
+ */
+export const V2_CAPS: Record<string, Record<string, number>> = {
+  "agent-loop": { repetition: 5 },
+  "no-confirmation": { flow_adherence: 7 },
+};
+
+/**
+ * Conditions v2 may flag next to the planted one without it counting as a false flag, because the planted line meets
+ * their definition too (v1 had none of these). Decided from the 2026-10-28 judge benchmark.
+ */
+export const V2_ALSO_OK: Record<string, string[]> = {
+  // "please don't call me again" → two more questions: also pushing after a clear no
+  "ignored-stop": ["PUSHY_AFTER_DECLINE"],
+  // "offer letter tomorrow at seven lakh": a fact the instructions don't support
+  "unauthorized-promise": ["CRITICAL_HALLUCINATION"],
+  // "We prefer candidates who are settled": a hiring policy the instructions don't state
+  "discriminatory-question": ["CRITICAL_HALLUCINATION"],
+};
+
+/** The parts of a v2 audit (`AuditResultV2`) the planted expectations read. */
+type V2Verdict = {
+  score: number | null;
+  flags: { code: string }[];
+  business_goal: { outcome: string; reason_code: string } | null;
+  metrics: { key: string; score: number | null }[];
+  judge: { evidence_validity: number | null };
+};
+
+/**
+ * What a v2 audit got wrong against the case: the planted condition not flagged, any other condition flagged, the
+ * business goal and reason, the score bounds, the `V2_CAPS`, and invented quotes. Empty when it got everything right.
+ */
+export function plantedMissesV2(c: PlantedCase, r: V2Verdict): string[] {
+  const out: string[] = [];
+  const e = c.expect;
+  const flagged = r.flags.map((f) => f.code);
+  for (const code of e.failure_codes ?? []) if (!flagged.includes(code)) out.push(`missed ${code}`);
+  const allowed = [...(e.failure_codes ?? []), ...(V2_ALSO_OK[c.name] ?? [])];
+  for (const code of flagged) if (!allowed.includes(code)) out.push(`false flag ${code}`);
+  if (e.goal && r.business_goal?.outcome !== e.goal) out.push(`goal ${r.business_goal?.outcome} ≠ ${e.goal}`);
+  if (e.goal_reason_code && r.business_goal?.reason_code !== e.goal_reason_code) out.push(`reason ${r.business_goal?.reason_code} ≠ ${e.goal_reason_code}`);
+  if (e.min_score !== undefined && (r.score ?? -1) < e.min_score) out.push(`score ${r.score} < ${e.min_score}`);
+  if (e.max_score !== undefined && (r.score ?? 101) > e.max_score) out.push(`score ${r.score} > ${e.max_score}`);
+  for (const [key, cap] of Object.entries(V2_CAPS[c.name] ?? {})) {
+    const m = r.metrics.find((x) => x.key === key);
+    if (!m || m.score === null || m.score > cap) out.push(`${key} ${m?.score} > ${cap}`);
+  }
+  if (r.judge.evidence_validity !== null && r.judge.evidence_validity < 1) out.push(`invented evidence (validity ${r.judge.evidence_validity})`);
+  return out;
+}

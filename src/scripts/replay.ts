@@ -11,13 +11,20 @@
  *   bun run replay --rpc --business-id 10 [--agent-id 3] --agent-code hrms [--from 2026-09-01 --to 2026-10-01] [--limit 20] [--force]
  *     pulls calls through integration-service's existing query.voicecall.list RPC. That listing has
  *     no agent_code, so pass it; it also has no prompt_code, so these are graded without the agent's prompt.
+ *
+ *   --engine v2 (with any of the above): audits with the v2 engine (needs AUDIT_V2_JUDGE_MODEL), adding a new audit
+ *     row and superseding the previous one. --print shows each audit's raw judge JSON and the computed verdict.
+ *     --show-prompt writes the v2 judge request (messages and schema) to eval-output/v2-prompt-<call>.md without
+ *     calling the judge or writing an audit.
  */
 import { normalizeCall } from "@/audit/normalize";
+import { prepareJudgeV2 } from "@/audit/v2/audit-call";
+import { loadAuditContextV2, runAuditV2 } from "@/audit/v2/run-audit";
 import { runAudit } from "@/audit/run-audit";
 import { sequelize } from "@/db";
 import { fetchSourceCalls } from "@/services/call-source.db";
 import { listCalls } from "@/services/call-source.service";
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 
 const { values: args } = parseArgs({
@@ -33,6 +40,9 @@ const { values: args } = parseArgs({
     to: { type: "string" },
     limit: { type: "string" },
     force: { type: "boolean", default: false },
+    engine: { type: "string", default: "v1" },
+    print: { type: "boolean", default: false },
+    "show-prompt": { type: "boolean", default: false },
   },
 });
 
@@ -74,10 +84,55 @@ const overrides = args.db ? {} : {
 const calls = (await loadCalls()).slice(0, args.limit ? Number(args.limit) : undefined);
 console.log(`auditing ${calls.length} call(s)`);
 
+if (args.engine !== "v1" && args.engine !== "v2") throw new Error("--engine must be v1 or v2");
+
+if (args["show-prompt"]) {
+  if (args.engine !== "v2") throw new Error("--show-prompt needs --engine v2");
+  mkdirSync("eval-output", { recursive: true });
+  for (const raw of calls) {
+    const loaded = await loadAuditContextV2(sequelize, raw);
+    if (!loaded.context) {
+      console.log(`call ${loaded.input.call_id}: skipped (${loaded.skip})`);
+      continue;
+    }
+    const { input, record, ...deps } = loaded.context;
+    const { call } = prepareJudgeV2(input, record, deps);
+    const file = `eval-output/v2-prompt-${input.call_id}.md`;
+    const body = call.messages.map((m) => `## ${m.role}\n\n${m.content}`).join("\n\n");
+    writeFileSync(file, `${body}\n\n## schema (${call.schemaName})\n\n${JSON.stringify(call.schema, null, 2)}\n`);
+    console.log(
+      `call ${input.call_id}: ${deps.scorecard.scorecard_id} v${deps.scorecard.version}, goal v${deps.goal.version}, ` +
+        `instructions ${deps.instructions ? `${deps.instructions.prompt_code} v${deps.instructions.version}` : `missing (${deps.instructionsMissing})`}, ` +
+        `flow ${deps.flow.source}${deps.flow.source === "prompt" ? ` (${deps.flow.reason})` : ""} → ${file}`,
+    );
+  }
+  await sequelize.close();
+  process.exit(0);
+}
+
 const tally = { completed: 0, skipped: 0, failed: 0 };
 for (const raw of calls) {
   const input = normalizeCall(raw, overrides);
   try {
+    if (args.engine === "v2") {
+      const row = await runAuditV2(sequelize, { ...raw, ...overrides }, { force: args.force, triggeredBy: "replay", triggerMode: "single" });
+      tally[row.status === "completed" ? "completed" : row.status === "skipped" ? "skipped" : "failed"]++;
+      const r = row.result;
+      console.log(
+        `call ${input.call_id}: ${row.status} ` +
+          (r
+            ? `score=${r.score} ${row.success_result} system=${r.system_goal.result}[${r.system_goal.failed.join(",")}] ` +
+              `business=${r.business_goal?.outcome ?? "-"}/${r.business_goal?.reason_code ?? "-"} flags=${r.flags.map((f) => f.code).join(",") || "none"} ` +
+              `review=${r.needs_review} audit=${row.id}`
+            : (row.skip_reason ?? row.error ?? "")),
+      );
+      if (args.print && r) {
+        r.judge.attempts.forEach((a, i) =>
+          console.log(`--- raw judge JSON, attempt ${i + 1}${a.errors.length ? ` (rejected: ${a.errors.join("; ")})` : ""}\n${JSON.stringify(a.output, null, 2)}`),
+        );
+      }
+      continue;
+    }
     const row = await runAudit(input, { force: args.force });
     tally[row.status === "completed" ? "completed" : row.status === "skipped" ? "skipped" : "failed"]++;
     const detail =
