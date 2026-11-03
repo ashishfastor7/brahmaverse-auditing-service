@@ -1,5 +1,6 @@
 import { QueryCache, QueryClient, QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { Menu, X } from "lucide-react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { api, authApi, configApi, tokenStore, UnauthorizedError } from "./api";
 import "./index.css";
@@ -7,9 +8,14 @@ import { applyInitialTheme, ThemeToggle } from "./components/theme";
 import { CallDetail } from "./pages/CallDetail";
 import { CallList } from "./pages/CallList";
 import { Conditions } from "./pages/Conditions";
+import { GoalEditorPage, Goals } from "./pages/Goals";
+import { ScorecardEditorPage, Scorecards } from "./pages/Scorecards";
 import { Login } from "./pages/Login";
 
-/** Hash routes: #/ (all calls, filters in the query string), #/calls/:id, #/conditions (v2 only), and old #/audits/:id links. */
+/**
+ * Hash routes: #/ (all calls, filters in the query string), #/calls/:id, old #/audits/:id links, and the v2 admin
+ * screens: #/scorecards(/:id), #/goals(/:agent), #/conditions.
+ */
 function useHashRoute() {
   const [hash, setHash] = useState(() => window.location.hash.slice(1) || "/");
   useEffect(() => {
@@ -29,6 +35,62 @@ function AuditRedirect({ id }: { id: number }) {
       .catch(() => window.location.replace("#/"));
   }, [id]);
   return <p className="text-sm text-muted">Opening call…</p>;
+}
+
+/** The header's page links: inline from `sm` up; behind a Menu button on phones (closes on Esc, outside tap, route change). */
+function Nav({ links, current }: { links: [string, string][]; current: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  useEffect(() => setOpen(false), [current]);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setOpen(false);
+      button.current?.focus();
+    };
+    const onDown = (e: PointerEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onDown);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onDown);
+    };
+  }, [open]);
+  const active = (href: string) => (href === "#/" ? current === "/" || current.startsWith("/calls") : current.startsWith(href.slice(1)));
+  const link = (href: string, label: string, extra = ""): ReactNode => (
+    <a
+      key={href}
+      href={href}
+      aria-current={active(href) ? "page" : undefined}
+      className={`text-sm hover:text-ink ${active(href) ? "font-medium text-ink" : "text-muted"} ${extra}`}
+    >
+      {label}
+    </a>
+  );
+  return (
+    <>
+      <nav aria-label="Main" className="hidden items-center gap-4 sm:flex">
+        {links.map(([href, label]) => link(href, label))}
+      </nav>
+      <div ref={ref} className="relative sm:hidden">
+        <button ref={button} className="btn btn-ghost btn-compact px-2" aria-expanded={open} aria-controls="main-menu" onClick={() => setOpen((o) => !o)}>
+          {open ? <X size={16} aria-hidden /> : <Menu size={16} aria-hidden />}
+          Menu
+        </button>
+        {open && (
+          <nav
+            id="main-menu"
+            aria-label="Main"
+            className="absolute right-0 z-20 mt-1 flex w-56 flex-col rounded-xl border border-[var(--dialog-edge)] bg-surface p-1 shadow-raised"
+          >
+            {links.map(([href, label]) => link(href, label, "rounded-md px-3 py-2.5 hover:bg-sunken"))}
+          </nav>
+        )}
+      </div>
+    </>
+  );
 }
 
 function App() {
@@ -73,6 +135,15 @@ function App() {
   const call = path.match(/^\/calls\/(\d+)$/);
   const oldAudit = path.match(/^\/audits\/(\d+)$/);
   const conditions = path === "/conditions";
+  const scorecard = path.match(/^\/scorecards\/([^/]+)$/);
+  const goal = path.match(/^\/goals\/([^/]+)$/);
+  const adminPage =
+    path === "/scorecards" ? <Scorecards /> : scorecard ? <ScorecardEditorPage key={scorecard[1]} id={decodeURIComponent(scorecard[1]!)} /> :
+    path === "/goals" ? <Goals /> : goal ? <GoalEditorPage key={goal[1]} agent={decodeURIComponent(goal[1]!)} /> :
+    conditions ? <Conditions /> : null;
+  const links: [string, string][] = v2
+    ? [["#/", "Calls"], ["#/scorecards", "Scorecards"], ["#/goals", "Goals"], ["#/conditions", "Failure conditions"]]
+    : [];
   return (
     <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6">
       <header className="mb-5 flex items-center justify-between gap-3">
@@ -80,11 +151,7 @@ function App() {
           Call audits
         </a>
         <div className="flex items-center gap-3">
-          {v2 && (
-            <a href="#/conditions" className="text-sm text-muted hover:text-ink">
-              Failure conditions
-            </a>
-          )}
+          {v2 && <Nav links={links} current={path} />}
           <ThemeToggle />
           {me.data && (
             <span className="hidden text-sm text-muted sm:inline">
@@ -96,11 +163,11 @@ function App() {
           </button>
         </div>
       </header>
-      {conditions ? (
+      {adminPage ? (
         v2 ? (
-          <Conditions />
+          adminPage
         ) : (
-          <p className="text-sm text-muted">{config.isPending ? "Loading…" : "Failure conditions are part of v2, which is off (AUDIT_V2_ENABLED)."}</p>
+          <p className="text-sm text-muted">{config.isPending ? "Loading…" : "Scorecards, goals and failure conditions are part of v2, which is off (AUDIT_V2_ENABLED)."}</p>
         )
       ) : call ? (
         <CallDetail key={call[1]} id={Number(call[1])} />

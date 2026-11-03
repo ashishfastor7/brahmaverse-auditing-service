@@ -233,6 +233,16 @@ export const CONDITION_LIBRARY: LibraryCondition[] = [
   },
 ];
 
+/**
+ * Conditions that can't be switched on yet, and why: the data their definition needs doesn't reach the judge. They stay
+ * disabled on every scorecard (migration 0010) until P3-5; the admin screens show the reason instead of the switch.
+ */
+export const NEEDS_DATA: Record<string, string> = {
+  UNRESPONSIVE_AGENT: "Needs per-turn call timing, which calls don't have yet.",
+  FALSE_ACTION_CLAIM: "Needs tool-call logs, which audits can't read yet.",
+  SKIPPED_REQUIRED_STEP: "Needs the flow's required steps in the judge input, which isn't built yet.",
+};
+
 /** The `ended_reason` values `CALL_ERROR` flags, as its definition says (v1: `fail_on_ended_reasons`). */
 export const CALL_ERROR_ENDED_REASONS = ["connection_error", "system_error"];
 

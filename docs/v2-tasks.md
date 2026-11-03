@@ -280,8 +280,25 @@ Rules for every task (CLAUDE.md "v2 rules"):
     `AUDIT_V2_ENABLED`) lists the library with each scorecard's severity, and adds a condition (label, code, "flags
     when", "does not count when", severity, metric for Major, scorecards) to the library and to the scorecards'
     drafts. *Publish* makes a draft the new version and moves its agents; *Discard draft* throws it away. A condition
-    no published version uses can be removed. API: `src/routes/conditions.ts`, `src/db/condition-store.ts`. Still
-    open: editing metrics, weights and existing conditions' severity or on/off, and the change log.
+    no published version uses can be removed. API: `src/routes/conditions.ts`, `src/db/condition-store.ts`.
+  - Step 13: *Scorecards* (`#/scorecards/:id`) and *Goals* (`#/goals/:agent`) in the dashboard, behind the flag.
+    - The live version is read-only. *Start a draft* copies it; edits are saved with *Save draft* and published
+      after a confirmation dialog.
+    - Scorecards: pass threshold; per metric the weight (slider + `rebalanceWeights`, locks), rubric, applicability
+      and auto-fail; per condition on/off, severity and the metric a Major zeroes. Method, scale, requires and
+      params are read-only, because the engine decides how a metric is scored, and metrics can't be added or
+      removed. Conditions in `NEEDS_DATA` (`conditions.ts`) can't be switched on.
+    - Goals: the seven PRD §3.2 templates (`goal-templates.ts`) or a custom goal; the business goal fields, reason
+      codes per outcome (Partial only with partial-success criteria, checked by `validateGoalConfig`), required
+      variables and flow steps. The silence limit is shown disabled.
+    - Edits are checked by the pure `applyScorecardEdit` / `applyGoalEdit` (`config-edit.ts`); the differences come
+      from `diffScorecard` / `diffGoal` (`config-diff.ts`).
+    - Migration 0015 adds `config_change`, which logs every draft started, save, publish and discard with the
+      fields changed and the signed-in username. *Version history* shows each version's diff against the one before
+      it.
+    - API: `src/routes/admin-config.ts`, `src/db/config-admin.ts`. Tests: `src/routes/admin-config.db.test.ts` has
+      one test per save and publish path.
+  - Still open: *Save as default* from the weight sliders (P1-14, Open #13).
 - [x] **P1-19 Agreement eval, planted tests and the review-built golden set** (§8 #2, §9 success metrics)
   - No up-front scoring. The golden set is the latest review per call (agree, dispute or blind spot-check) with
     `in_golden_set = true`. A migration (up/down) adds `kind` (`normal` | `blind`), the reviewer's expected
@@ -305,8 +322,15 @@ Rules for every task (CLAUDE.md "v2 rules"):
   - Publishing is not blocked (decided 2026-10-29; PRD §8 #2 asks for it): a scorecard or goal change is checked
     before publishing with `eval:v2 --draft --compare <version>` (`loadDraftConfig`, saved as `…-draft.md`). Revisit a
     hard block once the golden set has blind spot-checks (step 16).
-- [ ] **P1-20 Scorecard simulation** (§8 #3)
+- [x] **P1-20 Scorecard simulation** (§8 #3)
   - Re-score the last N audits with draft weights and show the pass-rate change before publishing. No LLM call.
+  - Step 13: `simulateScorecard` (`src/audit/v2/simulate.ts`, pure) re-scores with `computeScore` twice: once with
+    the version the draft was copied from, once with the draft. The difference is then only the draft's change
+    (weights, threshold, auto-fail, severities), not the slider weights the audits ran with.
+  - `GET /scorecards/:id/simulation?n=` (50–500, default 100) covers the scorecard's current completed v2 audits and
+    returns the pass rate, average score, the calls that change verdict, and the audits that never scored a metric
+    the draft weights.
+  - Shown beside the draft and in the publish dialog. Notes appear under 30 audits and when a metric wasn't scored.
 - [ ] **P1-21 Side-by-side week report and switch-over gate** (§9)
   - A command or page comparing v1 and v2 results on the same calls (pass rate, score shift, top changed
     calls), so the jump can be explained before the dashboard switches.
@@ -491,7 +515,8 @@ depend on it. Items keep their original numbers so references elsewhere stay val
   change (approval, `v2-2`).
 - **#23 `goal_config.system_checks.flow_steps` is not read.** Step 10 takes the flow from Vajra or the prompt text only.
   Using the override needs a new prompt section (e.g. `# Flow (steps from the goal config)` when there is no Vajra flow)
-  and `v2-2`. No seeded goal sets it; left for P1-18, where admins can set it.
+  and `v2-2`. Since step 13, admins can edit and publish flow steps on the goal screen, which says the judge doesn't
+  use them yet (decided 2026-11-03: store only, no prompt change in step 13).
 
 ## Decisions
 

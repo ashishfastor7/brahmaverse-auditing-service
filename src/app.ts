@@ -4,6 +4,7 @@ import { adminCredentials } from "@/auth/credentials";
 import { dbSessionStore } from "@/auth/session-store";
 import { loginThrottle } from "@/auth/throttle";
 import { requireSession } from "@/middleware/auth";
+import { adminConfigRouter } from "@/routes/admin-config";
 import { auditV2Router } from "@/routes/audit-v2";
 import audits from "@/routes/audits";
 import { authRouter } from "@/routes/auth";
@@ -55,6 +56,13 @@ app.route(
 app.route(
   "/v1/audit",
   conditionsRouter(
+    () => sequelize,
+    () => env.AUDIT_V2_ENABLED,
+  ),
+);
+app.route(
+  "/v1/audit",
+  adminConfigRouter(
     () => sequelize,
     () => env.AUDIT_V2_ENABLED,
   ),

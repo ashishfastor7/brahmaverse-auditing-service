@@ -89,9 +89,9 @@ describe.skipIf(!dbTestsEnabled)("failure-condition screen (condition-store, /co
 
       // Published: it can't be removed. Hansa's draft can still be thrown away.
       expect(await failure(deleteCondition(sequelize, "ASKED_FOR_THE_OTP"))).toContain("used by published default v5");
-      await discardDraft(sequelize, "hansa");
+      await discardDraft(sequelize, "hansa", "admin");
       expect((await listConditions(sequelize)).scorecards[1]).toMatchObject({ draft: null, pending: [] });
-      expect(await failure(discardDraft(sequelize, "hansa"))).toContain("has no draft to discard");
+      expect(await failure(discardDraft(sequelize, "hansa", "admin"))).toContain("has no draft to discard");
       expect(await failure(publishDraft(sequelize, "hansa", "admin"))).toContain("has no draft to publish");
     }));
 

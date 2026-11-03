@@ -338,3 +338,145 @@ export const conditionsApi = {
   publish: (scorecardId: string) => call(`/scorecards/${encodeURIComponent(scorecardId)}/publish`, { method: "POST" }),
   discard: (scorecardId: string) => call(`/scorecards/${encodeURIComponent(scorecardId)}/draft`, { method: "DELETE" }),
 };
+
+// ---- Scorecard and goal admin (v2, PRD §3.2, §4, §8 #3, §8 #14) ----
+
+export type MetricMethod = "llm" | "rule" | "audio" | "hybrid";
+export type ConfigMetric = {
+  id: number;
+  key: string;
+  position: number;
+  name: string;
+  description: string;
+  rubric: { checks: string; anchors: { "0": string; "5": string; "10": string } };
+  applicability: string;
+  method: MetricMethod;
+  weight: number;
+  scale: number;
+  auto_fail: boolean;
+  evidence_required: boolean;
+  requires: ("audio" | "timestamps" | "tool_calls")[];
+};
+export type ScorecardVersion = {
+  scorecard_id: string;
+  version: number;
+  status: "draft" | "published";
+  name: string;
+  based_on: number | null;
+  pass_threshold: number;
+  published_at: string | null;
+  metrics: ConfigMetric[];
+  conditions: ScorecardCondition[];
+};
+/** One difference between two versions: `metric.<key>.weight`, `condition.<code>.severity`, `reason_codes.PARTIAL`, … */
+export type ConfigChange = { field: string; before: unknown; after: unknown };
+export type ScorecardAdmin = {
+  scorecard_id: string;
+  agents: { code: string; label: string }[];
+  published: ScorecardVersion;
+  draft: (ScorecardVersion & { created_by: string | null; created_at: string }) | null;
+  base: number | null;
+  changes: ConfigChange[];
+  publish_errors: string[];
+  library: { code: string; label: string; definition: string; detection: "rule" | "llm"; needs_data: string | null }[];
+};
+export type ScorecardSummary = {
+  scorecard_id: string;
+  name: string;
+  published: number;
+  published_at: string | null;
+  draft: number | null;
+  draft_changes: number;
+  agents: { code: string; label: string }[];
+};
+export type ScorecardPatch = {
+  pass_threshold?: number;
+  metrics?: { key: string; name?: string; description?: string; rubric?: { checks?: string; anchors?: Record<string, string> }; applicability?: string; auto_fail?: boolean; weight?: number }[];
+  conditions?: { code: string; enabled?: boolean; severity?: Severity; metric_key?: string | null }[];
+};
+type Verdict = { score: number | null; passed: boolean };
+type SimSide = { version: number; passed: number; pass_rate: number | null; average_score: number | null };
+export type Simulation = {
+  requested: number;
+  audits: number;
+  before: SimSide;
+  after: SimSide;
+  flipped: { audit_id: number; call_id: number; before: Verdict; after: Verdict }[];
+  score_changed: number;
+  unscored: { audits: number; metrics: string[] };
+};
+export type HistoryEntry = {
+  version: number;
+  status: "draft" | "published";
+  created_by: string | null;
+  created_at: string;
+  published_at: string | null;
+  published_by: string | null;
+  changes: ConfigChange[];
+  log: { action: "draft_created" | "edited" | "published" | "discarded"; changes: ConfigChange[]; changed_by: string; changed_at: string }[];
+};
+
+export type BusinessOutcome = "ACHIEVED" | "PARTIAL" | "NOT_ACHIEVED" | "NOT_APPLICABLE";
+export type GoalConfig = {
+  agent_code: string;
+  version: number;
+  status: "draft" | "published";
+  name: string;
+  description: string;
+  success_criteria: string[];
+  partial_success: string[];
+  not_applicable_when: string[];
+  required_outputs: string[];
+  reason_codes: Partial<Record<BusinessOutcome, string[]>>;
+  system_checks: { silence_limit_s: number; required_variables: string[]; flow_steps: string[] | null };
+  published_at: string | null;
+};
+export type GoalAdmin = {
+  agent_code: string;
+  label: string;
+  published: GoalConfig | null;
+  draft: (GoalConfig & { created_by: string | null; created_at: string }) | null;
+  changes: ConfigChange[];
+  publish_errors: string[];
+};
+export type GoalSummary = {
+  agent_code: string;
+  label: string;
+  name: string | null;
+  published: number | null;
+  published_at: string | null;
+  draft: number | null;
+  draft_changes: number;
+};
+export type GoalTemplate = { id: string } & Pick<
+  GoalConfig,
+  "name" | "description" | "success_criteria" | "partial_success" | "not_applicable_when" | "required_outputs" | "reason_codes"
+>;
+export type GoalPatch = Partial<Pick<GoalConfig, "name" | "description" | "success_criteria" | "partial_success" | "not_applicable_when" | "required_outputs" | "reason_codes">> & {
+  system_checks?: { required_variables?: string[]; flow_steps?: string[] | null };
+};
+
+const enc = encodeURIComponent;
+const json = (method: string, body?: unknown): RequestInit => ({ method, body: body === undefined ? undefined : JSON.stringify(body) });
+
+export const scorecardsApi = {
+  list: () => call<{ data: ScorecardSummary[] }>(`/scorecards`).then((r) => r.data),
+  get: (id: string) => call<{ data: ScorecardAdmin }>(`/scorecards/${enc(id)}`).then((r) => r.data),
+  startDraft: (id: string) => call<{ data: ScorecardAdmin }>(`/scorecards/${enc(id)}/draft`, json("POST")).then((r) => r.data),
+  saveDraft: (id: string, patch: ScorecardPatch) => call<{ data: ScorecardAdmin }>(`/scorecards/${enc(id)}/draft`, json("PATCH", patch)).then((r) => r.data),
+  publish: (id: string) => call(`/scorecards/${enc(id)}/publish`, json("POST")),
+  discard: (id: string) => call(`/scorecards/${enc(id)}/draft`, json("DELETE")),
+  simulate: (id: string, n: number) => call<{ data: Simulation }>(`/scorecards/${enc(id)}/simulation?n=${n}`).then((r) => r.data),
+  history: (id: string) => call<{ data: HistoryEntry[] }>(`/scorecards/${enc(id)}/history`).then((r) => r.data),
+};
+
+export const goalsApi = {
+  templates: () => call<{ data: GoalTemplate[] }>(`/goal-templates`).then((r) => r.data),
+  list: () => call<{ data: GoalSummary[] }>(`/goals`).then((r) => r.data),
+  get: (agent: string) => call<{ data: GoalAdmin }>(`/goals/${enc(agent)}`).then((r) => r.data),
+  startDraft: (agent: string, template?: string) => call<{ data: GoalAdmin }>(`/goals/${enc(agent)}/draft`, json("POST", { template })).then((r) => r.data),
+  saveDraft: (agent: string, patch: GoalPatch) => call<{ data: GoalAdmin }>(`/goals/${enc(agent)}/draft`, json("PATCH", patch)).then((r) => r.data),
+  publish: (agent: string) => call<{ data: GoalAdmin }>(`/goals/${enc(agent)}/publish`, json("POST")).then((r) => r.data),
+  discard: (agent: string) => call(`/goals/${enc(agent)}/draft`, json("DELETE")),
+  history: (agent: string) => call<{ data: HistoryEntry[] }>(`/goals/${enc(agent)}/history`).then((r) => r.data),
+};
