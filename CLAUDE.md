@@ -91,6 +91,9 @@ Other pieces:
   versioned, draft → publish; the DB rejects any change to a published version. `loadActiveConfig`
   (`src/db/config-store.ts`) returns an agent's published scorecard and goal. v1 rubrics stay in code, and v1 responses
   leave out `V1_EXCLUDED` columns.
+- Admin screens (`routes/admin-config.ts`, `db/config-admin.ts`, v2 flag): drafts are edited through the pure
+  `applyScorecardEdit` / `applyGoalEdit` (`v2/config-edit.ts`), and every change is logged in `config_change` (0015).
+  `v2/simulate.ts` re-scores stored audits for the pre-publish simulation (no LLM).
 - v2 engine (`src/audit/v2/`): `facts.ts` (signals, rule checks) → `audit-call.ts` (`auditCallV2`, pure apart from the
   judge; one retry, then `needs_review`) → `computeScore`. `run-audit.ts` (`runAuditV2`) inserts `engine = 'v2'` rows and
   supersedes the call's previous one. Bump `JUDGE_PROMPT_VERSION` (`v2/judge/prompt.ts`) on any wording change, after

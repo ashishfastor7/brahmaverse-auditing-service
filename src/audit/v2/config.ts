@@ -119,11 +119,20 @@ export function validateScorecard(s: Pick<ScorecardVersion, "metrics" | "conditi
   return errors;
 }
 
-/** Why a goal config draft can't be published; empty when it can. */
-export function validateGoalConfig(g: Pick<GoalConfig, "name" | "success_criteria">): string[] {
+/**
+ * Why a goal config draft can't be published; empty when it can. The judge picks a reason code from the outcome's list
+ * (`v2/judge/prompt.ts`), so Achieved and Not achieved each need one, and it offers Partial only when `partial_success`
+ * is set, so Partial codes go with it.
+ */
+export function validateGoalConfig(g: Pick<GoalConfig, "name" | "success_criteria" | "partial_success" | "reason_codes">): string[] {
   const errors: string[] = [];
   if (!g.name.trim()) errors.push("no name");
   if (g.success_criteria.length === 0) errors.push("no success criteria");
+  for (const outcome of ["ACHIEVED", "NOT_ACHIEVED"] as const)
+    if (!g.reason_codes[outcome]?.length) errors.push(`no reason codes for ${outcome}`);
+  const partialCodes = g.reason_codes.PARTIAL?.length ?? 0;
+  if (g.partial_success.length && !partialCodes) errors.push("partial success is set but PARTIAL has no reason codes");
+  if (!g.partial_success.length && partialCodes) errors.push("PARTIAL has reason codes but no partial success criteria");
   return errors;
 }
 

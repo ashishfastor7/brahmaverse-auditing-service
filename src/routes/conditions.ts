@@ -45,7 +45,7 @@ export function conditionsRouter(db: () => Sequelize, v2Enabled: () => boolean) 
     c.json({ data: await guard(() => publishDraft(db(), c.req.param("id"), signedInUser(c))) }),
   );
   router.delete("/scorecards/:id/draft", async (c) => {
-    await guard(() => discardDraft(db(), c.req.param("id")));
+    await guard(() => discardDraft(db(), c.req.param("id"), signedInUser(c)));
     return c.json({ data: null });
   });
   return router;

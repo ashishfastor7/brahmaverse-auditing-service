@@ -261,7 +261,7 @@ describe.skipIf(!dbTestsEnabled)("v2 config (migrations 0003–0011, config-stor
       await sequelize.query(
         "UPDATE goal_config SET name = 'Book a demo', required_outputs = '{demo_datetime}' WHERE agent_code = 'caller' AND version = 2",
       );
-      const goal = await publishGoalConfig(sequelize, "caller");
+      const goal = await publishGoalConfig(sequelize, "caller", "admin");
       expect([goal.version, goal.status, goal.name, goal.required_outputs]).toEqual([2, "published", "Book a demo", ["demo_datetime"]]);
       const active = await loadActiveConfig(sequelize, "caller", null);
       expect([active.goal?.version, active.goal?.name]).toEqual([2, "Book a demo"]);
@@ -333,7 +333,7 @@ describe.skipIf(!dbTestsEnabled)("v2 config (migrations 0003–0011, config-stor
       await createGoalDraft(sequelize, "caller", "admin");
       expect(await failure(createGoalDraft(sequelize, "caller", "admin"))).toContain("already has a draft (version 2)");
       await sequelize.query("UPDATE goal_config SET success_criteria = '{}' WHERE agent_code = 'caller' AND version = 2");
-      expect(await failure(publishGoalConfig(sequelize, "caller"))).toContain("no success criteria");
+      expect(await failure(publishGoalConfig(sequelize, "caller", "admin"))).toContain("no success criteria");
       expect((await loadActiveConfig(sequelize, "caller", null)).goal?.version).toBe(1);
     }));
 

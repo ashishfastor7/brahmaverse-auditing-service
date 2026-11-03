@@ -1,5 +1,5 @@
-import { AlertTriangle, CheckCircle2, CircleSlash, Clock, Eye, MinusCircle, XCircle } from "lucide-react";
-import type { ButtonHTMLAttributes, ComponentProps, ReactNode } from "react";
+import { AlertTriangle, CheckCircle2, CircleSlash, Clock, Eye, MinusCircle, PenLine, XCircle } from "lucide-react";
+import { type ButtonHTMLAttributes, type ComponentProps, type ReactNode, useEffect, useId, useRef } from "react";
 import type { AuditListRow, AuditStatus } from "../api";
 
 type Tone = "good" | "warning" | "serious" | "critical" | "neutral";
@@ -171,4 +171,139 @@ export function Select({ label, value, onChange, options }: {
       </select>
     </label>
   );
+}
+
+/** Multi-line text input on the input tokens. */
+export function Textarea({ className = "", ...props }: ComponentProps<"textarea">) {
+  return <textarea {...props} className={`input py-2 leading-5 ${className}`} style={{ height: "auto", ...props.style }} />;
+}
+
+/**
+ * A version's status: *Published vN* (live) or *Draft vN* (not live yet). Draft uses the warning tone because it is
+ * a state that needs a decision: publish or discard.
+ */
+export function VersionBadge({ status, version }: { status: "draft" | "published"; version: number }) {
+  return status === "published" ? (
+    <Badge tone="good" icon={CheckCircle2}>
+      Published v{version}
+    </Badge>
+  ) : (
+    <Badge tone="warning" icon={PenLine}>
+      Draft v{version}
+    </Badge>
+  );
+}
+
+/** On/off switch (`role="switch"`), near-black when on. Give it a visible label via `aria-labelledby` or an `aria-label`. */
+export function Switch({ checked, onChange, ...props }: Omit<ComponentProps<"button">, "onChange"> & { checked: boolean; onChange: (on: boolean) => void }) {
+  return <button type="button" role="switch" aria-checked={checked} className="switch" onClick={() => onChange(!checked)} {...props} />;
+}
+
+/** Range slider on the slider tokens; the fill follows the value. */
+export function Slider({ value, min = 0, max = 100, className = "", ...props }: ComponentProps<"input"> & { value: number; min?: number; max?: number }) {
+  const pct = `${((value - min) / (max - min)) * 100}%`;
+  return (
+    <input type="range" value={value} min={min} max={max} {...props} className={`slider ${className}`} style={{ ["--pct" as string]: pct }} />
+  );
+}
+
+/**
+ * One choice from a few, as native radios (arrow keys move between them). `options` are `[value, label]`; the
+ * `legend` names the group for screen readers.
+ */
+export function Segmented<T extends string>({
+  legend,
+  value,
+  options,
+  onChange,
+  disabled,
+}: {
+  legend: string;
+  value: T;
+  options: [T, ReactNode][];
+  onChange: (v: T) => void;
+  disabled?: boolean;
+}) {
+  const name = useId();
+  return (
+    <fieldset className="segmented" disabled={disabled}>
+      <legend className="sr-only">{legend}</legend>
+      {options.map(([v, label]) => (
+        <span key={v} className="contents">
+          <input type="radio" id={`${name}-${v}`} name={name} value={v} checked={value === v} onChange={() => onChange(v)} />
+          <label htmlFor={`${name}-${v}`}>
+            <span>{label}</span>
+          </label>
+        </span>
+      ))}
+    </fieldset>
+  );
+}
+
+/**
+ * Modal dialog on the native `<dialog>` (focus stays inside, Esc closes). It opens when `open` is true; Esc, the
+ * backdrop and `onClose` close it. The element marked `data-autofocus` gets focus when it opens (React's `autoFocus`
+ * runs before the dialog is shown); focus returns to the trigger when it closes.
+ */
+export function Dialog({
+  open,
+  onClose,
+  title,
+  children,
+  footer,
+  size = "normal",
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: ReactNode;
+  children: ReactNode;
+  footer: ReactNode;
+  size?: "normal" | "wide";
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+  useEffect(() => {
+    const d = ref.current;
+    if (!d) return;
+    if (open && !d.open) {
+      d.showModal();
+      d.querySelector<HTMLElement>("[data-autofocus]")?.focus();
+    }
+    if (!open && d.open) d.close();
+  }, [open]);
+  return (
+    <dialog
+      ref={ref}
+      aria-labelledby={titleId}
+      className={`dialog ${size === "wide" ? "dialog-wide" : ""}`}
+      onCancel={(e) => {
+        e.preventDefault();
+        onClose();
+      }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="flex flex-col gap-4">
+        <h2 id={titleId} className="text-base font-semibold text-ink">
+          {title}
+        </h2>
+        <div className="flex flex-col gap-3 text-sm text-ink-2">{children}</div>
+        <div className="flex flex-wrap justify-end gap-2 pt-1">{footer}</div>
+      </div>
+    </dialog>
+  );
+}
+
+/** A short "what failed" note inside the block it belongs to. */
+export function ErrorNote({ children }: { children: ReactNode }) {
+  return (
+    <p role="alert" className="enter-settle flex items-start gap-1.5 text-sm text-ink">
+      <AlertTriangle size={15} className="mt-0.5 flex-none text-critical" aria-hidden />
+      <span>{children}</span>
+    </p>
+  );
+}
+
+/** Loading placeholder at the size of what it stands for: flat, no shimmer. */
+export function Skeleton({ className = "" }: { className?: string }) {
+  return <div className={`rounded-md bg-sunken ${className}`} aria-hidden />;
 }

@@ -1,7 +1,7 @@
 import { CODE_PATTERN, codeFromLabel, withDoesNotCount } from "@/audit/v2/conditions";
 import { MIN_METRICS, type ScorecardCondition, type Severity, validateScorecard } from "@/audit/v2/config";
 import { QueryTypes, type Sequelize } from "sequelize";
-import { createScorecardDraft, loadScorecard, publishScorecard } from "./config-store";
+import { createScorecardDraft, loadScorecard, logChange, publishScorecard } from "./config-store";
 
 /**
  * The failure-condition screen (PRD §4.5): the shared library, and adding a condition to it and to scorecard drafts.
@@ -146,6 +146,8 @@ export async function addCondition(db: Sequelize, input: NewCondition, created_b
          VALUES ($1, $2, $3, true, $4, $5)`,
         { bind: [d.scorecard_id, d.version, code, input.severity, metric_key], transaction },
       );
+      const changes = [{ field: `condition.${code}`, before: null, after: { enabled: true, severity: input.severity, metric_key } }];
+      await logChange(db, { entity: "scorecard", key: d.scorecard_id, version: d.version, action: "edited", changes, by: created_by }, transaction);
     }
     return row!;
   });
@@ -187,7 +189,14 @@ export async function publishDraft(db: Sequelize, scorecard_id: string, publishe
 }
 
 /** Throws away a scorecard's draft, with its metrics and conditions. Library conditions stay. */
-export async function discardDraft(db: Sequelize, scorecard_id: string): Promise<void> {
-  const deleted = await select(db, "DELETE FROM scorecard WHERE scorecard_id = $1 AND status = 'draft' RETURNING version", [scorecard_id]);
-  if (!deleted.length) throw new ConditionError(`scorecard ${scorecard_id} has no draft to discard`, 404);
+export async function discardDraft(db: Sequelize, scorecard_id: string, discarded_by: string): Promise<void> {
+  await db.transaction(async (transaction) => {
+    const deleted = await db.query<{ version: number }>("DELETE FROM scorecard WHERE scorecard_id = $1 AND status = 'draft' RETURNING version", {
+      bind: [scorecard_id],
+      type: QueryTypes.SELECT,
+      transaction,
+    });
+    if (!deleted.length) throw new ConditionError(`scorecard ${scorecard_id} has no draft to discard`, 404);
+    await logChange(db, { entity: "scorecard", key: scorecard_id, version: deleted[0]!.version, action: "discarded", by: discarded_by }, transaction);
+  });
 }

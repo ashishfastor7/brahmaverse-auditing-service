@@ -39,7 +39,7 @@ const goal = (agent_code: string, version: number, over: Partial<GoalConfig> = {
   partial_success: [],
   not_applicable_when: [],
   required_outputs: [],
-  reason_codes: {},
+  reason_codes: { ACHIEVED: ["DEMO_BOOKED"], NOT_ACHIEVED: ["NOT_INTERESTED"] },
   system_checks: { silence_limit_s: 8, required_variables: [], flow_steps: null },
   published_at: at(version),
   ...over,
@@ -130,6 +130,27 @@ describe("validateGoalConfig", () => {
   it("needs a name and at least one success criterion", () => {
     expect(validateGoalConfig(goal("caller", 1))).toEqual([]);
     expect(validateGoalConfig(goal("caller", 1, { name: "  ", success_criteria: [] }))).toEqual(["no name", "no success criteria"]);
+  });
+
+  it("needs Achieved and Not achieved reason codes, and Partial codes exactly when partial success is set", () => {
+    expect(validateGoalConfig(goal("caller", 1, { reason_codes: {} }))).toEqual([
+      "no reason codes for ACHIEVED",
+      "no reason codes for NOT_ACHIEVED",
+    ]);
+    const codes = { ACHIEVED: ["DEMO_BOOKED"], NOT_ACHIEVED: ["NOT_INTERESTED"] };
+    expect(validateGoalConfig(goal("caller", 1, { partial_success: ["Asked for a callback"], reason_codes: codes }))).toEqual([
+      "partial success is set but PARTIAL has no reason codes",
+    ]);
+    expect(validateGoalConfig(goal("caller", 1, { reason_codes: { ...codes, PARTIAL: ["CALLBACK_REQUESTED"] } }))).toEqual([
+      "PARTIAL has reason codes but no partial success criteria",
+    ]);
+    expect(
+      validateGoalConfig(goal("caller", 1, { partial_success: ["Asked for a callback"], reason_codes: { ...codes, PARTIAL: ["CALLBACK_REQUESTED"] } })),
+    ).toEqual([]);
+  });
+
+  it("every seeded goal config can be published", () => {
+    for (const g of GOAL_CONFIGS) expect(validateGoalConfig({ partial_success: [], ...g })).toEqual([]);
   });
 });
 

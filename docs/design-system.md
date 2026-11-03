@@ -140,6 +140,7 @@ fades and drop movement (no scale, no shake, no slide).
 | `--critical` / `--critical-soft` | | red-500 / red-100 | red-400 / red-900 | Fail, low scores, field errors |
 | `--focus-ring` | `outline-focus` | blue-500 | blue-300 | Keyboard focus, 2px with 2px offset |
 | `--overlay` | | ink at 40% | black at 60% | Dialog backdrop |
+| `--dialog-edge` | | transparent | stone-700 | A dialog's or menu's edge in dark mode, where shadows barely show |
 
 **Status rules (unchanged):** a status colour sits on an icon, a dot, a border or a soft fill, never on text. A badge's
 label stays in `--ink`. A field error shows a critical border plus an icon and an ink message. One status mark per row.
@@ -154,9 +155,16 @@ label stays in `--ink`. A field error shows a critical border plus an icon and a
 | Table row | `--row-height` `--row-border` `--row-hover` `--row-selected` | 44 · border (1px rule, no zebra, no header band) · sunken · accent-track; headers 12px muted sentence case |
 | Input / select | `--input-height` (`-compact`) `--input-bg` `--input-border` (`-hover` `-focus` `-error`) `--input-placeholder` `--input-radius` `--input-padding-x` | 36 forms / 32 filter bars · surface · control → muted → accent / critical · muted · 6 · 12; label above, 14/500, 6px gap |
 | Button | `--button-height` (`-compact`) `--button-radius` `--button-padding-x`, `--button-primary-*`, `--button-secondary-*`, `--button-ghost-*` | 36 / 32 · 6 · 16 · primary: near-black fill · secondary: surface with control border · ghost: text, sunken on hover; `:active` scale 0.97 over 100ms |
-| Slider | `--slider-track` `--slider-fill` `--slider-thumb` `--slider-thumb-border` `--slider-thumb-size` `--slider-track-height` | accent-track · accent · surface · accent · 16 · 4; value printed beside it, tabular |
-| Dialog | `--dialog-bg` `--dialog-radius` `--dialog-padding` `--dialog-shadow` `--dialog-backdrop` `--dialog-width` | surface · 12 · 24 · overlay elevation · overlay · 480 max; enters with opacity + scale 0.96 → 1 over 300ms |
+| Slider (`Slider`) | `--slider-track` `--slider-fill` `--slider-thumb` `--slider-thumb-border` `--slider-thumb-size` `--slider-track-height` | accent-track · accent · surface · accent · 16 · 4; value printed beside it, tabular |
+| Dialog (`Dialog`) | `--dialog-bg` `--dialog-radius` `--dialog-padding` `--dialog-shadow` `--dialog-backdrop` `--dialog-width` (`-wide`) `--dialog-edge` | surface · 12 · 24 · overlay elevation · overlay · 480 / 640 max · no edge in light, stone-700 in dark; native `<dialog>`; enters with opacity + scale 0.96 → 1 over 300ms, leaves over 150ms; fade only with reduced motion |
+| Switch (`Switch`) | `--switch-width` `--switch-height` `--switch-off` `--switch-on` `--switch-thumb` | 32 × 18 · control border · primary (near-black, never the accent) · surface; the thumb slides 150ms, not with reduced motion |
+| Segmented (`Segmented`) | (input tokens) | native radios in a sunken track; the checked option is a surface pill with a 1px border; options never shrink below their label; no motion |
 | Focus ring | `--focus-ring-width` `--focus-ring-offset` | 2 · 2, `:focus-visible` only |
+
+**Draft and published** (admin screens): a version is a `VersionBadge`, either *Published vN* (good tone, check) or
+*Draft vN* (warning tone, pen). A draft view opens with a sticky bar on the warning-soft fill that says it isn't live.
+The live version shows plain text, not inputs. In a draft, anything changed from the live version gets a 2px accent
+rule on its left and a "was …" hint.
 
 States, in priority order: disabled (50% opacity, `cursor: not-allowed`, and the reason nearby) → busy (label changes to
 the action in progress, e.g. "Signing in…", control disabled) → active (press scale) → focus-visible (ring) → hover

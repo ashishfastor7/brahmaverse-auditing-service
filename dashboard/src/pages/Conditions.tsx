@@ -2,7 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertOctagon, AlertTriangle, CircleDot, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { conditionsApi, type LibraryCondition, type ScorecardConditions, type Severity } from "../api";
-import { Badge, Card, Select } from "../components/ui";
+import { DiscardDialog, PublishDialog } from "../components/admin";
+import { Badge, Button, Card, Dialog, ErrorNote, Select } from "../components/ui";
 
 const SEVERITY_LABEL: Record<Severity, string> = { critical: "Critical", major: "Major", minor: "Minor" };
 const SEVERITY_HINT: Record<Severity, string> = {
@@ -150,8 +151,10 @@ function AddCondition({ scorecards }: { scorecards: ScorecardConditions[] }) {
 function Drafts({ scorecards, library }: { scorecards: ScorecardConditions[]; library: LibraryCondition[] }) {
   const qc = useQueryClient();
   const done = () => qc.invalidateQueries({ queryKey: ["conditions"] });
-  const publish = useMutation({ mutationFn: conditionsApi.publish, onSuccess: done });
-  const discard = useMutation({ mutationFn: conditionsApi.discard, onSuccess: done });
+  const [confirm, setConfirm] = useState<{ kind: "publish" | "discard"; scorecard: ScorecardConditions } | null>(null);
+  const close = () => setConfirm(null);
+  const publish = useMutation({ mutationFn: conditionsApi.publish, onSuccess: () => (close(), done()) });
+  const discard = useMutation({ mutationFn: conditionsApi.discard, onSuccess: () => (close(), done()) });
   const withDraft = scorecards.filter((s) => s.draft !== null);
   if (withDraft.length === 0) return null;
   const label = (code: string) => library.find((c) => c.code === code)?.label ?? code;
@@ -172,17 +175,14 @@ function Drafts({ scorecards, library }: { scorecards: ScorecardConditions[]; li
                 <button
                   className="h-8 rounded-md bg-accent px-3 text-sm font-medium text-white disabled:opacity-50"
                   disabled={publish.isPending || s.pending.length === 0}
-                  onClick={() =>
-                    window.confirm(`Publish ${s.name} v${s.draft}? Its agents (${s.agents.join(", ") || "none"}) move to it, and future v2 audits use it. A published version can't be changed.`) &&
-                    publish.mutate(s.scorecard_id)
-                  }
+                  onClick={() => setConfirm({ kind: "publish", scorecard: s })}
                 >
                   Publish v{s.draft}
                 </button>
                 <button
                   className="h-8 rounded-md border border-line px-3 text-sm text-ink disabled:opacity-50"
                   disabled={discard.isPending}
-                  onClick={() => window.confirm(`Discard the ${s.name} draft? The conditions stay in the library.`) && discard.mutate(s.scorecard_id)}
+                  onClick={() => setConfirm({ kind: "discard", scorecard: s })}
                 >
                   Discard draft
                 </button>
@@ -203,15 +203,54 @@ function Drafts({ scorecards, library }: { scorecards: ScorecardConditions[]; li
             )}
           </div>
         ))}
-        {(publish.error || discard.error) && <p className="text-sm text-critical">{(publish.error ?? discard.error)!.message}</p>}
       </div>
+      {confirm && (
+        <PublishDialog
+          open={confirm.kind === "publish"}
+          onClose={close}
+          onConfirm={() => publish.mutate(confirm.scorecard.scorecard_id)}
+          pending={publish.isPending}
+          error={publish.error}
+          title={`Publish ${confirm.scorecard.name} v${confirm.scorecard.draft}?`}
+          version={confirm.scorecard.draft!}
+        >
+          <p>
+            {confirm.scorecard.agents.length
+              ? `${confirm.scorecard.agents.join(", ")} move from v${confirm.scorecard.published} to v${confirm.scorecard.draft}, and their next v2 audits use it.`
+              : "No agent uses this scorecard, so no agent moves."}{" "}
+            Past audits keep the version they were graded on.{" "}
+            <a href={`#/scorecards/${encodeURIComponent(confirm.scorecard.scorecard_id)}`} className="text-accent hover:underline">
+              See every change and the pass-rate preview
+            </a>
+            .
+          </p>
+        </PublishDialog>
+      )}
+      {confirm && (
+        <DiscardDialog
+          open={confirm.kind === "discard"}
+          onClose={close}
+          onConfirm={() => discard.mutate(confirm.scorecard.scorecard_id)}
+          pending={discard.isPending}
+          error={discard.error}
+          version={confirm.scorecard.draft!}
+          liveVersion={confirm.scorecard.published}
+        />
+      )}
     </Card>
   );
 }
 
 function Library({ conditions, scorecards }: { conditions: LibraryCondition[]; scorecards: ScorecardConditions[] }) {
   const qc = useQueryClient();
-  const remove = useMutation({ mutationFn: conditionsApi.remove, onSuccess: () => qc.invalidateQueries({ queryKey: ["conditions"] }) });
+  const [removing, setRemoving] = useState<LibraryCondition | null>(null);
+  const remove = useMutation({
+    mutationFn: conditionsApi.remove,
+    onSuccess: () => {
+      setRemoving(null);
+      qc.invalidateQueries({ queryKey: ["conditions"] });
+    },
+  });
   const onPublished = (code: string) => scorecards.some((s) => s.conditions.some((c) => c.condition_code === code));
 
   return (
@@ -253,7 +292,7 @@ function Library({ conditions, scorecards }: { conditions: LibraryCondition[]; s
                       className="text-muted hover:text-critical disabled:opacity-50"
                       title="Remove (not on any published scorecard yet)"
                       disabled={remove.isPending}
-                      onClick={() => window.confirm(`Remove ${c.code} from the library and the drafts?`) && remove.mutate(c.code)}
+                      onClick={() => setRemoving(c)}
                     >
                       <Trash2 size={15} aria-label={`Remove ${c.code}`} />
                     </button>
@@ -264,7 +303,26 @@ function Library({ conditions, scorecards }: { conditions: LibraryCondition[]; s
           </tbody>
         </table>
       </div>
-      {remove.error && <p className="mt-2 text-sm text-critical">{remove.error.message}</p>}
+      <Dialog
+        open={removing !== null}
+        onClose={() => setRemoving(null)}
+        title={`Remove ${removing?.label ?? ""}?`}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setRemoving(null)} data-autofocus>
+              Keep it
+            </Button>
+            <Button variant="primary" onClick={() => removing && remove.mutate(removing.code)} disabled={remove.isPending}>
+              {remove.isPending ? "Removing…" : "Remove condition"}
+            </Button>
+          </>
+        }
+      >
+        <p>
+          <code>{removing?.code}</code> is deleted from the library and from every draft that has it. No published scorecard uses it yet.
+        </p>
+        {remove.error && <ErrorNote>{remove.error.message}</ErrorNote>}
+      </Dialog>
       <p className="mt-3 text-xs text-muted">
         "Off" means the condition is on the scorecard but disabled until the data it needs exists. Published conditions can't be edited or removed; a
         new scorecard version can disable one instead.

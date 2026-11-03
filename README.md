@@ -92,6 +92,26 @@ exactly what it did before v2. The dashboard reads the flag from `GET /v1/audit/
 With the flag on, the dashboard's *Failure conditions* page lists the v2 condition library and adds new conditions
 (label, definition, what does not count, severity) to scorecard drafts; they apply once the draft is published.
 
+**Admin screens (v2).** *Scorecards* and *Goals* edit the v2 configuration. Nothing changes what audits use until it is
+published:
+- *Start a draft* copies the live version. Edit the draft, *Save draft*, then *Review and publish*. Publishing asks for
+  confirmation, makes the draft the new version, and moves the agents on the old version to it. Published versions
+  can't be edited.
+- Scorecards: the pass threshold; each metric's weight (sliders rebalance the others, so they always total 100.0;
+  lock one to keep it fixed), rubric, "not applicable when" and auto-fail; each failure condition's on/off and
+  severity (Major needs the metric it sets to 0). A metric's method and scale are shown, not edited: the engine
+  decides how each metric is scored. Conditions whose data doesn't exist yet (`UNRESPONSIVE_AGENT`,
+  `FALSE_ACTION_CLAIM`, `SKIPPED_REQUIRED_STEP`) can't be switched on.
+- *If you publish* re-scores the scorecard's last 50–500 current v2 audits from their stored metric scores, once with
+  the live version and once with the saved draft. It shows the pass rate and average score before and after, and the
+  calls that change verdict. There is no LLM call (`GET /v1/audit/scorecards/:id/simulation?n=100`).
+- Goals: start from one of seven templates (book a demo, qualify a lead, …) or write a custom goal. The fields are
+  name, success, partial success and "not applicable" criteria, required outputs, the reason codes for each outcome,
+  and the system goal's required variables and flow steps. Flow steps are saved but not yet read by the judge. The
+  silence limit stays disabled until calls have timing data.
+- Every draft started, save, publish and discard is logged in `config_change` with the signed-in username. One login
+  is shared, so the log can't tell people apart. *Version history* shows each version with what it changed.
+
 ### v2 audits
 
 With the flag on, `POST /v1/audit/v2/calls/:id/audit` (optional body `{ "weights": { "<metric>": 10, … } }`, total 100;

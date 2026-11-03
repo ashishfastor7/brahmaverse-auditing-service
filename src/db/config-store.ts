@@ -10,6 +10,7 @@ import {
   validateGoalConfig,
   validateScorecard,
 } from "@/audit/v2/config";
+import { type ConfigChange, diffGoal, diffScorecard } from "@/audit/v2/config-diff";
 import type { ConditionDefinition } from "@/audit/v2/judge/prompt";
 import { QueryTypes, type Sequelize, type Transaction } from "sequelize";
 
@@ -25,6 +26,8 @@ import { QueryTypes, type Sequelize, type Transaction } from "sequelize";
  *
  * A new agent needs an entry in `agents` (`rubrics/index.ts`), a goal config (`createGoalDraft(..., { from })` +
  * `publishGoalConfig`) and `assignScorecard`.
+ *
+ * Every draft started, saved, published or discarded is written to `config_change` (`logChange`, migration 0015).
  */
 
 // NUMERIC comes back from pg as a string; cast to float8 so the types hold.
@@ -133,6 +136,24 @@ export function loadConditionDefinitions(db: Sequelize, codes: string[]): Promis
   ]);
 }
 
+export type ConfigEntity = "scorecard" | "goal_config";
+export type ConfigAction = "draft_created" | "edited" | "published" | "discarded";
+
+/** Adds a row to the config change log (PRD §8 #14). `changed_by` is the signed-in login. */
+export async function logChange(
+  db: Sequelize,
+  entry: { entity: ConfigEntity; key: string; version: number; action: ConfigAction; changes?: ConfigChange[]; by: string },
+  transaction?: Transaction,
+) {
+  await db.query(
+    "INSERT INTO config_change (entity, config_key, version, action, changes, changed_by) VALUES ($1, $2, $3, $4, $5, $6)",
+    {
+      bind: [entry.entity, entry.key, entry.version, entry.action, JSON.stringify(entry.changes ?? []), entry.by],
+      transaction,
+    },
+  );
+}
+
 /** The lineage's draft version, its latest published version, and the next free version number. */
 async function versions(db: Sequelize, table: "scorecard" | "goal_config", keyColumn: string, key: string, transaction: Transaction) {
   const [row] = await select<{ draft: number | null; published: number | null; latest: number | null }>(
@@ -185,7 +206,10 @@ export function createScorecardDraft(
        SELECT $3, $4, condition_code, enabled, severity, metric_key FROM scorecard_condition WHERE scorecard_id = $1 AND scorecard_version = $2`,
       { bind, transaction },
     );
-    return (await loadScorecard(db, scorecard_id, v.next, transaction))!;
+    const draft = (await loadScorecard(db, scorecard_id, v.next, transaction))!;
+    const changes = from.scorecard_id === scorecard_id ? [] : [{ field: "copied_from", before: null, after: `${from.scorecard_id} v${from.version}` }];
+    await logChange(db, { entity: "scorecard", key: scorecard_id, version: v.next, action: "draft_created", changes, by: created_by }, transaction);
+    return draft;
   };
   return opts.transaction ? run(opts.transaction) : db.transaction(run);
 }
@@ -212,6 +236,9 @@ export function publishScorecard(db: Sequelize, scorecard_id: string, published_
         { bind: [scorecard_id, draft.based_on, v.draft, published_by], transaction },
       );
     }
+    const base = draft.based_on === null ? null : await loadScorecard(db, scorecard_id, draft.based_on, transaction);
+    const changes = base ? diffScorecard(base, draft) : [];
+    await logChange(db, { entity: "scorecard", key: scorecard_id, version: v.draft, action: "published", changes, by: published_by }, transaction);
     return (await loadScorecard(db, scorecard_id, v.draft, transaction))!;
   });
 }
@@ -249,12 +276,14 @@ export function createGoalDraft(db: Sequelize, agent_code: string, created_by: s
          FROM goal_config WHERE agent_code = $1 AND version = $2`,
       { bind: [fromAgent, fromVersion, agent_code, v.next, created_by], transaction },
     );
+    const changes = fromAgent === agent_code ? [] : [{ field: "copied_from", before: null, after: `${fromAgent} v${fromVersion}` }];
+    await logChange(db, { entity: "goal_config", key: agent_code, version: v.next, action: "draft_created", changes, by: created_by }, transaction);
     return (await loadGoalConfig(db, agent_code, v.next, transaction))!;
   });
 }
 
 /** Publishes an agent's goal config draft as its new version, after `validateGoalConfig`. */
-export function publishGoalConfig(db: Sequelize, agent_code: string): Promise<GoalConfig> {
+export function publishGoalConfig(db: Sequelize, agent_code: string, published_by: string): Promise<GoalConfig> {
   return db.transaction(async (transaction) => {
     const v = await versions(db, "goal_config", "agent_code", agent_code, transaction);
     if (v.draft === null) throw new Error(`goal config for ${agent_code} has no draft to publish`);
@@ -265,6 +294,9 @@ export function publishGoalConfig(db: Sequelize, agent_code: string): Promise<Go
       bind: [agent_code, v.draft],
       transaction,
     });
+    const base = v.published === null ? null : await loadGoalConfig(db, agent_code, v.published, transaction);
+    const changes = base ? diffGoal(base, draft) : [];
+    await logChange(db, { entity: "goal_config", key: agent_code, version: v.draft, action: "published", changes, by: published_by }, transaction);
     return (await loadGoalConfig(db, agent_code, v.draft, transaction))!;
   });
 }
