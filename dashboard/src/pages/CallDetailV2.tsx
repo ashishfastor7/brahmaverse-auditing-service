@@ -87,7 +87,9 @@ function RightColumn({ callId, view, readOnly }: { callId: number; view: AuditVi
       <Card title="Recording">
         {c ? <Recording id={callId} hasRecording={Boolean(c.recording_url)} /> : <Skeleton className="h-8 w-full" />}
       </Card>
-      <div className="lg:sticky lg:top-4">
+      {/* Not sticky: the judge line and call details below it would scroll under a pinned transcript. A turn chip still
+          brings the transcript into view (scrollIntoView scrolls the page too). */}
+      <div>
         <Card title={c ? `Transcript · ${c.transcript.length} turns` : "Transcript"}>
           {c ? <Transcript turns={c.transcript} marks={r ? turnMarks(r, labels) : undefined} /> : <Skeleton className="h-40 w-full" />}
         </Card>
