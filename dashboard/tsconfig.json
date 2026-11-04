@@ -8,8 +8,7 @@
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "types": ["vite/client"],
-    "paths": { "@engine/*": ["../src/audit/v2/*"] }
+    "types": ["vite/client"]
   },
   "include": ["src"]
 }

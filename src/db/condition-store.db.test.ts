@@ -88,7 +88,7 @@ describe.skipIf(!dbTestsEnabled)("failure-condition screen (condition-store, /co
       expect((await loadActiveConfig(sequelize, "hrms", null)).scorecard?.version).toBe(4);
 
       // Published: it can't be removed. Hansa's draft can still be thrown away.
-      expect(await failure(deleteCondition(sequelize, "ASKED_FOR_THE_OTP"))).toContain("used by published default v5");
+      expect(await failure(deleteCondition(sequelize, "ASKED_FOR_THE_OTP", "admin"))).toContain("used by published default v5");
       await discardDraft(sequelize, "hansa", "admin");
       expect((await listConditions(sequelize)).scorecards[1]).toMatchObject({ draft: null, pending: [] });
       expect(await failure(discardDraft(sequelize, "hansa", "admin"))).toContain("has no draft to discard");
@@ -99,12 +99,25 @@ describe.skipIf(!dbTestsEnabled)("failure-condition screen (condition-store, /co
     withTestDb(async (sequelize) => {
       await createMigrator(sequelize, { quiet: true }).up();
       await addCondition(sequelize, OTP, "admin");
-      await deleteCondition(sequelize, "ASKED_FOR_THE_OTP");
+      await deleteCondition(sequelize, "ASKED_FOR_THE_OTP", "admin");
       const { conditions, scorecards } = await listConditions(sequelize);
       expect(conditions.map((c) => c.code)).not.toContain("ASKED_FOR_THE_OTP");
       expect(scorecards.map((s) => s.pending)).toEqual([[], []]);
-      expect(await failure(deleteCondition(sequelize, "AGENT_LOOP"))).toContain("used by published");
-      expect(await failure(deleteCondition(sequelize, "NOPE"))).toContain("no condition NOPE");
+      expect(await failure(deleteCondition(sequelize, "AGENT_LOOP", "admin"))).toContain("used by published");
+      expect(await failure(deleteCondition(sequelize, "NOPE", "admin"))).toContain("no condition NOPE");
+
+      // Every change is logged (P1-18): the add and the removal, on each scorecard draft, by who did it.
+      const log = await all<{ key: string; version: number; action: string; by: string; field: string; added: boolean }>(
+        sequelize,
+        `SELECT config_key AS key, version, action, changed_by AS by, changes->0->>'field' AS field, changes->0->'before' = 'null' AS added
+           FROM config_change WHERE action = 'edited' ORDER BY id`,
+      );
+      expect(log).toEqual([
+        { key: "default", version: 5, action: "edited", by: "admin", field: "condition.ASKED_FOR_THE_OTP", added: true },
+        { key: "hansa", version: 5, action: "edited", by: "admin", field: "condition.ASKED_FOR_THE_OTP", added: true },
+        { key: "default", version: 5, action: "edited", by: "admin", field: "condition.ASKED_FOR_THE_OTP", added: false },
+        { key: "hansa", version: 5, action: "edited", by: "admin", field: "condition.ASKED_FOR_THE_OTP", added: false },
+      ]);
     }));
 
   it("refuses bad input and changes nothing", () =>

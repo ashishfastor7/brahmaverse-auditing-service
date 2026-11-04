@@ -71,9 +71,33 @@ describe("applyScorecardEdit", () => {
     ]);
     expect(errors({ conditions: [{ code: "PREMATURE_HANGUP", severity: "major", metric_key: "opening_closure" }] })).toEqual([]);
     expect(errors({ conditions: [{ code: "PREMATURE_HANGUP", metric_key: "nope" }] })).toEqual(["PREMATURE_HANGUP: no metric nope on this scorecard"]);
-    expect(errors({ conditions: [{ code: "OUTCOME_MISMATCH", enabled: true }] })).toEqual([
-      "OUTCOME_MISMATCH isn't on this scorecard; add it on the failure conditions page",
+    expect(errors({ conditions: [{ code: "MADE_UP", enabled: true }] })).toEqual([
+      "no condition MADE_UP in the library; add it on the failure conditions page",
     ]);
+  });
+
+  it("attaches a library condition the draft doesn't have: on and Minor unless the edit says otherwise", () => {
+    const library = ["OUTCOME_MISMATCH", "DISCRIMINATORY_QUESTION", "UNRESPONSIVE_AGENT"];
+    // `default` has UNRESPONSIVE_AGENT (off); leave it out so attaching it is tested too.
+    const without = () => ({ ...draft(), conditions: draft().conditions.filter((c) => c.condition_code !== "UNRESPONSIVE_AGENT") });
+    const attach = (conditions: ScorecardPatch["conditions"]) => applyScorecardEdit(without(), { conditions }, library);
+    const added = (r: ReturnType<typeof attach>, code: string) => r.value!.conditions.find((c) => c.condition_code === code);
+
+    expect(added(attach([{ code: "OUTCOME_MISMATCH" }]), "OUTCOME_MISMATCH")).toEqual({
+      condition_code: "OUTCOME_MISMATCH",
+      enabled: true,
+      severity: "minor",
+      metric_key: null,
+    });
+    expect(added(attach([{ code: "DISCRIMINATORY_QUESTION", severity: "critical" }]), "DISCRIMINATORY_QUESTION")?.severity).toBe("critical");
+    expect(attach([{ code: "OUTCOME_MISMATCH", severity: "major" }]).errors).toEqual([
+      "OUTCOME_MISMATCH: a Major condition needs the metric it sets to 0",
+    ]);
+    // A condition whose data doesn't exist yet: attached off, and can't be switched on.
+    expect(added(attach([{ code: "UNRESPONSIVE_AGENT" }]), "UNRESPONSIVE_AGENT")?.enabled).toBe(false);
+    expect(attach([{ code: "UNRESPONSIVE_AGENT", enabled: true }]).errors[0]).toContain("can't be switched on");
+    // Without the library list nothing can be attached.
+    expect(applyScorecardEdit(draft(), { conditions: [{ code: "OUTCOME_MISMATCH" }] }).errors[0]).toContain("no condition OUTCOME_MISMATCH in the library");
   });
 
   it("won't switch on a condition whose data doesn't exist yet", () => {

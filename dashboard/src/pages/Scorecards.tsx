@@ -153,7 +153,7 @@ function PublishedView({ admin, names, history, onOpenDraft }: { admin: Scorecar
 
 function DraftView({ admin, names, history }: { admin: ScorecardAdmin; names: ChangeNames; history: HistoryQuery }) {
   const qc = useQueryClient();
-  const draft = useDraftEdits(admin.draft!);
+  const draft = useDraftEdits(admin.draft!, admin.library);
   const [dialog, setDialog] = useState<"publish" | "discard" | null>(null);
   const [n, setN] = useState(100);
   useUnsavedGuard(draft.unsaved);
@@ -289,6 +289,7 @@ function ScorecardBody() {
                 <MetricEditor.Weight />
               </div>
               <MetricEditor.Details>
+                <MetricEditor.Text />
                 <MetricEditor.Rubric />
                 <MetricEditor.Applicability />
                 <MetricEditor.AutoFail />
@@ -310,6 +311,9 @@ function ScorecardBody() {
             </ConditionEditor.Root>
           ))}
         </ul>
+        <div className="mt-4 border-t border-line pt-4 empty:hidden">
+          <ConditionEditor.Attach />
+        </div>
       </Card>
     </>
   );

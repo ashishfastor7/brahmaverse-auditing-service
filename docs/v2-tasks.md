@@ -284,8 +284,11 @@ Rules for every task (CLAUDE.md "v2 rules"):
   - Step 13: *Scorecards* (`#/scorecards/:id`) and *Goals* (`#/goals/:agent`) in the dashboard, behind the flag.
     - The live version is read-only. *Start a draft* copies it; edits are saved with *Save draft* and published
       after a confirmation dialog.
-    - Scorecards: pass threshold; per metric the weight (slider + `rebalanceWeights`, locks), rubric, applicability
-      and auto-fail; per condition on/off, severity and the metric a Major zeroes. Method, scale, requires and
+    - Scorecards: pass threshold; per metric the name, description, weight (slider + `rebalanceWeights`, locks),
+      rubric, applicability and auto-fail; per condition on/off, severity and the metric a Major zeroes, with its
+      definition and what it rolls up to. A draft can attach a library condition it doesn't have (PRD §4.5), as
+      Minor. The dashboard runs a copy of `rebalance.ts` (`dashboard/src/lib/`, kept equal by
+      `rebalance-copy.test.ts`), so it builds on its own. Method, scale, requires and
       params are read-only, because the engine decides how a metric is scored, and metrics can't be added or
       removed. Conditions in `NEEDS_DATA` (`conditions.ts`) can't be switched on.
     - Goals: the seven PRD §3.2 templates (`goal-templates.ts`) or a custom goal; the business goal fields, reason
@@ -293,8 +296,8 @@ Rules for every task (CLAUDE.md "v2 rules"):
       variables and flow steps. The silence limit is shown disabled.
     - Edits are checked by the pure `applyScorecardEdit` / `applyGoalEdit` (`config-edit.ts`); the differences come
       from `diffScorecard` / `diffGoal` (`config-diff.ts`).
-    - Migration 0015 adds `config_change`, which logs every draft started, save, publish and discard with the
-      fields changed and the signed-in username. *Version history* shows each version's diff against the one before
+    - Migration 0015 adds `config_change`, which logs every draft started, save, publish and discard (and a
+      condition added or removed on the conditions page) with the fields changed and the signed-in username. *Version history* shows each version's diff against the one before
       it.
     - API: `src/routes/admin-config.ts`, `src/db/config-admin.ts`. Tests: `src/routes/admin-config.db.test.ts` has
       one test per save and publish path.

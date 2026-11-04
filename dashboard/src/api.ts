@@ -378,7 +378,7 @@ export type ScorecardAdmin = {
   base: number | null;
   changes: ConfigChange[];
   publish_errors: string[];
-  library: { code: string; label: string; definition: string; detection: "rule" | "llm"; needs_data: string | null }[];
+  library: { code: string; label: string; definition: string; detection: "rule" | "llm"; rolls_up_to: string[]; needs_data: string | null }[];
 };
 export type ScorecardSummary = {
   scorecard_id: string;

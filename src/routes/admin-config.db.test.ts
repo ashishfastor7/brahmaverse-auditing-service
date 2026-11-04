@@ -201,6 +201,40 @@ describe.skipIf(!dbTestsEnabled)("scorecard and goal admin API (P1-18, P1-20)", 
         [1, "published", "migration", 0, 0],
       ]);
       expect(history[0].changes.map((c: any) => c.field)).toContain("condition.AGENT_LOOP.severity");
+      // Who changed what: every log entry of the version names the login and the fields.
+      expect(history[0].log.map((l: any) => [l.action, l.changed_by, l.changes.length])).toEqual([
+        ["draft_created", "admin", 0],
+        ["edited", "admin", 2],
+        ["edited", "admin", 4],
+        ["edited", "admin", 2],
+        ["published", "admin", 8],
+      ]);
+    }));
+
+  it("scorecards: a draft attaches a library condition it doesn't have (PRD §4.5), as Minor unless set", () =>
+    withTestDb(async (sequelize) => {
+      await createMigrator(sequelize, { quiet: true }).up();
+      const { send } = api(sequelize);
+      const admin = (await send("GET", "/scorecards/default")).body.data;
+      // The whole library comes back, so the editor can offer what the scorecard lacks.
+      expect(admin.library).toHaveLength(20);
+      expect(admin.published.conditions.map((c: any) => c.condition_code)).not.toContain("OUTCOME_MISMATCH");
+      expect(admin.library.find((l: any) => l.code === "OUTCOME_MISMATCH").rolls_up_to).toEqual(["S4 Data saved"]);
+
+      await send("POST", "/scorecards/default/draft");
+      const attached = await send("PATCH", "/scorecards/default/draft", { conditions: [{ code: "OUTCOME_MISMATCH" }] });
+      expect(attached.status).toBe(200);
+      expect(attached.body.data.draft.conditions.find((c: any) => c.condition_code === "OUTCOME_MISMATCH")).toEqual({
+        condition_code: "OUTCOME_MISMATCH",
+        enabled: true,
+        severity: "minor",
+        metric_key: null,
+      });
+      expect(attached.body.data.changes).toEqual([
+        { field: "condition.OUTCOME_MISMATCH", before: null, after: { enabled: true, severity: "minor", metric_key: null } },
+      ]);
+      expect((await send("PATCH", "/scorecards/default/draft", { conditions: [{ code: "MADE_UP" }] })).status).toBe(400);
+      expect((await send("POST", "/scorecards/default/publish")).body.data.conditions.map((c: any) => c.condition_code)).toContain("OUTCOME_MISMATCH");
     }));
 
   it("scorecards: discarding a draft logs it, and the next draft's history starts fresh", () =>

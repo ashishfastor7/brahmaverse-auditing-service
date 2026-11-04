@@ -97,9 +97,10 @@ published:
 - *Start a draft* copies the live version. Edit the draft, *Save draft*, then *Review and publish*. Publishing asks for
   confirmation, makes the draft the new version, and moves the agents on the old version to it. Published versions
   can't be edited.
-- Scorecards: the pass threshold; each metric's weight (sliders rebalance the others, so they always total 100.0;
-  lock one to keep it fixed), rubric, "not applicable when" and auto-fail; each failure condition's on/off and
-  severity (Major needs the metric it sets to 0). A metric's method and scale are shown, not edited: the engine
+- Scorecards: the pass threshold; each metric's name, description, weight (sliders rebalance the others, so they
+  always total 100.0; lock one to keep it fixed), rubric, "not applicable when" and auto-fail; each failure
+  condition's on/off and severity (Major needs the metric it sets to 0), with its definition and what it rolls up to.
+  A draft can also attach a library condition the scorecard doesn't have yet; it starts as Minor. A metric's method and scale are shown, not edited: the engine
   decides how each metric is scored. Conditions whose data doesn't exist yet (`UNRESPONSIVE_AGENT`,
   `FALSE_ACTION_CLAIM`, `SKIPPED_REQUIRED_STEP`) can't be switched on.
 - *If you publish* re-scores the scorecard's last 50–500 current v2 audits from their stored metric scores, once with

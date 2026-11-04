@@ -157,7 +157,7 @@ export async function addCondition(db: Sequelize, input: NewCondition, created_b
  * Removes a condition that no published scorecard uses: from the drafts that have it and from the library (e.g. to
  * fix a typo before publishing). One a published version uses stays; a later version can disable it instead.
  */
-export async function deleteCondition(db: Sequelize, code: string): Promise<void> {
+export async function deleteCondition(db: Sequelize, code: string, deleted_by: string): Promise<void> {
   await db.transaction(async (transaction) => {
     const q = <T extends object>(sql: string) => db.query<T>(sql, { bind: [code], type: QueryTypes.SELECT, transaction });
     if (!(await q("SELECT 1 FROM failure_condition WHERE code = $1")).length) throw new ConditionError(`no condition ${code}`, 404);
@@ -170,8 +170,17 @@ export async function deleteCondition(db: Sequelize, code: string): Promise<void
         `${code} is used by published ${used.map((u) => `${u.scorecard_id} v${u.version}`).join(", ")}, so it can't be removed`,
         409,
       );
-    await db.query("DELETE FROM scorecard_condition WHERE condition_code = $1", { bind: [code], transaction });
+    const removed = await db.query<ScorecardCondition & { scorecard_id: string; scorecard_version: number }>(
+      `DELETE FROM scorecard_condition WHERE condition_code = $1
+       RETURNING scorecard_id, scorecard_version, condition_code, enabled, severity, metric_key`,
+      { bind: [code], type: QueryTypes.SELECT, transaction },
+    );
     await db.query("DELETE FROM failure_condition WHERE code = $1", { bind: [code], transaction });
+    // Each draft it was on loses it: one logged change per draft.
+    for (const r of removed) {
+      const changes = [{ field: `condition.${code}`, before: { enabled: r.enabled, severity: r.severity, metric_key: r.metric_key }, after: null }];
+      await logChange(db, { entity: "scorecard", key: r.scorecard_id, version: r.scorecard_version, action: "edited", changes, by: deleted_by }, transaction);
+    }
   });
 }
 

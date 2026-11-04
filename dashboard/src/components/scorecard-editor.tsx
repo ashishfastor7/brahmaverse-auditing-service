@@ -1,7 +1,9 @@
-import { rebalanceWeights } from "@engine/rebalance";
+// A verbatim copy of src/audit/v2/rebalance.ts, so the dashboard builds on its own; rebalance-copy.test.ts keeps them equal.
+import { rebalanceWeights } from "../lib/rebalance";
 import { Lock, LockOpen } from "lucide-react";
 import { type ReactNode, createContext, use, useId, useMemo, useState } from "react";
-import type { ConfigMetric, ScorecardAdmin, ScorecardCondition, ScorecardPatch, ScorecardVersion, Severity } from "../api";
+import type { ConfigMetric, ScorecardAdmin, ScorecardCondition, ScorecardVersion, Severity } from "../api";
+import { scorecardPatch } from "../lib/admin-logic";
 import { SeverityBadge } from "../pages/Conditions";
 import { Input, Segmented, Select, Slider, Switch, Textarea } from "./ui";
 
@@ -26,6 +28,8 @@ type EditorContextValue = {
     setLocked: (key: string, locked: boolean) => void;
     updateMetric: (key: string, edit: MetricEdit) => void;
     updateCondition: (code: string, edit: Partial<Omit<ScorecardCondition, "condition_code">>) => void;
+    /** Attaches a library condition the scorecard doesn't have yet (Minor, off while its data doesn't exist). */
+    attachCondition: (code: string) => void;
   };
   meta: {
     /** "view" for the live version, "edit" for a draft. */
@@ -48,17 +52,17 @@ const noop = () => {};
 function Published({ admin, children }: { admin: ScorecardAdmin; children: ReactNode }) {
   const value: EditorContextValue = {
     state: { scorecard: admin.published, locked: [] },
-    actions: { setThreshold: noop, setWeight: noop, setLocked: noop, updateMetric: noop, updateCondition: noop },
+    actions: { setThreshold: noop, setWeight: noop, setLocked: noop, updateMetric: noop, updateCondition: noop, attachCondition: noop },
     meta: { mode: "view", live: admin.published, library: admin.library },
   };
   return <EditorContext value={value}>{children}</EditorContext>;
 }
 
 /** The local edits of a draft, and what saving them sends. Lifted out of the provider so the draft bar can save. */
-export function useDraftEdits(draft: ScorecardVersion) {
+export function useDraftEdits(draft: ScorecardVersion, library: ScorecardAdmin["library"]) {
   const [edits, setEdits] = useState<Edits>(() => ({ pass_threshold: draft.pass_threshold, metrics: draft.metrics, conditions: draft.conditions }));
   const [locked, setLockedKeys] = useState<string[]>([]);
-  const patch = useMemo(() => patchFor(draft, edits), [draft, edits]);
+  const patch = useMemo(() => scorecardPatch(draft, edits), [draft, edits]);
   const actions: EditorContextValue["actions"] = {
     setThreshold: (pass_threshold) => setEdits((e) => ({ ...e, pass_threshold })),
     setWeight: (key, value) =>
@@ -84,6 +88,18 @@ export function useDraftEdits(draft: ScorecardVersion) {
       })),
     updateCondition: (code, edit) =>
       setEdits((e) => ({ ...e, conditions: e.conditions.map((c) => (c.condition_code === code ? { ...c, ...edit } : c)) })),
+    attachCondition: (code) =>
+      setEdits((e) =>
+        e.conditions.some((c) => c.condition_code === code)
+          ? e
+          : {
+              ...e,
+              conditions: [
+                ...e.conditions,
+                { condition_code: code, enabled: !library.find((l) => l.code === code)?.needs_data, severity: "minor", metric_key: null },
+              ],
+            },
+      ),
   };
   return {
     edits,
@@ -98,38 +114,6 @@ export function useDraftEdits(draft: ScorecardVersion) {
   };
 }
 export type DraftEdits = ReturnType<typeof useDraftEdits>;
-
-/** Only what differs from the saved draft; null when nothing does. */
-function patchFor(saved: ScorecardVersion, e: Edits): ScorecardPatch | null {
-  const patch: ScorecardPatch = {};
-  if (e.pass_threshold !== saved.pass_threshold) patch.pass_threshold = e.pass_threshold;
-  const metrics: NonNullable<ScorecardPatch["metrics"]> = [];
-  for (const m of e.metrics) {
-    const s = saved.metrics.find((x) => x.key === m.key)!;
-    const p: (typeof metrics)[number] = { key: m.key };
-    if (m.name !== s.name) p.name = m.name;
-    if (m.description !== s.description) p.description = m.description;
-    if (m.applicability !== s.applicability) p.applicability = m.applicability;
-    if (m.auto_fail !== s.auto_fail) p.auto_fail = m.auto_fail;
-    if (m.weight !== s.weight) p.weight = m.weight;
-    const anchors = (["0", "5", "10"] as const).filter((a) => m.rubric.anchors[a] !== s.rubric.anchors[a]);
-    if (m.rubric.checks !== s.rubric.checks || anchors.length)
-      p.rubric = {
-        ...(m.rubric.checks !== s.rubric.checks ? { checks: m.rubric.checks } : {}),
-        ...(anchors.length ? { anchors: Object.fromEntries(anchors.map((a) => [a, m.rubric.anchors[a]])) } : {}),
-      };
-    if (Object.keys(p).length > 1) metrics.push(p);
-  }
-  if (metrics.length) patch.metrics = metrics;
-  const conditions = e.conditions
-    .filter((c) => {
-      const s = saved.conditions.find((x) => x.condition_code === c.condition_code)!;
-      return s.enabled !== c.enabled || s.severity !== c.severity || s.metric_key !== c.metric_key;
-    })
-    .map((c) => ({ code: c.condition_code, enabled: c.enabled, severity: c.severity, metric_key: c.metric_key }));
-  if (conditions.length) patch.conditions = conditions;
-  return Object.keys(patch).length ? patch : null;
-}
 
 function Draft({ admin, draft, children }: { admin: ScorecardAdmin; draft: DraftEdits; children: ReactNode }) {
   const value: EditorContextValue = {
@@ -286,14 +270,16 @@ function MetricDetails({ children }: { children: ReactNode }) {
   const { metric, live } = useMetric();
   const changed =
     live !== undefined &&
-    (live.rubric.checks !== metric.rubric.checks ||
+    (live.name !== metric.name ||
+      live.description !== metric.description ||
+      live.rubric.checks !== metric.rubric.checks ||
       (["0", "5", "10"] as const).some((a) => live.rubric.anchors[a] !== metric.rubric.anchors[a]) ||
       live.applicability !== metric.applicability ||
       live.auto_fail !== metric.auto_fail);
   return (
     <details className="group mt-2">
       <summary className="inline-flex cursor-pointer items-center gap-1.5 text-xs text-ink-2 hover:text-ink">
-        {meta.mode === "edit" ? "Edit rubric and rules" : "Rubric and rules"}
+        {meta.mode === "edit" ? "Edit description, rubric and rules" : "Description, rubric and rules"}
         {changed && <span className="rounded bg-accent-track px-1 text-[11px] font-medium text-ink">changed</span>}
       </summary>
       <div className="mt-3 flex flex-col gap-3 rounded-lg bg-sunken p-3">{children}</div>
@@ -320,6 +306,36 @@ function TextField({ label, value, was, onChange, rows = 2 }: { label: string; v
         <Textarea id={id} rows={rows} value={value} onChange={(e) => onChange(e.target.value)} />
       </div>
     </Changed>
+  );
+}
+
+/** Name (editable in a draft), description, and whether deductions need evidence. */
+function MetricText() {
+  const { actions, meta } = useEditor();
+  const { metric, live } = useMetric();
+  const id = useId();
+  return (
+    <>
+      {meta.mode === "edit" && (
+        <Changed changed={live !== undefined && live.name !== metric.name}>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor={id} className="text-xs font-medium text-ink">
+              Name
+            </label>
+            <Input id={id} value={metric.name} maxLength={120} onChange={(e) => actions.updateMetric(metric.key, { name: e.target.value })} />
+          </div>
+        </Changed>
+      )}
+      <TextField
+        label="Description"
+        value={metric.description}
+        was={live?.description}
+        onChange={(description) => actions.updateMetric(metric.key, { description })}
+      />
+      <p className="text-xs text-ink-2">
+        {metric.evidence_required ? "Evidence required: every deduction must cite the turns it rests on." : "Evidence not required for deductions."}
+      </p>
+    </>
   );
 }
 
@@ -392,6 +408,7 @@ export const MetricEditor = {
   Header: MetricHeader,
   Weight: MetricWeight,
   Details: MetricDetails,
+  Text: MetricText,
   Rubric: MetricRubric,
   Applicability: MetricApplicability,
   AutoFail: MetricAutoFail,
@@ -431,14 +448,19 @@ function ConditionLabel() {
   const { condition, info } = useCondition();
   return (
     <div className="min-w-0">
-      <div className="text-sm font-medium text-ink" title={info?.definition}>
-        {info?.label ?? condition.condition_code}
-      </div>
+      <div className="text-sm font-medium text-ink">{info?.label ?? condition.condition_code}</div>
       <div className="text-xs text-muted">
         <code>{condition.condition_code}</code>
         {info?.detection === "rule" && " · rule"}
       </div>
       {info?.needs_data && <p className="mt-0.5 text-xs text-ink-2">{info.needs_data}</p>}
+      {info && (
+        <details className="mt-1">
+          <summary className="cursor-pointer text-xs text-ink-2 hover:text-ink">Definition</summary>
+          <p className="mt-1 max-w-2xl text-xs text-ink-2">{info.definition}</p>
+          {info.rolls_up_to.length > 0 && <p className="mt-1 text-xs text-muted">Rolls up to {info.rolls_up_to.join(", ")}</p>}
+        </details>
+      )}
     </div>
   );
 }
@@ -509,7 +531,46 @@ function ConditionMetric() {
   );
 }
 
+/** In a draft: attach a library condition this scorecard doesn't have yet. It starts as Minor (flag only). */
+function ConditionAttach() {
+  const { actions, meta, state } = useEditor();
+  const [code, setCode] = useState("");
+  const id = useId();
+  if (meta.mode === "view") return null;
+  const available = meta.library.filter((l) => !state.scorecard.conditions.some((c) => c.condition_code === l.code));
+  if (available.length === 0) return <p className="text-xs text-muted">Every library condition is on this scorecard.</p>;
+  return (
+    <div className="flex flex-wrap items-end gap-2">
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <label htmlFor={id} className="text-xs font-medium text-ink">
+          Add from the library
+        </label>
+        <select id={id} value={code} onChange={(e) => setCode(e.target.value)} className="input">
+          <option value="">Pick a condition…</option>
+          {available.map((l) => (
+            <option key={l.code} value={l.code}>
+              {l.label} ({l.code})
+            </option>
+          ))}
+        </select>
+      </div>
+      <button
+        type="button"
+        className="btn btn-secondary"
+        disabled={!code}
+        onClick={() => {
+          actions.attachCondition(code);
+          setCode("");
+        }}
+      >
+        Add as Minor
+      </button>
+    </div>
+  );
+}
+
 export const ConditionEditor = {
+  Attach: ConditionAttach,
   Root: ConditionRoot,
   Label: ConditionLabel,
   Controls: ConditionControls,
