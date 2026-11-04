@@ -1,6 +1,6 @@
 import { type UseQueryResult, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, createContext, use, useId, useMemo, useState } from "react";
-import { type BusinessOutcome, type GoalAdmin, type GoalConfig, type GoalPatch, type GoalTemplate, type HistoryEntry, goalsApi } from "../api";
+import { type BusinessOutcome, type GoalAdmin, type GoalConfig, type GoalTemplate, type HistoryEntry, goalsApi } from "../api";
 import {
   ChangeList,
   DiscardDialog,
@@ -15,6 +15,7 @@ import {
   type View,
   useUnsavedGuard,
 } from "../components/admin";
+import { goalPatch } from "../lib/admin-logic";
 import { Button, Card, Dialog, ErrorNote, Input, Skeleton, Textarea, VersionBadge, formatDate } from "../components/ui";
 
 /** PRD §3.2: each agent's business goal and system goal settings. v2 only. */
@@ -94,21 +95,6 @@ const editable = (g: GoalConfig): Editable => ({
 });
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 const OUTCOMES: BusinessOutcome[] = ["ACHIEVED", "PARTIAL", "NOT_ACHIEVED", "NOT_APPLICABLE"];
-
-/** What saving sends: only the fields that differ from the saved draft. Partial codes go when Partial does. */
-function patchFor(saved: GoalConfig, e: Editable): GoalPatch | null {
-  const patch: GoalPatch = {};
-  for (const f of ["name", "description", "success_criteria", "partial_success", "not_applicable_when", "required_outputs"] as const)
-    if (!same(saved[f], e[f])) (patch as Record<string, unknown>)[f] = e[f];
-  const codes = { ...e.reason_codes, ...(e.partial_success.length ? {} : { PARTIAL: [] }) };
-  const changedCodes = OUTCOMES.filter((o) => !same(saved.reason_codes[o] ?? [], codes[o] ?? []));
-  if (changedCodes.length) patch.reason_codes = Object.fromEntries(changedCodes.map((o) => [o, codes[o] ?? []]));
-  const sc: NonNullable<GoalPatch["system_checks"]> = {};
-  if (!same(saved.system_checks.required_variables, e.system_checks.required_variables)) sc.required_variables = e.system_checks.required_variables;
-  if (!same(saved.system_checks.flow_steps ?? [], e.system_checks.flow_steps ?? [])) sc.flow_steps = e.system_checks.flow_steps;
-  if (Object.keys(sc).length) patch.system_checks = sc;
-  return Object.keys(patch).length ? patch : null;
-}
 
 /** One settings section: a title and a short description beside its fields (stacked on small screens). */
 function Section({ title, description, children }: { title: string; description: ReactNode; children: ReactNode }) {
@@ -505,7 +491,7 @@ function GoalDraftView({ admin, history }: { admin: GoalAdmin; history: HistoryQ
   const saved = admin.draft!;
   const [goal, setGoal] = useState<Editable>(() => editable(saved));
   const [dialog, setDialog] = useState<"publish" | "discard" | "template" | null>(null);
-  const patch = useMemo(() => patchFor(saved, goal), [saved, goal]);
+  const patch = useMemo(() => goalPatch(saved, goal), [saved, goal]);
   useUnsavedGuard(patch !== null);
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["goal-history", admin.agent_code] });

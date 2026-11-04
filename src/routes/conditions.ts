@@ -38,7 +38,7 @@ export function conditionsRouter(db: () => Sequelize, v2Enabled: () => boolean) 
     return c.json({ data }, 201);
   });
   router.delete("/conditions/:code", async (c) => {
-    await guard(() => deleteCondition(db(), c.req.param("code")));
+    await guard(() => deleteCondition(db(), c.req.param("code"), signedInUser(c)));
     return c.json({ data: null });
   });
   router.post("/scorecards/:id/publish", async (c) =>

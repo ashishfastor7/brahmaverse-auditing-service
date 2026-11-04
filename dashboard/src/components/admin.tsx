@@ -1,6 +1,9 @@
 import { ChevronRight, Plus, X } from "lucide-react";
 import { type ReactNode, useEffect, useId, useState } from "react";
 import type { ConfigChange, HistoryEntry } from "../api";
+import { type ChangeNames, describeChange } from "../lib/admin-logic";
+
+export type { ChangeNames };
 import { Button, Card, Dialog, ErrorNote, Input, Segmented, Textarea, VersionBadge, formatDate } from "./ui";
 
 /**
@@ -122,69 +125,6 @@ export function DraftBar({
   );
 }
 
-/** Names used to describe changes: metric keys and condition codes to their labels. */
-export type ChangeNames = { metrics?: Record<string, string>; conditions?: Record<string, string> };
-
-const OUTCOME: Record<string, string> = { ACHIEVED: "Achieved", PARTIAL: "Partial", NOT_ACHIEVED: "Not achieved", NOT_APPLICABLE: "Not applicable" };
-const GOAL_FIELD: Record<string, string> = {
-  name: "Name",
-  description: "Description",
-  success_criteria: "Success when",
-  partial_success: "Partial success when",
-  not_applicable_when: "Not applicable when",
-  required_outputs: "Required outputs",
-  pass_threshold: "Pass threshold",
-  copied_from: "Copied from",
-  "system_checks.required_variables": "Required variables",
-  "system_checks.flow_steps": "Flow steps",
-  "system_checks.silence_limit_s": "Silence limit",
-};
-const METRIC_FIELD: Record<string, string> = {
-  name: "name",
-  description: "description",
-  weight: "weight",
-  applicability: "N/A when",
-  auto_fail: "auto-fail",
-  "rubric.checks": "rubric",
-  "rubric.anchors.0": "0-point example",
-  "rubric.anchors.5": "5-point example",
-  "rubric.anchors.10": "10-point example",
-  method: "method",
-  scale: "scale",
-};
-const CONDITION_FIELD: Record<string, string> = { enabled: "on/off", severity: "severity", metric_key: "metric it zeroes" };
-
-function show(value: unknown, field: string): string {
-  if (value === null || value === undefined) return "—";
-  if (typeof value === "boolean") return value ? "On" : "Off";
-  if (Array.isArray(value)) return value.length ? value.join(", ") : "none";
-  if (typeof value === "object") {
-    const c = value as { enabled?: boolean; severity?: string };
-    return c.severity ? `${c.enabled === false ? "Off, " : ""}${c.severity[0]!.toUpperCase()}${c.severity.slice(1)}` : JSON.stringify(value);
-  }
-  if (field.endsWith(".severity") && typeof value === "string") return value[0]!.toUpperCase() + value.slice(1);
-  if (field.endsWith("silence_limit_s")) return `${value} s`;
-  return String(value);
-}
-
-/** A change in words: what moved, and its value before and after. */
-export function describeChange(c: ConfigChange, names: ChangeNames = {}): { label: string; before: string; after: string } {
-  const parts = c.field.split(".");
-  let label = GOAL_FIELD[c.field] ?? c.field;
-  if (parts[0] === "metric") {
-    const name = names.metrics?.[parts[1]!] ?? parts[1]!;
-    const rest = parts.slice(2).join(".");
-    label = rest ? `${name} ${METRIC_FIELD[rest] ?? rest}` : c.before === null ? `${name} added` : `${name} removed`;
-  } else if (parts[0] === "condition") {
-    const name = names.conditions?.[parts[1]!] ?? parts[1]!;
-    const rest = parts.slice(2).join(".");
-    label = rest ? `${name} ${CONDITION_FIELD[rest] ?? rest}` : c.before === null ? `${name} added` : `${name} removed`;
-  } else if (parts[0] === "reason_codes") {
-    label = `${OUTCOME[parts[1]!] ?? parts[1]} reason codes`;
-  }
-  return { label, before: show(c.before, c.field), after: show(c.after, c.field) };
-}
-
 /** Changes as rows: the field, then before → after (long text is clipped; the full value is in the title). */
 export function ChangeList({ changes, names, limit }: { changes: ConfigChange[]; names?: ChangeNames; limit?: number }) {
   const [all, setAll] = useState(false);
@@ -261,10 +201,15 @@ export function HistoryCard({ entries, names, isPending, error }: { entries: His
               ) : (
                 <p className="text-xs text-muted">{h.status === "draft" ? "No changes saved yet." : "First version."}</p>
               )}
-              {h.log.length > 1 && (
-                <p className="text-xs text-muted">
-                  {h.log.map((l) => `${ACTION[l.action]} ${formatDate(l.changed_at)}`).join(" · ")}
-                </p>
+              {h.log.length > 0 && (
+                <ul className="flex flex-col gap-0.5 text-xs text-muted">
+                  {h.log.map((l, i) => (
+                    <li key={i}>
+                      {ACTION[l.action]} {formatDate(l.changed_at)} by <span className="text-ink-2">{l.changed_by}</span>
+                      {l.changes.length > 0 && `: ${l.changes.map((c) => describeChange(c, names).label).join(", ")}`}
+                    </li>
+                  ))}
+                </ul>
               )}
             </li>
           ))}

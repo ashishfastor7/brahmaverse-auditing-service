@@ -9,6 +9,8 @@ import { validateWeights } from "./score";
  * - a metric's method, scale, requirements and params: the engine decides how each metric is scored (the judge scores
  *   0–10; rule metrics are computed by code), so a change would silently score it differently;
  * - adding or removing metrics: the engine scores the known keys only;
+ * - removing a condition from a scorecard: switch it off instead. A library condition the scorecard doesn't have yet can
+ *   be attached; it starts as Minor unless the edit says otherwise (PRD §4.5: new conditions flag only at first);
  * - the silence limit: S2 has no timing data to apply it to yet (P0-5).
  */
 
@@ -42,10 +44,14 @@ const LOCKED_METRIC_FIELDS: Record<string, string> = {
 };
 const oneDecimal = (n: number) => Math.abs(n * 10 - Math.round(n * 10)) < 1e-9;
 
-/** Applies a patch to a scorecard draft: the new draft, or every reason it can't be applied. */
+/**
+ * Applies a patch to a scorecard draft: the new draft, or every reason it can't be applied. `library` is the codes in
+ * the shared failure-condition library, which a patch may attach to the draft.
+ */
 export function applyScorecardEdit<S extends Pick<ScorecardVersion, "pass_threshold" | "metrics" | "conditions">>(
   draft: S,
   patch: ScorecardPatch,
+  library: string[] = [],
 ): Edited<S> {
   const errors: string[] = [];
   const keys = draft.metrics.map((m) => m.key);
@@ -90,10 +96,16 @@ export function applyScorecardEdit<S extends Pick<ScorecardVersion, "pass_thresh
 
   const conditions = draft.conditions.map((c) => ({ ...c }));
   for (const p of patch.conditions ?? []) {
-    const c = conditions.find((x) => x.condition_code === p.code);
+    let c = conditions.find((x) => x.condition_code === p.code);
     if (!c) {
-      errors.push(`${p.code} isn't on this scorecard; add it on the failure conditions page`);
-      continue;
+      if (!library.includes(p.code)) {
+        errors.push(`no condition ${p.code} in the library; add it on the failure conditions page`);
+        continue;
+      }
+      // Attached from the library: off by default when its data doesn't exist yet, Minor unless said otherwise.
+      c = { condition_code: p.code, enabled: false, severity: "minor", metric_key: null };
+      conditions.push(c);
+      if (p.enabled === undefined && !NEEDS_DATA[p.code]) c.enabled = true;
     }
     if (p.enabled === true && !c.enabled && NEEDS_DATA[p.code]) errors.push(`${p.code} can't be switched on: ${NEEDS_DATA[p.code]}`);
     if (p.enabled !== undefined) c.enabled = p.enabled;

@@ -120,8 +120,11 @@ export type ScorecardAdmin = {
   changes: ConfigChange[];
   /** Why the draft can't be published yet; empty when it can. */
   publish_errors: string[];
-  /** Library wording of the scorecard's conditions, and why some can't be switched on. */
-  library: { code: string; label: string; definition: string; detection: "rule" | "llm"; needs_data: string | null }[];
+  /**
+   * The whole failure-condition library (so a draft can attach one it doesn't have), with why some can't be switched
+   * on yet.
+   */
+  library: { code: string; label: string; definition: string; detection: "rule" | "llm"; rolls_up_to: string[]; needs_data: string | null }[];
 };
 
 /** One scorecard for its editor: the published version, the draft and what it changes. 404 for an unknown one. */
@@ -138,11 +141,9 @@ export async function loadScorecardAdmin(db: Sequelize, scorecard_id: string): P
   );
   const base = draftVersion?.based_on ?? null;
   const baseVersion = base === null || base === published.version ? published : (await loadScorecard(db, scorecard_id, base))!;
-  const codes = [...new Set([...published.conditions, ...(draftVersion?.conditions ?? [])].map((c) => c.condition_code))];
-  const library = await select<{ code: string; label: string; definition: string; detection: "rule" | "llm" }>(
+  const library = await select<{ code: string; label: string; definition: string; detection: "rule" | "llm"; rolls_up_to: string[] }>(
     db,
-    "SELECT code, label, definition, detection FROM failure_condition WHERE code = ANY($1) ORDER BY code",
-    [codes],
+    "SELECT code, label, definition, detection, rolls_up_to FROM failure_condition ORDER BY code",
   );
   return {
     scorecard_id,
@@ -177,7 +178,8 @@ export async function updateScorecardDraft(db: Sequelize, scorecard_id: string, 
     const v = await versionsOf(db, "scorecard", scorecard_id, transaction);
     if (v.draft === null) throw new ConfigError(`scorecard ${scorecard_id} has no draft; start one first`, 404);
     const draft = (await loadScorecard(db, scorecard_id, v.draft, transaction))!;
-    const edited = applyScorecardEdit(draft, patch);
+    const library = (await select<{ code: string }>(db, "SELECT code FROM failure_condition", [], transaction)).map((r) => r.code);
+    const edited = applyScorecardEdit(draft, patch, library);
     if (!edited.value) throw new ConfigError(edited.errors.join("; "), 400);
     const next = edited.value;
     const changes = diffScorecard(draft, next);
@@ -197,7 +199,15 @@ export async function updateScorecardDraft(db: Sequelize, scorecard_id: string, 
       );
     }
     for (const c of next.conditions) {
-      const before = draft.conditions.find((x) => x.condition_code === c.condition_code)!;
+      const before = draft.conditions.find((x) => x.condition_code === c.condition_code);
+      if (!before) {
+        await db.query(
+          `INSERT INTO scorecard_condition (scorecard_id, scorecard_version, condition_code, enabled, severity, metric_key)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          { bind: [...key, c.condition_code, c.enabled, c.severity, c.metric_key], transaction },
+        );
+        continue;
+      }
       if (before.enabled === c.enabled && before.severity === c.severity && before.metric_key === c.metric_key) continue;
       await db.query(
         `UPDATE scorecard_condition SET enabled = $4, severity = $5, metric_key = $6
