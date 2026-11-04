@@ -126,7 +126,9 @@ does the same from the command line and prints the judge's raw JSON. v1 audits k
   the measured facts (S1, S2 rule parts, S4 fields, repetition, stalling and filler words, language per turn), which it
   must not contradict. Weight-0 metrics are not sent.
 - **Judge output:** strict JSON: S2–S4, business goal (outcome, reason code, required outputs), one entry per metric
-  (score, n/a, reason, evidence), flagged conditions, confidence, summary. An answer that isn't valid JSON, cites a
+  (score, n/a, reason, evidence), flagged conditions, the auditor notes (P1-22: `went_well`, `improvements` with a
+  suggestion and severity, `sentiment` start → end with a note, `conclusion`; each point cites turns; they never change
+  the score, checks, outcome or flags), confidence, summary. An answer that isn't valid JSON, cites a
   turn the call doesn't have, or deducts points without evidence is retried once; after a second bad answer the audit
   is kept with `needs_review` (a parseable answer is used without the bad evidence; otherwise only the rule parts).
 - **Result:** code computes the score (`computeScore`: weights, N/A re-normalised, Major zeroes its metric, Critical
@@ -221,6 +223,28 @@ audit state, pass/fail and goal; search by call id, contact name or summary; sor
 A call's page shows the full call record (timings, provider, error detail, variables, outcome,
 metadata, recording, transcript) and, when audited, the audit. "Audit this call" grades a completed
 call on demand.
+
+With `AUDIT_V2_ENABLED` on, a call opens the **v2 call page** (PRD §5); the v1 page stays at `#/calls/:id/v1` and is
+the only page with the flag off.
+
+- Four verdict tiles (score with Pass/Fail and the pass threshold, system goal, business goal with the extracted
+  outputs, auditor confidence), then S1–S4 with reasons, the scorecard lowest first (each metric opens to its rubric,
+  reason and evidence; the weights used are beside each metric), the flagged failure conditions and the auditor notes.
+  Every cited turn is a chip that scrolls the transcript there; flagged turns are marked in the transcript with what
+  cited them. *Audit this call* runs v2 with the scorecard's default weights (the sliders come with P1-14).
+- **Audit history**: every v2 audit of the call and its re-scores, with scorecard, goal and prompt versions and the
+  weights. An older one opens read-only at `#/calls/:id/audits/:auditId`.
+- **Review** (P2-4, `POST /v1/audit/v2/audits/:id/reviews`): *Agree*, *Dispute* (any metric, check, the business
+  outcome or a failure code, with the right answer and a note each, several in one review; notes in
+  `review.item_notes`, migration 0016) or *Flag*. Saved with the signed-in user and `kind = 'normal'`; agrees and
+  disputes feed the golden set.
+- **Spot-checks** (P2-18, `#/spot-check`, `/v1/audit/v2/spot-checks`): each IST week, 5 random calls per agent from
+  the v2 audits that already exist (never starts one; says which agents are short, and *Add N new calls* tops up from
+  audits made since). Each draw stores its seed and candidates (`spot_check_sample`, migration 0017), so it can be
+  reproduced. The reviewer sees the transcript and recording, answers pass/fail, business outcome and failure
+  conditions, and only then sees the judge's answer beside theirs. The API sends no verdict before the blind review
+  is saved. Saved as `kind = 'blind'` (agree when all three match).
+- Call timeline and "seek the audio" wait for timing data (P2-17).
 
 ## How Pass/Fail is decided
 

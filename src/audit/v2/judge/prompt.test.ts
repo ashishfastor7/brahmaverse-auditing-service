@@ -5,7 +5,7 @@ import { prepareJudgeV2 } from "../audit-call";
 import { toCallRecord } from "../call-record";
 import { seededDefinitions, seededGoal, seededScorecard } from "../seeded-config";
 import { judgedMetrics, judgePlan, JUDGE_PROMPT_VERSION, NO_REASON_CODE } from "./prompt";
-import { type JudgeOutputV2, judgeJsonSchemaV2, validateJudgeOutput } from "./schema";
+import { dropMissingTurns, type JudgeOutputV2, judgeJsonSchemaV2, validateJudgeOutput } from "./schema";
 
 const hansa = seededScorecard("hansa");
 const fallback = seededScorecard("default");
@@ -166,6 +166,10 @@ function answer(): JudgeOutputV2 {
       (key) => ({ key, reason: "ok", evidence: [], n_a: false, score: 10 }),
     ),
     failure_conditions: [{ code: "AGENT_LOOP", reason: "Loop.", evidence: [{ turns: [13, 15, 17], quote: "What is your notice period?" }] }],
+    went_well: [{ point: "Confirmed the candidate's identity first.", turns: [2] }],
+    improvements: [{ point: "Asked the notice period three times.", suggestion: "Rephrase once, then move on.", turns: [13, 15, 17], severity: "high" }],
+    sentiment: { start: "neutral", end: "positive", note: "Warmed up once the role was explained." },
+    conclusion: "A complete screening with one loop.",
     confidence: 0.9,
   };
 }
@@ -191,6 +195,21 @@ describe("validateJudgeOutput (PRD §7)", () => {
     a.metrics[0]!.evidence = [{ turns: [999], quote: "x" }];
     a.business_goal.required_outputs = [];
     expect(errors(a)).toEqual([`evidence cites turn 999, which the transcript (turns 1–${transcript.length}) does not have`]);
+  });
+
+  it("rejects auditor notes citing turns the transcript doesn't have (P1-22)", () => {
+    const a = answer();
+    a.went_well[0]!.turns = [998];
+    a.improvements[0]!.turns = [13, 999];
+    expect(errors(a)).toEqual([`evidence cites turns 998, 999, which the transcript (turns 1–${transcript.length}) does not have`]);
+    const kept = dropMissingTurns(a, transcript);
+    expect(kept.went_well[0]!.turns).toEqual([]);
+    expect(kept.improvements[0]!.turns).toEqual([13]);
+  });
+
+  it("rejects an answer without the auditor notes, with no usable output", () => {
+    const { went_well: _, ...rest } = answer();
+    expect(validateJudgeOutput(rest, plan, transcript).output).toBeNull();
   });
 
   it("rejects a deduction without evidence, a FAIL without evidence, and a missing or extra metric", () => {

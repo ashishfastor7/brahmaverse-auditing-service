@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { CircleDashed, Search } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, ViewTransition } from "react";
 import { api, callsApi, type CallFilters, type CallRow } from "../api";
 import { Badge, Card, formatDate, formatDuration, GoalBadge, humanize, ReviewBadge, ScorePill, Select, StatTile, SuccessBadge } from "../components/ui";
 
@@ -176,7 +176,12 @@ export function CallList({ search }: { search: string }) {
               <tbody>
                 {(list.data?.data ?? []).map((row) => (
                   <tr key={row.id} onClick={() => (window.location.hash = `/calls/${row.id}`)} className="cursor-pointer border-t border-line hover:bg-sunken">
-                    <td className="px-4 py-2.5 font-medium tabular">#{row.id}</td>
+                    <td className="px-4 py-2.5 font-medium tabular">
+                      {/* Morphs into the call page's title (CallDetailV2) when the row is opened. */}
+                      <ViewTransition name={`call-title-${row.id}`} share="call-title" default="none">
+                        <span>#{row.id}</span>
+                      </ViewTransition>
+                    </td>
                     <td className="px-3 py-2.5 text-ink-2 whitespace-nowrap">{formatDate(row.created_at)}</td>
                     <td className="px-3 py-2.5 text-ink-2 whitespace-nowrap">{row.agent_label ?? (row.agent_id ? `Agent ${row.agent_id}` : "—")}</td>
                     <td className="max-w-40 truncate px-3 py-2.5 text-ink-2">{row.contact_name ?? "—"}</td>

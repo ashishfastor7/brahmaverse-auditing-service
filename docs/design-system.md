@@ -106,6 +106,7 @@ barely show.
 | `--motion-fast` | 150ms | Hover and focus colour, border changes |
 | `--motion-base` | 200ms | Popover / menu enter, inline error enter |
 | `--motion-slow` | 300ms | Dialog enter |
+| `--motion-highlight` | 1200ms | A jumped-to transcript turn's highlight fading out (colour only, not movement) |
 | `--motion-ease-out` (`ease-snap`) | `cubic-bezier(0.23, 1, 0.32, 1)` | Everything that enters or responds to input |
 | `--motion-ease-in-out` | `cubic-bezier(0.77, 0, 0.175, 1)` | Something already on screen moving to a new place |
 | `--press-scale` | 0.97 (1 with reduced motion) | `:active` on buttons |

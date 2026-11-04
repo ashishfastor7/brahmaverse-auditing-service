@@ -1,6 +1,6 @@
 // Bun Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`v2 judge prompt (v2-1, P1-4) hansa v4: messages and schema (snapshot; any change needs a JUDGE_PROMPT_VERSION bump and approval) 1`] = `
+exports[`v2 judge prompt (v2-3, P1-4) hansa v4: messages and schema (snapshot; any change needs a JUDGE_PROMPT_VERSION bump and approval) 1`] = `
 [
   {
     "content": 
@@ -15,6 +15,7 @@ How to judge:
 - System checks: judge S2, S3 and S4 as defined below. Use NOT_APPLICABLE only when the stated condition holds.
 - Business goal: ACHIEVED only when the success criteria are met; PARTIAL only when the partial-success criteria are met; NOT_APPLICABLE when any not-applicable condition holds; otherwise NOT_ACHIEVED. Pick the reason code from the list for that outcome. For each required output, give the value as said and confirmed in the call, or null if it never came up.
 - Failure conditions: flag one only when it clearly happened as defined, and never in a case its definition excludes. If the instructions, flow or outcome a condition depends on are not provided, do not flag it.
+- Auditor notes (went_well, improvements, sentiment, conclusion) are plain language for a human reviewer. They never change a score, check, outcome or flag, and they must agree with them. went_well and improvements: the most useful specific points, usually 1 to 4 each, each tied to the turns it rests on. Every improvement needs a concrete suggestion of what the agent should do instead. A good call may need no improvements: return an empty list rather than inventing faults. sentiment: the other party's mood at the start and at the end of the call, and what moved it. conclusion: two or three sentences of overall judgement. Decide the checks, metrics and failure conditions first and write the notes last. A note never replaces a flag: if something you describe in a note meets a failure condition's definition, flag that condition too.
 - confidence (0 to 1): lower it when the transcript is garbled or very short, or when instructions or flow are missing.
 
 # Agent
@@ -184,7 +185,7 @@ The steps are in the agent's instructions above.
 ]
 `;
 
-exports[`v2 judge prompt (v2-1, P1-4) hansa v4: messages and schema (snapshot; any change needs a JUDGE_PROMPT_VERSION bump and approval) 2`] = `
+exports[`v2 judge prompt (v2-3, P1-4) hansa v4: messages and schema (snapshot; any change needs a JUDGE_PROMPT_VERSION bump and approval) 2`] = `
 {
   "additionalProperties": false,
   "properties": {
@@ -288,6 +289,10 @@ exports[`v2 judge prompt (v2-1, P1-4) hansa v4: messages and schema (snapshot; a
       "description": "Two to four sentences: who called whom, why, what happened, and how it ended",
       "type": "string",
     },
+    "conclusion": {
+      "description": "Two or three sentences of overall judgement",
+      "type": "string",
+    },
     "confidence": {
       "description": "0 to 1: how sure you are of this assessment",
       "type": "number",
@@ -349,6 +354,44 @@ exports[`v2 judge prompt (v2-1, P1-4) hansa v4: messages and schema (snapshot; a
           "code",
           "reason",
           "evidence",
+        ],
+        "type": "object",
+      },
+      "type": "array",
+    },
+    "improvements": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "point": {
+            "description": "One specific thing to improve",
+            "type": "string",
+          },
+          "severity": {
+            "enum": [
+              "low",
+              "medium",
+              "high",
+            ],
+            "type": "string",
+          },
+          "suggestion": {
+            "description": "What the agent should say or do instead",
+            "type": "string",
+          },
+          "turns": {
+            "description": "Transcript turn numbers",
+            "items": {
+              "type": "integer",
+            },
+            "type": "array",
+          },
+        },
+        "required": [
+          "point",
+          "suggestion",
+          "turns",
+          "severity",
         ],
         "type": "object",
       },
@@ -431,6 +474,41 @@ exports[`v2 judge prompt (v2-1, P1-4) hansa v4: messages and schema (snapshot; a
       },
       "type": "array",
     },
+    "sentiment": {
+      "additionalProperties": false,
+      "properties": {
+        "end": {
+          "enum": [
+            "positive",
+            "neutral",
+            "negative",
+            "frustrated",
+            "confused",
+          ],
+          "type": "string",
+        },
+        "note": {
+          "description": "What moved the other party's mood, or why it stayed the same",
+          "type": "string",
+        },
+        "start": {
+          "enum": [
+            "positive",
+            "neutral",
+            "negative",
+            "frustrated",
+            "confused",
+          ],
+          "type": "string",
+        },
+      },
+      "required": [
+        "start",
+        "end",
+        "note",
+      ],
+      "type": "object",
+    },
     "system_checks": {
       "description": "Exactly one entry for each of S2, S3, S4, in that order.",
       "items": {
@@ -512,6 +590,30 @@ exports[`v2 judge prompt (v2-1, P1-4) hansa v4: messages and schema (snapshot; a
       ],
       "type": "object",
     },
+    "went_well": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "point": {
+            "description": "One specific thing the agent did well",
+            "type": "string",
+          },
+          "turns": {
+            "description": "Transcript turn numbers",
+            "items": {
+              "type": "integer",
+            },
+            "type": "array",
+          },
+        },
+        "required": [
+          "point",
+          "turns",
+        ],
+        "type": "object",
+      },
+      "type": "array",
+    },
   },
   "required": [
     "call_summary",
@@ -520,13 +622,17 @@ exports[`v2 judge prompt (v2-1, P1-4) hansa v4: messages and schema (snapshot; a
     "business_goal",
     "metrics",
     "failure_conditions",
+    "went_well",
+    "improvements",
+    "sentiment",
+    "conclusion",
     "confidence",
   ],
   "type": "object",
 }
 `;
 
-exports[`v2 judge prompt (v2-1, P1-4) default v4: messages (snapshot) 1`] = `
+exports[`v2 judge prompt (v2-3, P1-4) default v4: messages (snapshot) 1`] = `
 [
   {
     "content": 
@@ -541,6 +647,7 @@ How to judge:
 - System checks: judge S2, S3 and S4 as defined below. Use NOT_APPLICABLE only when the stated condition holds.
 - Business goal: ACHIEVED only when the success criteria are met; PARTIAL only when the partial-success criteria are met; NOT_APPLICABLE when any not-applicable condition holds; otherwise NOT_ACHIEVED. Pick the reason code from the list for that outcome. For each required output, give the value as said and confirmed in the call, or null if it never came up.
 - Failure conditions: flag one only when it clearly happened as defined, and never in a case its definition excludes. If the instructions, flow or outcome a condition depends on are not provided, do not flag it.
+- Auditor notes (went_well, improvements, sentiment, conclusion) are plain language for a human reviewer. They never change a score, check, outcome or flag, and they must agree with them. went_well and improvements: the most useful specific points, usually 1 to 4 each, each tied to the turns it rests on. Every improvement needs a concrete suggestion of what the agent should do instead. A good call may need no improvements: return an empty list rather than inventing faults. sentiment: the other party's mood at the start and at the end of the call, and what moved it. conclusion: two or three sentences of overall judgement. Decide the checks, metrics and failure conditions first and write the notes last. A note never replaces a flag: if something you describe in a note meets a failure condition's definition, flag that condition too.
 - confidence (0 to 1): lower it when the transcript is garbled or very short, or when instructions or flow are missing.
 
 # Agent

@@ -411,13 +411,13 @@ export function ListEditor({
 }
 
 /** Asks before leaving with unsaved edits: closing the tab, or following a link inside the dashboard. */
-export function useUnsavedGuard(unsaved: boolean) {
+export function useUnsavedGuard(unsaved: boolean, message = "Leave without saving? Your unsaved changes to this draft will be lost.") {
   useEffect(() => {
     if (!unsaved) return;
     const beforeUnload = (e: BeforeUnloadEvent) => e.preventDefault();
     const onClick = (e: MouseEvent) => {
       const link = (e.target as HTMLElement).closest("a[href^='#']");
-      if (link && !window.confirm("Leave without saving? Your unsaved changes to this draft will be lost.")) {
+      if (link && !window.confirm(message)) {
         e.preventDefault();
         e.stopPropagation();
       }
@@ -428,5 +428,5 @@ export function useUnsavedGuard(unsaved: boolean) {
       window.removeEventListener("beforeunload", beforeUnload);
       document.removeEventListener("click", onClick, true);
     };
-  }, [unsaved]);
+  }, [unsaved, message]);
 }

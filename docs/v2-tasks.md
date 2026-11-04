@@ -340,23 +340,73 @@ Rules for every task (CLAUDE.md "v2 rules"):
   - Gate before switching v2 on for everyone: at least 30 blind spot-checks (P2-18), with at least 85% agreement
     on pass/fail, business outcome and failure codes, and no Critical failure code below 90% precision.
     Disputes and agrees don't count toward it.
+- [x] **P1-22 Auditor notes in the v2 judge** (§5 item 10, §8 #10)
+  - The v2 judge also returns `went_well` (`{ point, turns }`), `improvements` (`{ point, suggestion, turns,
+    severity: low | medium | high }`), `sentiment` (`{ start, end, note }`, each of `positive | neutral |
+    negative | frustrated | confused`) and `conclusion` (two or three sentences), after `failure_conditions`.
+    They never change the score, checks, outcome or flags.
+  - Approved judge-prompt rule, added to the "How to judge" list before the confidence line:
+    > Auditor notes (went_well, improvements, sentiment, conclusion) are plain language for a human reviewer. They
+    > never change a score, check, outcome or flag, and they must agree with them. went_well and improvements: the
+    > most useful specific points, usually 1 to 4 each, each tied to the turns it rests on. Every improvement needs
+    > a concrete suggestion of what the agent should do instead. A good call may need no improvements: return an
+    > empty list rather than inventing faults. sentiment: the other party's mood at the start and at the end of
+    > the call, and what moved it. conclusion: two or three sentences of overall judgement. Decide the checks, metrics
+    > and failure conditions first and write the notes last. A note never replaces a flag: if something you describe in
+    > a note meets a failure condition's definition, flag that condition too.
+    (The last two sentences were approved on 2026-11-04, after the first wording, v2-2, lost hang-ups; see below.)
+  - Turns that don't exist fail validation (one retry, then `needs_review`), as for evidence.
+    `JUDGE_PROMPT_VERSION` goes from `v2-1` to `v2-3` (v2-2 was the first wording; dev has a few v2-2 audits). Recorded
+    judge fixtures are re-recorded.
+  - `bun run bench:judge` shows the extra cost per audit and no change in planted-case correctness.
+  - Step 15 (2026-11-04): `AuditResultV2.notes`, stored in `result`. Bench, `gpt-5.4-mini-2026-03-17`, the 34 planted
+    runs that completed under both prompts (the OpenAI account ran out of credits mid-run): input 4,519 → 5,081 tokens,
+    output 3,469 → 4,326, cost $0.0190 → $0.0233 per audit (+$0.0043, +23%); planted correct 29/34 → 30/34, the flips
+    in cases that were already inconsistent between runs.
+  - The gate (`eval:v2 --only-planted --compare v2-1`) failed on v2-2, so the four failing cases were run 10 times each
+    on every prompt (`bench:judge --runs 10`):
+
+    | Prompt | denied-being-ai | discriminatory-question | outcome-mismatch | premature-hangup | Total |
+    | --- | --- | --- | --- | --- | --- |
+    | v2-1 | 10/10 | 10/10 | 6/10 | 5/10 | 31/40 |
+    | v2-2 | 8/10 | 10/10 | 7/10 | **0/10** | 25/40 |
+    | v2-3 | 9/10 | 10/10 | 4/10 | 8/10 | 31/40 |
+
+    On v2-2 the judge wrote the early hang-up as an improvement and never flagged it; v2-3's two sentences fix that.
+    Decided 2026-11-04: keep v2-3 (as good as v2-1 overall, better on hang-ups). Its single gate run still fails
+    (17/19: outcome-mismatch, pushy-after-decline), but so does the unchanged v2-1 prompt against its own report (18/19,
+    premature-hangup): see Open #24. `eval:planted` (v1): 10/10. Reports: `docs/evals/2026-11-04-v2-2.md`, `-v2-3.md`.
 
 ## P2 — Call view and dashboard
 
-- [ ] **P2-1 v2 call page** (§5 items 1–3, 5)
+- [x] **P2-1 v2 call page** (§5 items 1–3, 5, 10)
   - Behind the flag: verdict tiles, S1–S4 with reasons, scorecard sorted lowest first with expandable rubric,
     reason and evidence, `weights_used` next to the score. Every deduction links to its turns.
+  - Auditor notes from P1-22: call summary, what the agent did well, what can be improved (with suggestion and
+    severity), sentiment start → end with its note, and conclusion. Each point links to its turns.
   - The v1 page is unchanged with the flag off.
-- [ ] **P2-2 Transcript annotations** (§5 item 6)
+  - Step 15: `dashboard/src/pages/CallDetailV2.tsx` and `components/v2/` (verdict tiles, checks, scorecard, flags,
+    notes, history, evidence chips and transcript); API `GET /v2/calls/:id/audit` and `GET /v2/audits/:id`
+    (`src/routes/call-v2.ts`, `src/db/audit-view.ts`). With the flag on every call opens this page; the v1 page is at
+    `#/calls/:id/v1`, and is the only page with the flag off. *Audit this call* uses the scorecard's default weights
+    until P1-14. The call id in the list morphs into the page title (React `<ViewTransition>`).
+- [x] **P2-2 Transcript annotations** (§5 item 6)
   - Flagged turns are highlighted inline with the metric or condition name.
-- [ ] **P2-3 Audit history** (§5 item 8)
+  - Step 15: failed checks, metrics that lost points and flags mark their turns (a 2px accent rule and the names).
+- [x] **P2-3 Audit history** (§5 item 8)
   - List of re-audits and re-scores with scorecard version, goal version and weights. Opening an older one
     shows it read-only.
-- [ ] **P2-4 Human review actions** (§5 item 7)
+  - Step 15: `loadAuditHistory`; an older audit opens at `#/calls/:id/audits/:auditId`, without review actions.
+- [x] **P2-4 Human review actions** (§5 item 7)
   - `review` table (migration). Agree with the whole audit; dispute any metric, system check, the business
     outcome or a failure code with the right answer and a note; flag for review. Recorded with the reviewer and
     `kind = 'normal'`. Agrees and disputes feed the golden set (P1-19).
   - The `review` table exists (step 6, migration 0007).
+  - Step 15: `POST /v2/audits/:id/reviews`, checked by the pure `validateReview` (`src/audit/v2/review.ts`): a dispute
+    changes at least one item, scores within scale, codes from the scorecard, notes only on disputed items. Migration
+    0016 adds `review.item_notes` (`metric:<key>`, `check:<S#>`, `business_outcome`, `code:<CODE>`).
+    `expected_failure_codes` holds the full right list. The panel is `Review.Provider / Actions / History`
+    (`components/v2/review-panel.tsx`).
 - [ ] **P2-5 Review queue** (§8 #7)
   - Low confidence, disputes, AI-failure bucket and a random 5% sample, with reviewer agreement stats.
 - [ ] **P2-6 `daily_rollup`** (§6, §7)
@@ -392,13 +442,17 @@ Rules for every task (CLAUDE.md "v2 rules"):
 - [ ] **P2-17 Call timeline** (§5 item 4) — blocked on P0-5
   - Markers for stalls, interruptions, loops, dead air and language switches. Clicking one seeks the audio and
     scrolls the transcript.
-- [ ] **P2-18 Blind spot-checks** (§8 #2, §8 #7, §9)
+- [x] **P2-18 Blind spot-checks** (§8 #2, §8 #7, §9)
   - A *Spot-check* page picks random already-audited v2 calls (default 5 per agent per week). It never starts an
     audit, and says so when too few audits exist.
   - Shows the transcript and recording with the judge's verdict hidden. The reviewer enters pass/fail, business
     outcome and failure codes; the judge's verdict is revealed only after saving. Saved as `kind = 'blind'`.
   - Tests: the verdict isn't in the API response before the blind review is saved; the sample is random and
     reproducible from a stored seed.
+  - Step 15: `#/spot-check(/:auditId)`; API `src/routes/spot-check.ts`, store `src/db/spot-check.ts`, pure
+    `src/audit/v2/spot-check.ts` (`pickSpotChecks`, mulberry32 seed, IST weeks, `compareBlind`). Migration 0017 adds
+    `spot_check_sample`: one row per draw with its seed and candidate ids; the first open of a week draws it, *Add N new
+    calls* tops up agents that were short. Only current completed v2 audits of calls created that week are sampled.
 
 ## P3 — Advanced audio and later additions
 
@@ -515,11 +569,16 @@ depend on it. Items keep their original numbers so references elsewhere stay val
   slider mockup shows "Pass if score ≥ 60" while §4.2 says 40; the threshold is still to be decided.
 - **#22 S4 when an outcome was saved but no output is required.** The judge alternates between PASS and N/A on the
   same call (benchmark 2026-10-28). Neither fails the system goal, but the S4 wording could say which. Needs a prompt
-  change (approval, `v2-2`).
+  change (approval, and a prompt version bump).
 - **#23 `goal_config.system_checks.flow_steps` is not read.** Step 10 takes the flow from Vajra or the prompt text only.
   Using the override needs a new prompt section (e.g. `# Flow (steps from the goal config)` when there is no Vajra flow)
-  and `v2-2`. Since step 13, admins can edit and publish flow steps on the goal screen, which says the judge doesn't
+  and a prompt version bump. Since step 13, admins can edit and publish flow steps on the goal screen, which says the judge doesn't
   use them yet (decided 2026-11-03: store only, no prompt change in step 13).
+
+- **#24 The `--compare` gate is one run against one earlier run.** The judge is not deterministic: the unchanged v2-1
+  prompt failed its own gate on 2026-11-04 (18/19 against its 19/19 report). A gate that compares pass rates over
+  several runs per planted case (or flags only cases that fail every run) would stop rejecting noise. Until then,
+  re-run failing cases with `bench:judge --runs 10` before deciding (step 15).
 
 ## Decisions
 

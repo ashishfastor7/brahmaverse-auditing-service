@@ -4,6 +4,8 @@ import { JUDGED_CHECKS, type JudgePlan } from "./prompt";
 
 const TRANSCRIPT_QUALITY = ["good", "fair", "poor"] as const;
 const CHECK_RESULTS = ["PASS", "FAIL", "NOT_APPLICABLE"] as const;
+export const SENTIMENTS = ["positive", "neutral", "negative", "frustrated", "confused"] as const;
+export const NOTE_SEVERITIES = ["low", "medium", "high"] as const;
 
 // Strict structured output: every property required, no extra ones, at every level. Models generate in schema order,
 // so reasons and evidence come before the verdict they justify (as in v1's schema).
@@ -56,6 +58,23 @@ export function judgeJsonSchemaV2(plan: JudgePlan) {
       description: "Only conditions that clearly happened. Empty if none.",
       items: obj({ code: oneOf(plan.conditions.map((c) => c.code)), reason: str(), evidence: { ...evidenceList, description: "Every turn involved" } }),
     },
+    // P1-22 auditor notes: for the reviewer only; they never change a score, check, outcome or flag.
+    went_well: { type: "array", items: obj({ point: str("One specific thing the agent did well"), turns }) },
+    improvements: {
+      type: "array",
+      items: obj({
+        point: str("One specific thing to improve"),
+        suggestion: str("What the agent should say or do instead"),
+        turns,
+        severity: oneOf(NOTE_SEVERITIES),
+      }),
+    },
+    sentiment: obj({
+      start: oneOf(SENTIMENTS),
+      end: oneOf(SENTIMENTS),
+      note: str("What moved the other party's mood, or why it stayed the same"),
+    }),
+    conclusion: str("Two or three sentences of overall judgement"),
     confidence: { type: "number", description: "0 to 1: how sure you are of this assessment" },
   });
 }
@@ -76,6 +95,10 @@ export const judgeOutputSchemaV2 = z.object({
   }),
   metrics: z.array(z.object({ key: z.string(), reason: z.string(), evidence, n_a: z.boolean(), score: z.number().int().min(0) })),
   failure_conditions: z.array(z.object({ code: z.string(), reason: z.string(), evidence })),
+  went_well: z.array(z.object({ point: z.string(), turns: z.array(z.number().int()) })),
+  improvements: z.array(z.object({ point: z.string(), suggestion: z.string(), turns: z.array(z.number().int()), severity: z.enum(NOTE_SEVERITIES) })),
+  sentiment: z.object({ start: z.enum(SENTIMENTS), end: z.enum(SENTIMENTS), note: z.string() }),
+  conclusion: z.string(),
   confidence: z.number().min(0).max(1),
 });
 
@@ -140,13 +163,15 @@ export function validateJudgeOutput(raw: unknown, plan: JudgePlan, transcript: P
     ...goal.required_outputs.flatMap((o) => o.turns),
     ...output.metrics.flatMap((m) => m.evidence.flatMap((e) => e.turns)),
     ...output.failure_conditions.flatMap((f) => f.evidence.flatMap((e) => e.turns)),
+    ...output.went_well.flatMap((w) => w.turns),
+    ...output.improvements.flatMap((i) => i.turns),
   ];
   const bad = [...new Set(cited.filter((t) => !exists.has(t)))].sort((a, b) => a - b);
   if (bad.length) errors.push(`evidence cites turn${bad.length === 1 ? "" : "s"} ${bad.join(", ")}, which the transcript (turns 1–${transcript.length}) does not have`);
   return { output, errors };
 }
 
-/** Removes evidence items (and required-output turns) that cite turns not in the transcript. For a last-resort answer. */
+/** Removes evidence items (and required-output and note turns) that cite turns not in the transcript. For a last-resort answer. */
 export function dropMissingTurns(output: JudgeOutputV2, transcript: Pick<Turn, "turn">[]): JudgeOutputV2 {
   const exists = new Set(transcript.map((t) => t.turn));
   const keep = (list: JudgeOutputV2["metrics"][number]["evidence"]) => list.filter((e) => e.turns.length > 0 && e.turns.every((t) => exists.has(t)));
@@ -160,5 +185,7 @@ export function dropMissingTurns(output: JudgeOutputV2, transcript: Pick<Turn, "
     },
     metrics: output.metrics.map((m) => ({ ...m, evidence: keep(m.evidence) })),
     failure_conditions: output.failure_conditions.map((f) => ({ ...f, evidence: keep(f.evidence) })),
+    went_well: output.went_well.map((w) => ({ ...w, turns: w.turns.filter((t) => exists.has(t)) })),
+    improvements: output.improvements.map((i) => ({ ...i, turns: i.turns.filter((t) => exists.has(t)) })),
   };
 }

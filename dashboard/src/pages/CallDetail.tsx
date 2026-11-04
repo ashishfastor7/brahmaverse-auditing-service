@@ -28,7 +28,9 @@ function TurnLink({ e, onJump }: { e: Evidence; onJump: (turn: number) => void }
 function Transcript({ turns, active, cited }: { turns: Turn[]; active: number | null; cited: Set<number> }) {
   const refs = useRef(new Map<number, HTMLDivElement>());
   useEffect(() => {
-    if (active !== null) refs.current.get(active)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (active === null) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    refs.current.get(active)?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
   }, [active]);
 
   if (turns.length === 0) return <p className="text-sm text-muted">No transcript for this call.</p>;
@@ -55,7 +57,7 @@ function Transcript({ turns, active, cited }: { turns: Turn[]; active: number | 
   );
 }
 
-function Recording({ id, hasRecording }: { id: number; hasRecording: boolean }) {
+export function Recording({ id, hasRecording }: { id: number; hasRecording: boolean }) {
   const rec = useQuery({ queryKey: ["recording", id], queryFn: () => callsApi.recording(id), staleTime: 30 * 60_000, enabled: hasRecording });
   if (!hasRecording) return <p className="text-sm text-muted">This call has no recording.</p>;
   if (rec.isLoading) return <p className="text-sm text-muted">Loading recording…</p>;
@@ -124,7 +126,7 @@ function Variables({ value }: { value: Record<string, unknown> }) {
   );
 }
 
-function CallDetails({ c }: { c: CallFull }) {
+export function CallDetails({ c }: { c: CallFull }) {
   const contactName = (c.contact?.name as string | undefined) ?? (c.meta_data?.name as string | undefined);
   return (
     <Card title="Call details">
@@ -416,7 +418,7 @@ export function CallDetail({ id }: { id: number }) {
                 a ? "border border-line bg-surface text-ink hover:bg-sunken" : "bg-accent font-medium text-white"
               }`}
             >
-              {a ? <RefreshCw size={14} className={runAudit.isPending ? "animate-spin" : ""} /> : <Play size={14} />}
+              {a ? <RefreshCw size={14} className={runAudit.isPending ? "animate-spin motion-reduce:animate-none" : ""} /> : <Play size={14} />}
               {runAudit.isPending ? "Auditing… (about 15 s)" : a ? "Re-audit" : "Audit this call"}
             </button>
             {runAudit.isError && <span className="text-xs text-ink">⚠ {(runAudit.error as Error).message}</span>}

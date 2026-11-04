@@ -10,6 +10,7 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { QueryTypes, type Sequelize } from "sequelize";
 import { ZodError } from "zod";
+import { JUDGE_PROMPT_VERSION } from "./judge/prompt";
 import { AuditRequestError, runAuditV2 } from "./run-audit";
 import type { AuthEnv } from "@/middleware/auth";
 
@@ -50,7 +51,7 @@ describe.skipIf(!dbTestsEnabled)("runAuditV2 (P1-8)", () => {
         business_reason: "SCREENING_COMPLETED",
         success_result: "PASS",
         judge_model: MODEL,
-        judge_prompt_version: "v2-1",
+        judge_prompt_version: JUDGE_PROMPT_VERSION,
         superseded_by: null,
       });
       const [stored] = await sequelize.query<any>(
