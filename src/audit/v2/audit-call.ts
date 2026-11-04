@@ -48,6 +48,12 @@ export type BusinessGoalOutcome = {
   required_outputs: { key: string; value: string | null; turns: number[] }[];
 };
 
+/**
+ * P1-22, PRD §5 item 10: the judge's plain-language notes for the reviewer. They never change the score, the checks,
+ * the business outcome or the flags; nothing in the engine reads them.
+ */
+export type AuditorNotes = Pick<JudgeOutputV2, "went_well" | "improvements" | "sentiment" | "conclusion">;
+
 export type AuditResultV2 = {
   engine: "v2";
   /** Computed by `computeScore`, never by the LLM. Null when nothing could be scored. */
@@ -64,6 +70,8 @@ export type AuditResultV2 = {
   flag_outcome: FlagOutcome | null;
   weights_used: Record<string, number>;
   call_summary: string | null;
+  /** Null when the judge gave no usable answer. */
+  notes: AuditorNotes | null;
   transcript_quality: "good" | "fair" | "poor" | null;
   auditor_confidence: number;
   needs_review: boolean;
@@ -310,6 +318,9 @@ export async function auditCallV2(input: AuditInput, record: CallRecord, deps: A
     flag_outcome: flagOutcome,
     weights_used: deps.weights,
     call_summary: output?.call_summary ?? null,
+    notes: output
+      ? { went_well: output.went_well, improvements: output.improvements, sentiment: output.sentiment, conclusion: output.conclusion }
+      : null,
     transcript_quality: output?.transcript_quality.rating ?? null,
     auditor_confidence: confidence,
     needs_review: reviewReasons.length > 0,

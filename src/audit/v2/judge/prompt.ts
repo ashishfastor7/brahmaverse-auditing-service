@@ -11,7 +11,7 @@ import type { Check, SignalResult } from "../signal";
  * The v2 judge prompt (PRD §3, §4, §7; P1-4). Bump `JUDGE_PROMPT_VERSION` whenever any wording here changes: it is
  * stored on every audit, so scores from different prompts are never mixed. Wording changes need approval first.
  */
-export const JUDGE_PROMPT_VERSION = "v2-1";
+export const JUDGE_PROMPT_VERSION = "v2-3";
 
 /** Data that exists for every call today. Metrics needing anything else are N/A (PRD §4.3) until Phase 3. */
 export const AVAILABLE_DATA: Requirement[] = [];
@@ -80,6 +80,7 @@ How to judge:
 - System checks: judge S2, S3 and S4 as defined below. Use NOT_APPLICABLE only when the stated condition holds.
 - Business goal: ACHIEVED only when the success criteria are met; PARTIAL only when the partial-success criteria are met; NOT_APPLICABLE when any not-applicable condition holds; otherwise NOT_ACHIEVED. Pick the reason code from the list for that outcome. For each required output, give the value as said and confirmed in the call, or null if it never came up.
 - Failure conditions: flag one only when it clearly happened as defined, and never in a case its definition excludes. If the instructions, flow or outcome a condition depends on are not provided, do not flag it.
+- Auditor notes (went_well, improvements, sentiment, conclusion) are plain language for a human reviewer. They never change a score, check, outcome or flag, and they must agree with them. went_well and improvements: the most useful specific points, usually 1 to 4 each, each tied to the turns it rests on. Every improvement needs a concrete suggestion of what the agent should do instead. A good call may need no improvements: return an empty list rather than inventing faults. sentiment: the other party's mood at the start and at the end of the call, and what moved it. conclusion: two or three sentences of overall judgement. Decide the checks, metrics and failure conditions first and write the notes last. A note never replaces a flag: if something you describe in a note meets a failure condition's definition, flag that condition too.
 - confidence (0 to 1): lower it when the transcript is garbled or very short, or when instructions or flow are missing.`;
 
 const CHECK_DEFINITIONS: Record<JudgedCheck, string> = {

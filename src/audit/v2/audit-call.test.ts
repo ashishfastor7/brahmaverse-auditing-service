@@ -68,6 +68,29 @@ describe("auditCallV2 on recorded judge answers (P1-7)", () => {
     expect(r.needs_review).toBe(false);
   });
 
+  it("keeps the auditor notes, which never change the score, checks, outcome or flags (P1-22)", async () => {
+    const r = await audit("agent-loop", fixtureJudge("hansa-agent-loop", "v2"));
+    const recorded = loadJudgeFixture("hansa-agent-loop", "v2").response.output as any;
+    expect(r.notes).toEqual({
+      went_well: recorded.went_well,
+      improvements: recorded.improvements,
+      sentiment: recorded.sentiment,
+      conclusion: recorded.conclusion,
+    });
+    const other = await audit(
+      "agent-loop",
+      edited("hansa-agent-loop", (o) => {
+        o.went_well = [];
+        o.improvements = [{ point: "Different.", suggestion: "Something else.", turns: [1], severity: "high" }];
+        o.sentiment = { start: "frustrated", end: "negative", note: "Different." };
+        o.conclusion = "Different.";
+      }),
+    );
+    const { notes: _a, judge: _b, ...rest } = r;
+    const { notes: _c, judge: _d, ...otherRest } = other;
+    expect(otherRest).toEqual(rest);
+  });
+
   it("loop: the rule fails S2 and the system goal, AGENT_LOOP (Major) zeroes Repetition, the business goal is still achieved", async () => {
     const r = await audit("agent-loop", fixtureJudge("hansa-agent-loop", "v2"));
     expect(r.checks.S2.result).toBe("FAIL");
@@ -227,12 +250,14 @@ describe("one retry, then needs review (PRD §7)", () => {
     expect(r.metrics.map((m) => m.source)).toEqual(["rule", "unavailable", "unavailable"]);
     expect(r.needs_review).toBe(true);
     expect(r.review_reasons[0]).toContain("judge answer still unusable after one retry");
+    expect(r.notes).toBeNull();
   });
 
   it("evidence citing a missing turn twice: uses the answer without that evidence, needs review", async () => {
     const r = await audit("agent-loop", fixtureJudgeSequence(["v2-bad-turns", "v2-bad-turns"]));
     expect(r.judge.attempts[1]!.errors).toEqual(["evidence cites turn 999, which the transcript (turns 1–23) does not have"]);
     expect(r.metrics.find((m) => m.key === "repetition")?.evidence).toEqual([]);
+    expect(r.notes?.improvements[0]?.turns).not.toContain(999);
     expect(r.score).not.toBeNull();
     expect(r.needs_review).toBe(true);
   });

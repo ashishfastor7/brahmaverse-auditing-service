@@ -8,10 +8,12 @@ import { adminConfigRouter } from "@/routes/admin-config";
 import { auditV2Router } from "@/routes/audit-v2";
 import audits from "@/routes/audits";
 import { authRouter } from "@/routes/auth";
+import { callV2Router } from "@/routes/call-v2";
 import calls from "@/routes/calls";
 import { conditionsRouter } from "@/routes/conditions";
 import config from "@/routes/config";
 import { rescoreRouter } from "@/routes/rescore";
+import { spotCheckRouter } from "@/routes/spot-check";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
@@ -70,6 +72,20 @@ app.route(
 app.route(
   "/v1/audit",
   auditV2Router(
+    () => sequelize,
+    () => env.AUDIT_V2_ENABLED,
+  ),
+);
+app.route(
+  "/v1/audit",
+  callV2Router(
+    () => sequelize,
+    () => env.AUDIT_V2_ENABLED,
+  ),
+);
+app.route(
+  "/v1/audit",
+  spotCheckRouter(
     () => sequelize,
     () => env.AUDIT_V2_ENABLED,
   ),

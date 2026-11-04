@@ -134,6 +134,7 @@ const ALL_TABLES = [
   "scorecard",
   "scorecard_assignment",
   "scorecard_condition",
+  "spot_check_sample",
 ];
 const NAMES = migrations.map((m) => m.name);
 

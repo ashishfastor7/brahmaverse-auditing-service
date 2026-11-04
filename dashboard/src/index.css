@@ -82,6 +82,8 @@
   --motion-fast: 150ms;
   --motion-base: 200ms;
   --motion-slow: 300ms;
+  /* How long a jumped-to transcript turn stays highlighted: long enough to find it, then out of the way. */
+  --motion-highlight: 1200ms;
   --motion-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --motion-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --press-scale: 0.97;
@@ -628,5 +630,101 @@ body {
   .segmented input:disabled + label {
     cursor: not-allowed;
     opacity: 0.5;
+  }
+}
+
+/* View transitions (step 15). Only two moments move: the call id in the list becomes the call page's title (it is the
+   same object, going deeper), and the judge's verdict arrives after a blind check is saved. The rest of the page swaps
+   live (no root cross-fade), so nothing else animates on navigation. Reduced motion: no travel, instant swap. */
+::view-transition-old(root) {
+  display: none;
+}
+::view-transition-new(root) {
+  animation: none;
+}
+::view-transition-group(.call-title) {
+  animation-duration: var(--motion-base);
+  animation-timing-function: var(--motion-ease-in-out);
+}
+::view-transition-old(.call-title) {
+  display: none;
+}
+::view-transition-new(.call-title) {
+  animation: none;
+  object-fit: none;
+  object-position: left top;
+}
+::view-transition-new(.verdict-reveal) {
+  animation: verdict-reveal var(--motion-slow) var(--motion-ease-out) both;
+}
+@keyframes verdict-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes verdict-fade {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+  /* Reduced means gentler, not none: the judge's answer still fades in, without the 8px travel. */
+  ::view-transition-new(.verdict-reveal) {
+    animation: verdict-fade var(--motion-base) var(--motion-ease-out) both !important;
+  }
+}
+
+/* The cited turn the reader jumped to: the highlight fades out over 1.2s so the eye finds it, then gets out of the way. */
+@keyframes turn-flash {
+  from {
+    background-color: var(--highlight);
+  }
+}
+.turn-flash {
+  animation: turn-flash var(--motion-highlight) ease-out;
+}
+
+@layer components {
+  /* Inputs and selects in a filter row or a dense editor: the 32px compact height. */
+  .input-compact {
+    height: var(--input-height-compact);
+  }
+}
+
+@layer components {
+  /* A new audit replacing the one on screen (after Re-audit): fades in, so the change of every value is noticed. Opacity
+     only, so it's the same with reduced motion. Never on page load: the page adds the class only for a newer audit. */
+  .enter-fade {
+    transition: opacity var(--motion-base) var(--motion-ease-out);
+    @starting-style {
+      opacity: 0;
+    }
+  }
+
+  /* The phone menu: scales in from its trigger (top right), 150ms. Removed instantly on close. Fade only with reduced
+     motion. */
+  .menu-pop {
+    transform-origin: top right;
+    transition:
+      opacity var(--motion-fast) var(--motion-ease-out),
+      transform var(--motion-fast) var(--motion-ease-out);
+    @starting-style {
+      opacity: 0;
+      transform: scale(0.97);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .menu-pop {
+      @starting-style {
+        transform: none;
+      }
+    }
   }
 }

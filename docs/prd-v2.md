@@ -245,6 +245,7 @@ The call page leads with four verdict tiles (score, system goal, business goal, 
 7. **Human review actions**: agree, dispute a metric (with a corrected score and note), flag for review. Disputes feed calibration (section 8). With one shared admin login, the reviewer is recorded as that login, not as a person.
 8. **Audit history**: re-audits and re-scores keep previous versions, with the scorecard version, goal version and exact weights used.
 9. **Unaudited calls** show an *Audit now* button, as today. It opens the weight sliders (section 4.4) before the audit runs.
+10. **Auditor notes, kept from today.** Plain-language sections written by the judge for the reviewer: call summary, what the agent did well, what can be improved (each with a concrete suggestion and a severity), the caller's sentiment at the start and at the end of the call with what moved it (as in section 8, item 10), and a short conclusion. Each point cites the turns it rests on. The notes never change the score, the checks, the business outcome or the failure flags.
 
 ## 6. System dashboard (Phase 2)
 

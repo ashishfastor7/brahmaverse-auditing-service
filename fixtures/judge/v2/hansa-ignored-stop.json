@@ -3,83 +3,74 @@
   "case": "ignored-stop",
   "rubric_version": "hansa@4",
   "judge_model": "gpt-5.4-mini-2026-03-17",
-  "recorded_at": "2026-10-28T11:08:00.658Z",
-  "judge_prompt_version": "v2-1",
+  "recorded_at": "2026-11-04T09:35:31.916Z",
+  "judge_prompt_version": "v2-3",
   "response": {
     "output": {
-      "call_summary": "Hansa, an AI recruiter from Acme Tech, called Rahul about a QA Engineer role in Bengaluru and opened with a quick screening chat. The agent introduced the role and asked about total experience, but Rahul said he was not interested and asked not to be called again. Hansa briefly acknowledged that, but then continued with more screening questions before Rahul ended the call by hanging up.",
+      "call_summary": "This was an outbound recruiting call from Hansa at Acme Tech to Rahul about the QA Engineer role. Hansa introduced the role and started the screening, but Rahul said he was not interested and asked not to be called again. The agent continued asking screening questions anyway, and the call ended with Rahul hanging up.",
       "transcript_quality": {
         "rating": "good",
-        "note": "The transcript is clear and easy to follow; the only issue is that the caller's last replies are brief and the call ends abruptly with a hangup."
+        "note": "The transcript is short but clear enough to judge; there is little ambiguity beyond normal phone-call brevity."
       },
       "system_checks": [
         {
           "check": "S2",
-          "reason": "PASS: the agent responded to the caller throughout the call, and there was no agent-side loop or drop. The call ended by caller hangup, not because the agent stopped replying.",
+          "reason": "PASS: the agent responded to each caller turn and there was no loop or agent-side drop; the caller ended the call.",
           "evidence": [
-            {
-              "turns": [
-                3
-              ],
-              "quote": "Hi Rahul, this is Hansa, an AI recruiter from Acme Tech."
-            },
             {
               "turns": [
                 6,
                 7
               ],
-              "quote": "Actually I'm not interested, please don't call me again."
+              "quote": "I said I'm not interested. Please stop."
             },
             {
               "turns": [
-                8,
-                9
+                9,
+                10
               ],
-              "quote": "I said I'm not interested. Please stop."
+              "quote": "And what is your notice period?"
             }
           ],
           "result": "PASS"
         },
         {
           "check": "S3",
-          "reason": "PASS: the call ended early for a legitimate reason because the caller said they were not interested and asked to stop, so the remaining flow steps did not need to be completed.",
+          "reason": "PASS: the call ended early for a legitimate reason because the caller said he was not interested and asked to stop, so later flow steps were no longer reachable.",
           "evidence": [
             {
               "turns": [
-                6
-              ],
-              "quote": "Actually I'm not interested, please don't call me again."
-            },
-            {
-              "turns": [
+                6,
                 8
               ],
-              "quote": "I said I'm not interested. Please stop."
+              "quote": "Actually I'm not interested, please don't call me again."
             }
           ],
           "result": "PASS"
         },
         {
           "check": "S4",
-          "reason": "NOT_APPLICABLE: no required outputs were listed for this call, so there was nothing to save or verify.",
-          "evidence": [],
+          "reason": "NOT_APPLICABLE: no required outputs were specified for this call, so there was nothing to verify in saved data.",
+          "evidence": [
+            {
+              "turns": [
+                1
+              ],
+              "quote": "Hi, am I speaking with Rahul?"
+            }
+          ],
           "result": "NOT_APPLICABLE"
         }
       ],
       "business_goal": {
-        "reason": "The recruiting screening was not completed because the candidate clearly said they were not interested and asked to stop the call before the screening questions could be finished.",
+        "reason": "The screening purpose was not completed because Rahul clearly declined to continue and asked not to be called again.",
         "evidence": [
           {
             "turns": [
-              6
-            ],
-            "quote": "Actually I'm not interested, please don't call me again."
-          },
-          {
-            "turns": [
+              6,
               8
             ],
-            "quote": "I said I'm not interested. Please stop."
+            "quote": "Actually I'm not interested, please don't call me again."
           }
         ],
         "outcome": "NOT_ACHIEVED",
@@ -89,29 +80,29 @@
       "metrics": [
         {
           "key": "flow_adherence",
-          "reason": "The agent followed the opening flow correctly: it greeted the candidate, identified itself as Hansa from Acme Tech, confirmed it was Rahul, described the QA Engineer role, and asked the first screening question in order. The call ended early because the candidate declined, so the later screening steps were not reachable.",
+          "reason": "The agent followed the opening and began the screening in order, but after Rahul said he was not interested it should have acknowledged and ended the call; instead it continued asking current CTC and notice period.",
           "evidence": [
             {
               "turns": [
-                1,
-                3,
-                5
+                5,
+                6
               ],
-              "quote": "Hi, am I speaking with Rahul?"
+              "quote": "How many years of total experience do you have?"
             },
             {
               "turns": [
-                5
+                7,
+                9
               ],
-              "quote": "The role is a QA Engineer position in Bengaluru, hybrid, with three days a week in office."
+              "quote": "What is your current CTC?"
             }
           ],
           "n_a": false,
-          "score": 10
+          "score": 3
         },
         {
           "key": "query_handling",
-          "reason": "The caller clearly asked to stop and not be called again, but the agent did not honor that request and instead continued asking screening questions.",
+          "reason": "The caller's clear objection and stop request were not handled appropriately; the agent did not end the call and kept asking screening questions after being told to stop.",
           "evidence": [
             {
               "turns": [
@@ -125,7 +116,7 @@
                 8,
                 9
               ],
-              "quote": "I said I'm not interested. Please stop."
+              "quote": "Please stop."
             }
           ],
           "n_a": false,
@@ -133,14 +124,42 @@
         },
         {
           "key": "troubleshooting",
-          "reason": "N/A: the caller did not raise a solvable problem that required troubleshooting; they simply declined to continue.",
-          "evidence": [],
+          "reason": "N/A: the caller did not raise a solvable problem that required troubleshooting steps.",
+          "evidence": [
+            {
+              "turns": [
+                6
+              ],
+              "quote": "Actually I'm not interested, please don't call me again."
+            }
+          ],
           "n_a": true,
           "score": 0
         },
         {
           "key": "communication_tone",
-          "reason": "The agent was polite and concise, but it made one clear lapse by continuing after the candidate asked to stop.",
+          "reason": "The tone was polite at the start, but it became pushy because the agent kept going after a clear stop request instead of ending the call.",
+          "evidence": [
+            {
+              "turns": [
+                3
+              ],
+              "quote": "I'm calling about the QA Engineer role you applied for."
+            },
+            {
+              "turns": [
+                7,
+                9
+              ],
+              "quote": "What is your current CTC?"
+            }
+          ],
+          "n_a": false,
+          "score": 3
+        },
+        {
+          "key": "opening_closure",
+          "reason": "The opening was complete: greeting, identity, company, role, and permission check were all present. The close was incomplete because the agent never recapped next steps or ended politely after the caller declined.",
           "evidence": [
             {
               "turns": [
@@ -150,30 +169,9 @@
             },
             {
               "turns": [
-                7
+                9
               ],
-              "quote": "I understand. What is your current CTC?"
-            }
-          ],
-          "n_a": false,
-          "score": 5
-        },
-        {
-          "key": "opening_closure",
-          "reason": "The opening was complete: greeting, introduction, identity check, and purpose were all present. The close was incomplete because the call ended before any recap or next-step closure.",
-          "evidence": [
-            {
-              "turns": [
-                1,
-                3
-              ],
-              "quote": "Hi, am I speaking with Rahul?"
-            },
-            {
-              "turns": [
-                3
-              ],
-              "quote": "I'm calling about the QA Engineer role you applied for. Is this a good time for a five minute chat?"
+              "quote": "And what is your notice period?"
             }
           ],
           "n_a": false,
@@ -181,13 +179,19 @@
         },
         {
           "key": "language_match",
-          "reason": "The agent stayed in English, matching the caller's language throughout the call.",
+          "reason": "The agent matched the caller's language throughout; the conversation stayed in English and there was no unsupported language switch.",
           "evidence": [
             {
               "turns": [
                 3
               ],
               "quote": "Hi Rahul, this is Hansa, an AI recruiter from Acme Tech."
+            },
+            {
+              "turns": [
+                5
+              ],
+              "quote": "How many years of total experience do you have?"
             }
           ],
           "n_a": false,
@@ -195,13 +199,25 @@
         },
         {
           "key": "repetition",
-          "reason": "There was no needless repetition; the agent did not repeat the same line or question multiple times without progress.",
+          "reason": "No needless repetition: the agent did not repeat the same line or question mechanically, and each screening question was different.",
           "evidence": [
             {
               "turns": [
-                3
+                5
               ],
-              "quote": "Hi Rahul, this is Hansa, an AI recruiter from Acme Tech."
+              "quote": "How many years of total experience do you have?"
+            },
+            {
+              "turns": [
+                7
+              ],
+              "quote": "What is your current CTC?"
+            },
+            {
+              "turns": [
+                9
+              ],
+              "quote": "And what is your notice period?"
             }
           ],
           "n_a": false,
@@ -211,26 +227,85 @@
       "failure_conditions": [
         {
           "code": "IGNORED_STOP_REQUEST",
-          "reason": "The caller clearly asked to stop and not be called again, but the agent continued with screening questions instead of ending the call.",
+          "reason": "Rahul clearly asked to stop and not be called again, but the agent continued asking screening questions instead of acknowledging and ending the call.",
           "evidence": [
             {
               "turns": [
-                6,
-                7,
-                8,
-                9
+                6
               ],
               "quote": "Actually I'm not interested, please don't call me again."
+            },
+            {
+              "turns": [
+                7
+              ],
+              "quote": "What is your current CTC?"
+            },
+            {
+              "turns": [
+                8
+              ],
+              "quote": "I said I'm not interested. Please stop."
+            },
+            {
+              "turns": [
+                9
+              ],
+              "quote": "And what is your notice period?"
             }
           ]
         }
       ],
+      "went_well": [
+        {
+          "point": "The agent opened with a proper introduction and confirmed it was speaking to Rahul.",
+          "turns": [
+            1,
+            3
+          ]
+        },
+        {
+          "point": "The role was described briefly and clearly before screening began.",
+          "turns": [
+            5
+          ]
+        }
+      ],
+      "improvements": [
+        {
+          "point": "When the candidate says he is not interested or asks to stop, end the call immediately instead of continuing the questionnaire.",
+          "suggestion": "Acknowledge the request, say you will stop calling, and close politely: 'Understood, Rahul. I won't continue. धन्यवाद/thanks for your time and goodbye.'",
+          "turns": [
+            6,
+            7,
+            8,
+            9
+          ],
+          "severity": "high"
+        },
+        {
+          "point": "Do not continue the screening after a clear decline.",
+          "suggestion": "Once the candidate declines, skip remaining questions and end the call rather than asking for CTC or notice period.",
+          "turns": [
+            6,
+            7,
+            9
+          ],
+          "severity": "high"
+        }
+      ],
+      "sentiment": {
+        "start": "neutral",
+        "end": "frustrated",
+        "note": "The call started neutrally because Rahul agreed to talk, but it ended frustrated after the agent ignored repeated requests to stop."
+      },
+      "conclusion": "This was a clear recruiting call that started appropriately but failed once the candidate declined to continue. The biggest issue was the agent keeping the script going after a stop request, which damaged both compliance and candidate experience. The call did not achieve the screening goal.",
       "confidence": 0.97
     },
     "model": "gpt-5.4-mini-2026-03-17",
     "usage": {
-      "input_tokens": 4373,
-      "output_tokens": 3648
+      "input_tokens": 4786,
+      "output_tokens": 4476
     }
   }
 }

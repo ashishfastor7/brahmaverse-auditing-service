@@ -480,3 +480,222 @@ export const goalsApi = {
   discard: (agent: string) => call(`/goals/${enc(agent)}/draft`, json("DELETE")),
   history: (agent: string) => call<{ data: HistoryEntry[] }>(`/goals/${enc(agent)}/history`).then((r) => r.data),
 };
+
+// ---- v2 call page, reviews and blind spot-checks (PRD §5; P1-22, P2-1, P2-3, P2-4, P2-18) ----
+
+export type CheckResult = "PASS" | "FAIL" | "NOT_APPLICABLE";
+export type CheckCode = "S1" | "S2" | "S3" | "S4";
+export type StoredEvidence = { turns: number[]; ts_start: number | null; ts_end: number | null; quote?: string };
+export type CheckOutcome = {
+  result: CheckResult;
+  reason: string;
+  evidence: StoredEvidence[];
+  rule: { result: CheckResult; reason: string } | null;
+  judge: { result: CheckResult; reason: string } | null;
+  /** Absent on audits stored before flags failed their check (Open #21, 2026-10-28). */
+  flags?: string[];
+};
+export type MetricOutcome = {
+  key: string;
+  name: string;
+  score: number | null;
+  max: number;
+  n_a: boolean;
+  source: "judge" | "rule" | "unavailable";
+  reason: string;
+  evidence: StoredEvidence[];
+  zeroed_by: string | null;
+};
+export type FlagRecord = { code: string; source: "rule" | "judge"; severity: Severity; reason: string; evidence: StoredEvidence[] };
+export type Sentiment = "positive" | "neutral" | "negative" | "frustrated" | "confused";
+export type AuditorNotes = {
+  went_well: { point: string; turns: number[] }[];
+  improvements: { point: string; suggestion: string; turns: number[]; severity: "low" | "medium" | "high" }[];
+  sentiment: { start: Sentiment; end: Sentiment; note: string };
+  conclusion: string;
+};
+export type AuditResultV2 = {
+  score: number | null;
+  passed: boolean | null;
+  failed_by: { kind: string; code?: string; metric?: string }[];
+  system_goal: { result: CheckResult; failed: CheckCode[] };
+  checks: Record<CheckCode, CheckOutcome>;
+  business_goal: {
+    outcome: BusinessOutcome;
+    reason_code: string;
+    reason: string;
+    evidence: StoredEvidence[];
+    required_outputs: { key: string; value: string | null; turns: number[] }[];
+  } | null;
+  metrics: MetricOutcome[];
+  flags: FlagRecord[];
+  weights_used: Record<string, number>;
+  call_summary: string | null;
+  /** Absent on audits made before judge prompt v2-2. */
+  notes?: AuditorNotes | null;
+  transcript_quality: "good" | "fair" | "poor" | null;
+  auditor_confidence: number;
+  needs_review: boolean;
+  review_reasons: string[];
+  judge: {
+    model: string;
+    prompt_version: string;
+    instructions: { prompt_code: string; version: number } | null;
+    evidence_validity: number | null;
+  };
+};
+export type AuditRowV2 = {
+  id: number;
+  call_id: number;
+  agent_code: string | null;
+  status: AuditStatus;
+  skip_reason: string | null;
+  error: string | null;
+  score: number | null;
+  success_result: "PASS" | "FAIL" | null;
+  needs_review: boolean;
+  scorecard_id: string | null;
+  scorecard_version: number | null;
+  goal_version: number | null;
+  weights_used: Record<string, number> | null;
+  judge_model: string | null;
+  judge_prompt_version: string | null;
+  triggered_by: string | null;
+  trigger_mode: string | null;
+  cost: number | null;
+  latency_ms: number | null;
+  superseded_by: number | null;
+  created_at: string;
+  audited_at: string | null;
+  result: AuditResultV2 | null;
+};
+export type MetricDefinition = {
+  key: string;
+  name: string;
+  description: string;
+  rubric: { checks: string; anchors: { 0: string; 5: string; 10: string } };
+  applicability: string;
+  method: string;
+  weight: number;
+  scale: number;
+  auto_fail: boolean;
+};
+export type ConditionView = { code: string; label: string; definition: string; severity: Severity | null; enabled: boolean };
+export type AuditContext = {
+  scorecard: { scorecard_id: string; version: number; name: string; pass_threshold: number } | null;
+  metrics: MetricDefinition[];
+  conditions: ConditionView[];
+  goal: { name: string; description: string; outcomes: BusinessOutcome[]; reason_codes: Partial<Record<BusinessOutcome, string[]>> } | null;
+};
+export type AuditHistoryEntry = Pick<
+  AuditRowV2,
+  | "id"
+  | "status"
+  | "score"
+  | "success_result"
+  | "scorecard_id"
+  | "scorecard_version"
+  | "goal_version"
+  | "weights_used"
+  | "judge_model"
+  | "judge_prompt_version"
+  | "triggered_by"
+  | "trigger_mode"
+  | "superseded_by"
+  | "created_at"
+  | "audited_at"
+> & {
+  rescores: {
+    id: number;
+    score: number | null;
+    passed: boolean;
+    weights_used: Record<string, number>;
+    created_by: string;
+    created_at: string;
+  }[];
+};
+export type ReviewVerdict = "agree" | "dispute" | "flag";
+export type Review = {
+  id: number;
+  audit_id: number;
+  reviewer: string;
+  kind: "normal" | "blind";
+  verdict: ReviewVerdict;
+  note: string | null;
+  item_notes: Record<string, string> | null;
+  corrected_scores: Record<string, number | null> | null;
+  corrected_checks: Partial<Record<CheckCode, CheckResult>> | null;
+  expected_pass_fail: "PASS" | "FAIL" | null;
+  expected_business_outcome: BusinessOutcome | null;
+  expected_failure_codes: string[] | null;
+  created_at: string;
+};
+export type AuditView = { audit: AuditRowV2; context: AuditContext; history: AuditHistoryEntry[]; reviews: Review[] };
+export type ReviewInput = {
+  verdict: ReviewVerdict;
+  corrected_scores?: Record<string, number | null>;
+  corrected_checks?: Partial<Record<CheckCode, CheckResult>>;
+  expected_business_outcome?: BusinessOutcome | null;
+  expected_failure_codes?: string[] | null;
+  item_notes?: Record<string, string>;
+  note?: string | null;
+};
+
+export const auditV2Api = {
+  /** The call's current v2 audit, or null when it has none. */
+  forCall: (callId: number) => call<{ data: AuditView | null }>(`/v2/calls/${callId}/audit`).then((r) => r.data),
+  get: (auditId: number) => call<{ data: AuditView }>(`/v2/audits/${auditId}`).then((r) => r.data),
+  /** Audit this call with v2, at the scorecard's default weights (the sliders come with P1-14). */
+  run: (callId: number) => call<{ data: { id: number } }>(`/v2/calls/${callId}/audit`, { method: "POST", body: "{}" }).then((r) => r.data),
+  review: (auditId: number, input: ReviewInput) =>
+    call<{ data: Review }>(`/v2/audits/${auditId}/reviews`, { method: "POST", body: JSON.stringify(input) }).then((r) => r.data),
+};
+
+export type SpotCheckItem = {
+  audit_id: number;
+  call_id: number;
+  agent_code: string;
+  call_created_at: string | null;
+  duration: number | null;
+  done: boolean;
+};
+export type WeekSample = {
+  week_start: string;
+  per_agent: number;
+  draws: { id: number; seed: number; created_by: string; created_at: string; picked: number }[];
+  agents: { agent_code: string; wanted: number; picked: number; items: SpotCheckItem[] }[];
+  shortfall: { agent_code: string; available: number; wanted: number }[];
+  can_top_up: number;
+};
+export type BlindAnswer = {
+  expected_pass_fail: "PASS" | "FAIL";
+  expected_business_outcome: BusinessOutcome;
+  expected_failure_codes: string[];
+  note?: string | null;
+};
+export type BlindItem = {
+  audit_id: number;
+  call_id: number;
+  agent_code: string | null;
+  call: { call_type: string | null; duration: number | null; call_created_at: string | null; has_recording: boolean; transcript: Turn[] };
+  options: { outcomes: BusinessOutcome[]; failure_codes: { code: string; label: string; definition: string }[] };
+  revealed: null | {
+    review: Review;
+    judge: {
+      pass_fail: "PASS" | "FAIL" | null;
+      business_outcome: BusinessOutcome | null;
+      failure_codes: string[];
+      score: number | null;
+      reason_code: string | null;
+    };
+    comparison: { pass_fail: boolean; business_outcome: boolean; failure_codes: boolean; agree: boolean };
+  };
+};
+
+export const spotCheckApi = {
+  week: (week?: string) => call<{ data: WeekSample }>(`/v2/spot-checks${qs({ week })}`).then((r) => r.data),
+  topUp: (week: string) => call<{ data: WeekSample }>(`/v2/spot-checks/top-up${qs({ week })}`, { method: "POST" }).then((r) => r.data),
+  item: (auditId: number) => call<{ data: BlindItem }>(`/v2/spot-checks/items/${auditId}`).then((r) => r.data),
+  save: (auditId: number, answer: BlindAnswer) =>
+    call<{ data: BlindItem }>(`/v2/spot-checks/items/${auditId}`, { method: "POST", body: JSON.stringify(answer) }).then((r) => r.data),
+};
