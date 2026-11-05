@@ -453,6 +453,14 @@ Rules for every task (CLAUDE.md "v2 rules"):
     `src/audit/v2/spot-check.ts` (`pickSpotChecks`, mulberry32 seed, IST weeks, `compareBlind`). Migration 0017 adds
     `spot_check_sample`: one row per draw with its seed and candidate ids; the first open of a week draws it, *Add N new
     calls* tops up agents that were short. Only current completed v2 audits of calls created that week are sampled.
+- [x] **P2-19 AI judge evaluation report** (§8 #2, §8 #17, §9)
+  - *Generate Evaluation Report* on the spot-check page, for no terminal: overall agreement, Golden Set calls, agreement
+    per parameter and insights, and *Download PDF*. No judge call and nothing saved.
+  - `GET /v2/spot-checks/report`, pure `judgeReport` (`src/audit/v2/eval/judge-report.ts`) over `loadGoldenSet`: each
+    reviewer's answer against the stored audit they reviewed. Agreement rules are P1-19's (`agreement`, `gate`). Card
+    `components/v2/judge-report.tsx`; PDF `dashboard/src/lib/report-pdf.ts`, no new package.
+  - It measures the judge as it ran, across prompt versions. `eval:v2` re-runs the current judge and stays the tool for
+    keeping or dropping a prompt change, and for the planted cases.
 
 ## P3 — Advanced audio and later additions
 

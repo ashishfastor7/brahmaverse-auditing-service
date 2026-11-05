@@ -132,8 +132,10 @@ export const offeredOutcomes = (partialSuccess: string[]): BusinessOutcome[] => 
 
 /** The scorecard version, goal and condition definitions an audit was graded with. */
 export async function loadAuditContext(db: Sequelize, audit: Pick<AuditRowView, "scorecard_id" | "scorecard_version" | "goal_version" | "agent_code" | "result">): Promise<AuditContext> {
-  const sc = audit.scorecard_id && audit.scorecard_version !== null ? await loadScorecard(db, audit.scorecard_id, audit.scorecard_version) : null;
-  const goal = audit.agent_code && audit.goal_version !== null ? await loadGoalConfig(db, audit.agent_code, audit.goal_version) : null;
+  const [sc, goal] = await Promise.all([
+    audit.scorecard_id && audit.scorecard_version !== null ? loadScorecard(db, audit.scorecard_id, audit.scorecard_version) : null,
+    audit.agent_code && audit.goal_version !== null ? loadGoalConfig(db, audit.agent_code, audit.goal_version) : null,
+  ]);
   const flagged = (audit.result?.flags ?? []).map((f) => f.code);
   const codes = [...new Set([...(sc?.conditions.map((c) => c.condition_code) ?? []), ...flagged])];
   const library = await select<{ code: string; label: string; definition: string }>(

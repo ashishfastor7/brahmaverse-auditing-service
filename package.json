@@ -15,7 +15,7 @@
     "record:transcripts": "bun src/scripts/record-transcripts.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test src",
-    "test:db": "AUDIT_TEST_DB=true bun test .db.test"
+    "test:db": "AUDIT_TEST_DB=true AUDIT_V2_ENABLED=false bun test .db.test"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.826.0",

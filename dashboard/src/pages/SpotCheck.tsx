@@ -5,6 +5,7 @@ import { api, spotCheckApi, type BlindItem, type WeekSample } from "../api";
 import { Button, Card, ErrorNote, formatDate, formatDuration, humanize, Skeleton } from "../components/ui";
 import { BlindForm, BlindReveal } from "../components/v2/blind-form";
 import { Transcript, TranscriptProvider } from "../components/v2/evidence";
+import { JudgeEvaluation } from "../components/v2/judge-report";
 import { Recording } from "./CallDetail";
 
 /**
@@ -145,6 +146,7 @@ export function SpotCheckList({ week }: { week?: string }) {
           {topUp.isError && <ErrorNote>{(topUp.error as Error).message}</ErrorNote>}
         </>
       )}
+      <JudgeEvaluation />
     </div>
   );
 }

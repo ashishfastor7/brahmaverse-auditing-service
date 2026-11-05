@@ -148,15 +148,17 @@ export type BlindItem = {
 export async function loadBlindItem(db: Sequelize, auditId: number): Promise<BlindItem | null> {
   const audit = await loadAuditRow(db, auditId);
   if (!audit || audit.status !== "completed" || !(await inSample(db, auditId))) return null;
-  const [snapshot] = await select<{ call: any }>(db, "SELECT call FROM audit_results WHERE id = $1", [auditId]);
+  const [[snapshot], context, [review], rule] = await Promise.all([
+    select<{ call: any }>(db, "SELECT call FROM audit_results WHERE id = $1", [auditId]),
+    loadAuditContext(db, { ...audit, result: null }), // no flagged codes: they would hint at the verdict
+    select<ReviewRow>(db, "SELECT * FROM review WHERE audit_id = $1 AND kind = 'blind' ORDER BY id LIMIT 1", [auditId]),
+    select<{ code: string; label: string; definition: string }>(
+      db,
+      "SELECT code, label, definition FROM failure_condition WHERE code IN ('CALL_ERROR', 'NO_AGENT_SPEECH') ORDER BY code",
+      [],
+    ),
+  ]);
   const call = snapshot!.call ?? {};
-  const context = await loadAuditContext(db, { ...audit, result: null }); // no flagged codes: they would hint at the verdict
-  const [review] = await select<ReviewRow>(db, "SELECT * FROM review WHERE audit_id = $1 AND kind = 'blind' ORDER BY id LIMIT 1", [auditId]);
-  const rule = await select<{ code: string; label: string; definition: string }>(
-    db,
-    "SELECT code, label, definition FROM failure_condition WHERE code IN ('CALL_ERROR', 'NO_AGENT_SPEECH') ORDER BY code",
-    [],
-  );
   const codes = [...context.conditions.filter((c) => c.enabled).map(({ code, label, definition }) => ({ code, label, definition })), ...rule];
   return {
     audit_id: audit.id,

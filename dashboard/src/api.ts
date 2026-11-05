@@ -692,7 +692,22 @@ export type BlindItem = {
   };
 };
 
+export type AgreementRatio = { agree: number; total: number; rate: number | null };
+export type JudgeReport = {
+  generated_at: string;
+  calls: number;
+  blind_calls: number;
+  early_signal: boolean;
+  overall: AgreementRatio;
+  blind: AgreementRatio;
+  parameters: (AgreementRatio & { key: string; label: string; needs_improvement: boolean })[];
+  insights: string[];
+  gate_met: boolean;
+  judge_prompt_versions: string[];
+};
+
 export const spotCheckApi = {
+  report: () => call<{ data: JudgeReport }>(`/v2/spot-checks/report`).then((r) => r.data),
   week: (week?: string) => call<{ data: WeekSample }>(`/v2/spot-checks${qs({ week })}`).then((r) => r.data),
   topUp: (week: string) => call<{ data: WeekSample }>(`/v2/spot-checks/top-up${qs({ week })}`, { method: "POST" }).then((r) => r.data),
   item: (auditId: number) => call<{ data: BlindItem }>(`/v2/spot-checks/items/${auditId}`).then((r) => r.data),
