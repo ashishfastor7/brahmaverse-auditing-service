@@ -1,4 +1,4 @@
-import { createContext, type ReactNode, use, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, type ReactNode, use, useCallback, useEffect, useRef, useState } from "react";
 import type { StoredEvidence, Turn } from "../../api";
 import { humanize } from "../ui";
 
@@ -8,28 +8,27 @@ import { humanize } from "../ui";
  * what cited it. A copy of the v1 page's pattern (`CallDetail.tsx` stays untouched).
  */
 
-type TranscriptState = {
-  jump: (turn: number) => void;
-  /** The turn last jumped to, with a counter so jumping to the same turn again re-runs the flash. */
-  active: { turn: number; n: number } | null;
-};
-const TranscriptContext = createContext<TranscriptState | null>(null);
+/** The turn last jumped to, with a counter so jumping to the same turn again re-runs the flash. */
+type ActiveTurn = { turn: number; n: number } | null;
+
+// Two contexts: chips only need the stable `jump`, so a jump re-renders the transcript and not every chip on the page.
+const JumpContext = createContext<((turn: number) => void) | null>(null);
+const ActiveTurnContext = createContext<ActiveTurn>(null);
 
 export function TranscriptProvider({ children }: { children: ReactNode }) {
-  const [active, setActive] = useState<TranscriptState["active"]>(null);
-  const value = useMemo<TranscriptState>(() => ({ active, jump: (turn) => setActive((a) => ({ turn, n: (a?.n ?? 0) + 1 })) }), [active]);
-  return <TranscriptContext value={value}>{children}</TranscriptContext>;
+  const [active, setActive] = useState<ActiveTurn>(null);
+  const jump = useCallback((turn: number) => setActive((a) => ({ turn, n: (a?.n ?? 0) + 1 })), []);
+  return (
+    <JumpContext value={jump}>
+      <ActiveTurnContext value={active}>{children}</ActiveTurnContext>
+    </JumpContext>
+  );
 }
-
-const useTranscript = () => {
-  const ctx = use(TranscriptContext);
-  if (!ctx) throw new Error("TranscriptContext missing");
-  return ctx;
-};
 
 /** One chip per turn: "#13". Pressing it scrolls the transcript there. */
 export function TurnChips({ turns }: { turns: number[] }) {
-  const { jump } = useTranscript();
+  const jump = use(JumpContext);
+  if (!jump) throw new Error("TranscriptProvider missing");
   if (turns.length === 0) return null;
   return (
     <span className="inline-flex flex-wrap gap-1 align-middle">
@@ -74,11 +73,12 @@ export function addMarks(marks: TurnMarks, turns: number[], label: string) {
   }
 }
 
+const NO_MARKS: TurnMarks = new Map();
 const speaker = (s: string) => (s === "agent" ? "Agent" : s === "user" ? "Caller" : humanize(s));
 
 /** The transcript; flagged turns carry their marks, the jumped-to turn flashes once. */
-export function Transcript({ turns, marks = new Map() }: { turns: Turn[]; marks?: TurnMarks }) {
-  const { active } = useTranscript();
+export function Transcript({ turns, marks = NO_MARKS }: { turns: Turn[]; marks?: TurnMarks }) {
+  const active = use(ActiveTurnContext);
   const refs = useRef(new Map<number, HTMLLIElement>());
   useEffect(() => {
     if (!active) return;

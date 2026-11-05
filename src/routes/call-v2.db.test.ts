@@ -144,6 +144,40 @@ describe.skipIf(!dbTestsEnabled)("v2 call page API (P2-1, P2-3, P2-4)", () => {
     }));
 });
 
+describe.skipIf(!dbTestsEnabled)("AI judge evaluation report", () => {
+  it("measures reviews against the audits they reviewed, without calling the judge or saving anything", () =>
+    withTestDb(async (sequelize) => {
+      await createMigrator(sequelize, { quiet: true }).up();
+      const api = app(sequelize);
+      const report = async () => ((await (await api.request("/v2/spot-checks/report")).json()) as any).data;
+      expect(await report()).toMatchObject({ calls: 0, blind_calls: 0, overall: { rate: null }, parameters: [] });
+
+      const loop = await audit(sequelize, "agent-loop", 7001);
+      const good = await audit(sequelize, "good-call", 7002);
+      const flagged = await audit(sequelize, "good-call", 7003);
+      const post = (id: number, body: unknown) => api.request(`/v2/audits/${id}/reviews`, json(body));
+      await post(loop.id, { verdict: "dispute", expected_failure_codes: [] }); // "this wasn't a loop"
+      await post(good.id, { verdict: "agree" });
+      await post(flagged.id, { verdict: "flag" }); // a flag isn't an answer
+
+      const before = await sequelize.query("SELECT id FROM review", { type: QueryTypes.SELECT });
+      const r = await report();
+      expect(r).toMatchObject({ calls: 2, blind_calls: 0, gate_met: false });
+      expect(r.parameters.find((p: any) => p.key === "failure_codes")).toMatchObject({ agree: 1, total: 2 });
+      expect(r.parameters.find((p: any) => p.key === "pass_fail")).toMatchObject({ agree: 2, total: 2 });
+      expect(r.parameters[0].key).toBe("failure_codes");
+      expect(r.insights).toContain("Stuck in a loop was flagged wrongly in 1 of 1 flagged calls.");
+      expect(r.early_signal).toBe(true);
+      expect(await sequelize.query("SELECT id FROM review", { type: QueryTypes.SELECT })).toEqual(before);
+
+      // A retired row leaves the golden set, and so the report.
+      await sequelize.query("UPDATE review SET in_golden_set = false WHERE audit_id = $1", { bind: [good.id] });
+      expect((await report()).calls).toBe(1);
+
+      expect((await app(sequelize, false).request("/v2/spot-checks/report")).status).toBe(404);
+    }));
+});
+
 describe.skipIf(!dbTestsEnabled)("blind spot-checks (P2-18)", () => {
   it("draws a reproducible sample, says who is short, hides the verdict until the blind answer is saved", () =>
     withTestDb(async (sequelize) => {
@@ -197,6 +231,10 @@ describe.skipIf(!dbTestsEnabled)("blind spot-checks (P2-18)", () => {
       expect(after.revealed.judge).toMatchObject({ pass_fail: "PASS", business_outcome: "ACHIEVED", failure_codes: ["AGENT_LOOP"] });
       expect(after.revealed.comparison.agree).toBe(true);
       expect(after.revealed.review).toMatchObject({ kind: "blind", verdict: "agree", reviewer: "admin" });
+
+      // The blind answer counts in the evaluation report, on its own number too.
+      const report = ((await (await api.request("/v2/spot-checks/report")).json()) as any).data;
+      expect(report).toMatchObject({ calls: 1, blind_calls: 1, blind: { agree: 3, total: 3, rate: 1 }, gate_met: false });
 
       const twice = await api.request(
         `/v2/spot-checks/items/${ids[0]}`,

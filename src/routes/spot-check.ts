@@ -1,9 +1,11 @@
+import { judgeReport } from "@/audit/v2/eval/judge-report";
 import { istWeekRange, istWeekStart } from "@/audit/v2/spot-check";
+import { loadGoldenSet } from "@/db/golden-set";
 import { BlindReviewError, drawSample, loadBlindItem, loadWeekSample, saveBlindReview } from "@/db/spot-check";
 import { type AuthEnv, signedInUser } from "@/middleware/auth";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
-import type { Sequelize } from "sequelize";
+import { QueryTypes, type Sequelize } from "sequelize";
 import { z } from "zod";
 
 const blindBody = z.object({
@@ -30,6 +32,8 @@ const week = (raw: string | undefined) => {
  * - `GET /v2/spot-checks/items/:auditId`: transcript, recording flag and answer options, with no verdict until a blind
  *   review exists.
  * - `POST /v2/spot-checks/items/:auditId`: saves the blind answer (`kind = 'blind'`) and returns the verdict beside it.
+ * - `GET /v2/spot-checks/report`: the AI judge evaluation report over the golden set as audited (`judgeReport`). Reads
+ *   only: no judge call and nothing saved.
  */
 export function spotCheckRouter(db: () => Sequelize, v2Enabled: () => boolean) {
   const router = new Hono<AuthEnv>();
@@ -48,6 +52,14 @@ export function spotCheckRouter(db: () => Sequelize, v2Enabled: () => boolean) {
     const w = week(c.req.query("week"));
     await drawSample(db(), w, signedInUser(c), { topUp: true });
     return c.json({ data: await loadWeekSample(db(), w, signedInUser(c)) });
+  });
+
+  router.get("/v2/spot-checks/report", async (c) => {
+    const [rows, labels] = await Promise.all([
+      loadGoldenSet(db()),
+      db().query<{ code: string; label: string }>("SELECT code, label FROM failure_condition", { type: QueryTypes.SELECT }),
+    ]);
+    return c.json({ data: judgeReport(rows, Object.fromEntries(labels.map((l) => [l.code, l.label])), new Date()) });
   });
 
   const auditId = (raw: string) => {

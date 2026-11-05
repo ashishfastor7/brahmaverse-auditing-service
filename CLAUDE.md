@@ -97,6 +97,8 @@ Other pieces:
 - v2 call page and reviews (P2-1–P2-4): `routes/call-v2.ts` + `db/audit-view.ts`, reviews checked by the pure
   `validateReview` (`v2/review.ts`). Blind spot-checks (P2-18): `routes/spot-check.ts`, `db/spot-check.ts`, pure
   `v2/spot-check.ts` (seeded draws stored in `spot_check_sample`); the API never sends a verdict before the blind review.
+- AI judge evaluation report (P2-19, spot-check page): `GET /v2/spot-checks/report`, pure `judgeReport`
+  (`v2/eval/judge-report.ts`) over the golden set as audited: no LLM, nothing saved. PDF: `dashboard/src/lib/report-pdf.ts`.
 - v2 engine (`src/audit/v2/`): `facts.ts` (signals, rule checks) → `audit-call.ts` (`auditCallV2`, pure apart from the
   judge; one retry, then `needs_review`) → `computeScore`. `run-audit.ts` (`runAuditV2`) inserts `engine = 'v2'` rows and
   supersedes the call's previous one. Bump `JUDGE_PROMPT_VERSION` (`v2/judge/prompt.ts`) on any wording change, after

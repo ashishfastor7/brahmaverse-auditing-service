@@ -244,6 +244,11 @@ the only page with the flag off.
   reproduced. The reviewer sees the transcript and recording, answers pass/fail, business outcome and failure
   conditions, and only then sees the judge's answer beside theirs. The API sends no verdict before the blind review
   is saved. Saved as `kind = 'blind'` (agree when all three match).
+- **AI Judge Evaluation Report** (on the spot-check page, `GET /v1/audit/v2/spot-checks/report`): *Generate Evaluation
+  Report* compares each Golden Set reviewer's answer with the stored audit they reviewed: overall and blind agreement,
+  agreement per parameter (lowest first, with its call count) and rule-based insights. Instant, with no judge call and
+  nothing saved; *Download PDF* saves it. Reviews made after seeing the audit can lift agreement, so blind agreement is
+  shown apart. To re-test a changed prompt, or to run the planted cases, `eval:v2` is still the tool.
 - Call timeline and "seek the audio" wait for timing data (P2-17).
 
 ## How Pass/Fail is decided

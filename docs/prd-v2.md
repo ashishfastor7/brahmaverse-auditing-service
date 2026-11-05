@@ -325,6 +325,7 @@ The three highest-value additions are bulk and filter-based auditing, a human-la
 | 14 | Config change log | What changed in which goal, metric or weight, and when. v2 has one shared admin login and no roles, so the log can't name the person; per-user accounts and roles come later | 1 |
 | 15 | Export and webhooks | CSV export of any filtered list; push business outcome and extracted fields (e.g. demo time) to the CRM | 3 |
 | 16 | Cost per audit | Track tokens and audio-model cost per audit and per day, to tune sampling | 2 |
+| 17 | AI judge evaluation report | From the spot-check page, without the terminal: agreement between reviewers and the judge on the golden set (overall, blind, per parameter), with insights and a PDF. Reads stored audits, so no LLM cost | 2 |
 
 ## 9. Rollout, success metrics, risks and open questions
 
