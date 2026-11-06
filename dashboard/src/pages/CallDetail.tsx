@@ -322,7 +322,7 @@ function AuditSections({ r, onJump }: { r: AuditResult; onJump: (turn: number) =
 function Headline({ r }: { r: AuditResult }) {
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <div className="rounded-xl border border-line bg-surface px-4 py-3">
+      <div className="rounded-xl bg-surface shadow-card px-4 py-3">
         <div className="text-xs text-muted">Overall score</div>
         <div className="mt-1 text-4xl font-semibold text-ink">{r.overall_score ?? "—"}</div>
         <div className="mt-0.5 text-xs text-muted">
@@ -331,7 +331,7 @@ function Headline({ r }: { r: AuditResult }) {
             : "out of 100"}
         </div>
       </div>
-      <div className="rounded-xl border border-line bg-surface px-4 py-3">
+      <div className="rounded-xl bg-surface shadow-card px-4 py-3">
         <div className="text-xs text-muted">Call success</div>
         <div className="mt-2">
           <SuccessBadge result={r.call_success.result} />
@@ -340,14 +340,14 @@ function Headline({ r }: { r: AuditResult }) {
           {r.call_success.failure_reasons.length === 0 ? "No failure conditions" : r.call_success.failure_reasons.map((f) => humanize(f.code)).join(", ")}
         </div>
       </div>
-      <div className="rounded-xl border border-line bg-surface px-4 py-3">
+      <div className="rounded-xl bg-surface shadow-card px-4 py-3">
         <div className="text-xs text-muted">Call goal</div>
         <div className="mt-2">
           <GoalBadge result={r.call_goal.result} />
         </div>
         <div className="mt-1.5 text-xs text-ink-2">{humanize(r.call_goal.reason_code)}</div>
       </div>
-      <div className="rounded-xl border border-line bg-surface px-4 py-3">
+      <div className="rounded-xl bg-surface shadow-card px-4 py-3">
         <div className="text-xs text-muted">Auditor confidence</div>
         <div className="mt-1 text-2xl font-semibold text-ink tabular">{Math.round(r.auditor_confidence * 100)}%</div>
         <div className="mt-1 flex flex-wrap gap-1.5">

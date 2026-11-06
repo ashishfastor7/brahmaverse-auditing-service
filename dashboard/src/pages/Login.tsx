@@ -80,7 +80,7 @@ export function Login({ onLogin, notice }: { onLogin: () => void; notice?: strin
   return (
     <main className="relative flex min-h-dvh items-center justify-center px-4 py-16">
       <ThemeToggle className="absolute right-4 top-4" />
-      <form ref={card} onSubmit={submit} noValidate className="w-full max-w-sm rounded-xl border border-line bg-surface p-6" aria-labelledby="sign-in-title">
+      <form ref={card} onSubmit={submit} noValidate className="w-full max-w-sm rounded-xl bg-surface shadow-card p-6" aria-labelledby="sign-in-title">
         <h1 id="sign-in-title" className="text-xl font-semibold text-ink">
           Call audits
         </h1>

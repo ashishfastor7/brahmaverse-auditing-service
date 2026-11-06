@@ -1,6 +1,6 @@
 import { QueryCache, QueryClient, QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Menu, X } from "lucide-react";
-import { Component, type ReactNode, startTransition, useEffect, useRef, useState } from "react";
+import { Component, type ReactNode, Suspense, lazy, startTransition, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { api, authApi, configApi, tokenStore, UnauthorizedError } from "./api";
 import "./index.css";
@@ -14,9 +14,13 @@ import { ScorecardEditorPage, Scorecards } from "./pages/Scorecards";
 import { Login } from "./pages/Login";
 import { SpotCheckItem, SpotCheckList } from "./pages/SpotCheck";
 
+/** The dashboard and its charts load only when it is opened. */
+const Dashboard = lazy(() => import("./pages/Dashboard").then((m) => ({ default: m.Dashboard })));
+
 /**
  * Hash routes: #/ (all calls, filters in the query string), #/calls/:id, old #/audits/:id links, and the v2 screens:
- * #/calls/:id/audits/:auditId (an older audit), #/calls/:id/v1 (the v1 page), #/spot-check(/:auditId),
+ * #/dashboard (filters in the query string), #/calls/:id/audits/:auditId (an older audit), #/calls/:id/v1 (the v1
+ * page), #/spot-check(/:auditId),
  * #/scorecards(/:id), #/goals(/:agent), #/conditions. Route changes are transitions, so a <ViewTransition> can animate
  * them (the call id in the list becoming the call page's title).
  */
@@ -87,17 +91,17 @@ function Nav({ links, current }: { links: [string, string][]; current: string })
       key={href}
       href={href}
       aria-current={active(href) ? "page" : undefined}
-      className={`text-sm hover:text-ink ${active(href) ? "font-medium text-ink" : "text-muted"} ${extra}`}
+      className={`rounded-full text-sm whitespace-nowrap ${active(href) ? "bg-primary font-medium text-primary-ink shadow-ink" : "text-ink-2 hover:bg-sunken hover:text-ink"} ${extra}`}
     >
       {label}
     </a>
   );
   return (
     <>
-      <nav aria-label="Main" className="hidden items-center gap-4 sm:flex">
-        {links.map(([href, label]) => link(href, label))}
+      <nav aria-label="Main" className="hidden items-center gap-1 lg:flex">
+        {links.map(([href, label]) => link(href, label, "px-3.5 py-2"))}
       </nav>
-      <div ref={ref} className="relative sm:hidden">
+      <div ref={ref} className="relative lg:hidden">
         <button
           ref={button}
           className="btn btn-ghost btn-compact px-2"
@@ -114,7 +118,7 @@ function Nav({ links, current }: { links: [string, string][]; current: string })
             aria-label="Main"
             className="menu-pop absolute right-0 z-20 mt-1 flex w-56 flex-col rounded-xl border border-[var(--dialog-edge)] bg-surface p-1 shadow-raised"
           >
-            {links.map(([href, label]) => link(href, label, "rounded-md px-3 py-2.5 hover:bg-sunken"))}
+            {links.map(([href, label]) => link(href, label, "px-3 py-2.5"))}
           </nav>
         )}
       </div>
@@ -171,7 +175,11 @@ function App() {
   const scorecard = path.match(/^\/scorecards\/([^/]+)$/);
   const goal = path.match(/^\/goals\/([^/]+)$/);
   const adminPage =
-    path === "/scorecards" ? (
+    path === "/dashboard" ? (
+      <Suspense fallback={<p className="text-sm text-muted">Loading the dashboard…</p>}>
+        <Dashboard search={search} />
+      </Suspense>
+    ) : path === "/scorecards" ? (
       <Scorecards />
     ) : scorecard ? (
       <ScorecardEditorPage key={scorecard[1]} id={decodeURIComponent(scorecard[1]!)} />
@@ -190,6 +198,7 @@ function App() {
     ) : null;
   const links: [string, string][] = v2
     ? [
+        ["#/dashboard", "Dashboard"],
         ["#/", "Calls"],
         ["#/spot-check", "Spot-checks"],
         ["#/scorecards", "Scorecards"],
@@ -198,20 +207,26 @@ function App() {
       ]
     : [];
   return (
-    <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6">
-      <header className="mb-5 flex items-center justify-between gap-3">
-        <a href="#/" className="text-base font-semibold text-ink">
-          Call audits
-        </a>
-        <div className="flex items-center gap-3">
+    <div className="mx-auto max-w-[1360px] px-4 pb-8 sm:px-8">
+      <header className="mb-6 flex items-center justify-between gap-3 border-b border-line py-3">
+        <div className="flex min-w-0 items-center gap-6">
+          <a href={v2 ? "#/dashboard" : "#/"} className="text-base font-medium whitespace-nowrap text-ink">
+            Call audits
+          </a>
           {v2 && <Nav links={links} current={path} />}
+        </div>
+        <div className="flex items-center gap-3">
           <ThemeToggle />
           {me.data && (
-            <span className="hidden text-sm text-muted sm:inline">
-              Signed in as <span className="text-ink">{me.data.username}</span>
+            <span className="hidden items-center gap-2 text-sm text-ink-2 sm:inline-flex" title={`Signed in as ${me.data.username}`}>
+              <span aria-hidden className="inline-flex size-7 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-ink">
+                {me.data.username.slice(0, 1).toUpperCase()}
+              </span>
+              <span className="sr-only">Signed in as </span>
+              {me.data.username}
             </span>
           )}
-          <button className="text-sm text-muted hover:text-ink" onClick={signOut}>
+          <button className="rounded-full px-2 py-1 text-sm text-ink-2 hover:text-ink" onClick={signOut}>
             Sign out
           </button>
         </div>

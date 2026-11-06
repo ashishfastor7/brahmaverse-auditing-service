@@ -153,7 +153,7 @@ export async function sourceCallCounts(agent_ids?: number[]): Promise<Record<str
 }
 
 /**
- * Call counts per IST day, agent and status (P2-6 `daily_call_rollup`), optionally only for calls created in
+ * Call counts per IST day, agent, direction (`call_type`) and status (P2-6 `daily_call_rollup`), optionally only for calls created in
  * [from, to). Playground calls are left out unless AUDIT_INCLUDE_PLAYGROUND, as for audits.
  */
 export async function sourceCallCountsByDay(range?: { from: Date; to: Date }): Promise<CallStatusGroup[]> {
@@ -166,9 +166,9 @@ export async function sourceCallCountsByDay(range?: { from: Date; to: Date }): P
   if (!env.AUDIT_INCLUDE_PLAYGROUND) where.push("coalesce(is_playground, false) = false");
   const { rows } = await getPool().query(
     `SELECT to_char((created_at AT TIME ZONE 'Asia/Kolkata')::date, 'YYYY-MM-DD') AS day, agent_id,
-            nullif(data->>'agent_code', '') AS agent_code, status, count(*)::int AS n
+            nullif(data->>'agent_code', '') AS agent_code, call_type, status, count(*)::int AS n
        FROM voice_call_logs WHERE ${where.join(" AND ")}
-      GROUP BY 1, 2, 3, 4`,
+      GROUP BY 1, 2, 3, 4, 5`,
     params,
   );
   return rows;

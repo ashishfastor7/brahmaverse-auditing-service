@@ -52,7 +52,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
       onClick={toggle}
       aria-label={label}
       title={label}
-      className={`inline-flex size-8 items-center justify-center rounded-md border border-line bg-surface text-ink-2 hover:bg-sunken hover:text-ink ${className}`}
+      className={`inline-flex size-9 items-center justify-center rounded-full bg-sunken text-ink-2 hover:bg-line-strong hover:text-ink ${className}`}
     >
       {theme === "dark" ? <Sun size={16} aria-hidden /> : <Moon size={16} aria-hidden />}
     </button>
