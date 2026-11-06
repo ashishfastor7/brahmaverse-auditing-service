@@ -3,6 +3,7 @@ import { agentFor } from "@/audit/rubrics";
 import { skipReason } from "@/audit/rules";
 import type { AgentPrompt, AuditInput } from "@/audit/types";
 import { loadActiveConfig, loadConditionDefinitions, loadDraftConfig } from "@/db/config-store";
+import { refreshAuditDaysQuietly } from "@/db/rollup";
 import { env } from "@/env";
 import { readAgentInstructions } from "@/services/v2/agent-instructions";
 import { type CallerFlow, readCallerFlow } from "@/services/v2/caller-flow";
@@ -273,6 +274,8 @@ export async function runAuditV2(db: Sequelize, raw: any, opts: RunOptionsV2): P
       { bind: [id, input.source, input.call_id], transaction },
     );
   });
+  // P2-6: the call's day in daily_rollup now counts this audit instead of the one it superseded
+  await refreshAuditDaysQuietly(db, input.call_created_at, `audit ${id}`);
 
   console.log(
     `[audit v2] call=${input.call_id} ${sc.scorecard_id}@${sc.version} score=${result.score} passed=${result.passed} ` +

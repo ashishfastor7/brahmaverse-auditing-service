@@ -2,6 +2,7 @@ import { type MetricResult, type Score, computeScore, validateWeights } from "@/
 import type { Flag } from "@/audit/v2/severity";
 import { QueryTypes, type Sequelize } from "sequelize";
 import { loadScorecard } from "./config-store";
+import { refreshAuditDaysQuietly } from "./rollup";
 
 /** Why an audit can't be re-scored with these weights; the route answers with `status`. */
 export class RescoreError extends Error {
@@ -78,5 +79,12 @@ export async function saveRescore(
       type: QueryTypes.SELECT,
     },
   );
+  // P2-6: refresh the call's roll-up day. The audit row is unchanged, so this changes nothing today; it keeps the rule
+  // "refresh on every re-score" true if a re-score ever starts changing what dashboards count.
+  const [audit] = await db.query<{ call_created_at: Date | null }>("SELECT call_created_at FROM audit_results WHERE id = $1", {
+    bind: [auditId],
+    type: QueryTypes.SELECT,
+  });
+  await refreshAuditDaysQuietly(db, audit?.call_created_at, `re-score of audit ${auditId}`);
   return row!;
 }

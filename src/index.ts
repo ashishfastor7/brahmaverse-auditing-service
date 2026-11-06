@@ -1,4 +1,5 @@
 import { app } from "@/app";
+import { startRollupJob } from "@/background/rollup.job";
 import { startSyncJob } from "@/background/sync.job";
 import { subscribeToCallEnded } from "@/background/voicecall-ended.event";
 import { sequelize } from "@/db";
@@ -29,6 +30,7 @@ if (env.AUDIT_SUBSCRIBE) {
 }
 
 if (env.AUDIT_SYNC_ENABLED) startSyncJob();
+if (env.AUDIT_ROLLUP_NIGHTLY) startRollupJob();
 
 // An on-demand audit holds the request open for the judge call (~15–30 s). Bun closes connections
 // idle for 10 s by default, which the browser reports as "Failed to fetch"; 255 s is Bun's maximum.

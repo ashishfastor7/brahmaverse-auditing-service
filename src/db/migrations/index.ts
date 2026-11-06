@@ -15,6 +15,7 @@ import * as auditSession from "./0014-audit-session";
 import * as configChangeLog from "./0015-config-change-log";
 import * as reviewItemNotes from "./0016-review-item-notes";
 import * as spotCheckSample from "./0017-spot-check-sample";
+import * as rollupCallsAndFailures from "./0018-rollup-calls-and-failures";
 
 /** Every migration, in order. Add new ones at the end with the next number; never edit one that has been applied. */
 export const migrations = [
@@ -35,4 +36,5 @@ export const migrations = [
   { name: "0015-config-change-log", ...configChangeLog },
   { name: "0016-review-item-notes", ...reviewItemNotes },
   { name: "0017-spot-check-sample", ...spotCheckSample },
+  { name: "0018-rollup-calls-and-failures", ...rollupCallsAndFailures },
 ];

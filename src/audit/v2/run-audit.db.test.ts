@@ -107,6 +107,22 @@ describe.skipIf(!dbTestsEnabled)("runAuditV2 (P1-8)", () => {
       expect(reweighted.result!.metrics.map((m) => m.key)).not.toContain("troubleshooting");
     }));
 
+  it("refreshes the call's IST day in daily_rollup after each write, counting only the current audit (P2-6)", () =>
+    withTestDb(async (sequelize) => {
+      await createMigrator(sequelize, { quiet: true }).up();
+      const rollup = () =>
+        sequelize.query<{ day: string; agent_code: string; scorecard_id: string; audited: number }>(
+          "SELECT to_char(day, 'YYYY-MM-DD') AS day, agent_code, scorecard_id, audited FROM daily_rollup",
+          { type: QueryTypes.SELECT },
+        );
+      // 18:45 UTC on 1 Nov is 00:15 IST on 2 Nov
+      const row = { ...loopRow(), created_at: "2026-11-01T18:45:00Z" };
+      await run(sequelize, { row });
+      expect(await rollup()).toEqual([{ day: "2026-11-02", agent_code: "hrms", scorecard_id: "hansa", audited: 1 }]);
+      await run(sequelize, { row, force: true });
+      expect(await rollup()).toEqual([{ day: "2026-11-02", agent_code: "hrms", scorecard_id: "hansa", audited: 1 }]);
+    }));
+
   it("stores a call it can't audit as skipped, superseding nothing; refuses weights it can't use", () =>
     withTestDb(async (sequelize) => {
       await createMigrator(sequelize, { quiet: true }).up();

@@ -409,11 +409,28 @@ Rules for every task (CLAUDE.md "v2 rules"):
     (`components/v2/review-panel.tsx`).
 - [ ] **P2-5 Review queue** (§8 #7)
   - Low confidence, disputes, AI-failure bucket and a random 5% sample, with reviewer agreement stats.
-- [ ] **P2-6 `daily_rollup`** (§6, §7)
+- [x] **P2-6 `daily_rollup`** (§6, §7)
   - Table (migration), refreshed on each audit write plus a nightly aggregation job (aggregation only, never
     audits). IST day buckets.
   - Test: rollup totals equal a direct query over the same audits.
-  - The table exists (step 6, migration 0008), keyed by day, agent and scorecard version; filling it is still to do.
+  - Done:
+    - Migration 0018 adds `failure_codes` and `scored` to `daily_rollup`, and a new `daily_call_rollup` table (source
+      calls per IST day and agent: total, connected, not connected).
+    - The pure core is in `src/audit/v2/rollup.ts`: `buildAuditRollups`, `buildCallRollups`, `outcomeBucket`,
+      `histogramBin` and `rollupRates`.
+    - The DB side is in `src/db/rollup.ts`. Each refresh recomputes whole days, so a re-audit that moves a call to
+      another scorecard version or agent leaves nothing stale.
+    - `runAuditV2` and `saveRescore` refresh the call's day after their write.
+    - `src/background/rollup.job.ts` rebuilds everything nightly (`AUDIT_ROLLUP_NIGHTLY`, `AUDIT_ROLLUP_HOUR_IST`).
+      `bun run rollup:rebuild [--from --to]` does the same by hand.
+    - Tests: `rollup.test.ts` (unit) and `rollup.db.test.ts`. The DB test checks the stored rows equal an
+      independently written SQL query, before and after a re-audit and after a full rebuild.
+  - Decisions (2026-11-06):
+    - Outcome buckets: `success`, `business_miss`, `ai_failure`, `achieved_despite_ai` and `na`. PARTIAL counts as
+      not achieved.
+    - The nightly rebuild is on by default at 02:00 IST.
+    - Call counts refresh only nightly or with the script, not on an audit write.
+    - Rates are derived, not stored.
 - [ ] **P2-7 Dashboard API and KPI tiles** (§6 items 1–2, behaviour rules)
   - Filters (date range, agent, direction, business goal, scorecard version, compare-to-previous) and KPIs with
     deltas and denominators. The business goal rate tile shows the Partial share next to it (Decisions #12).
