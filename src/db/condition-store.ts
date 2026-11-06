@@ -2,6 +2,7 @@ import { CODE_PATTERN, codeFromLabel, withDoesNotCount } from "@/audit/v2/condit
 import { MIN_METRICS, type ScorecardCondition, type Severity, validateScorecard } from "@/audit/v2/config";
 import { QueryTypes, type Sequelize } from "sequelize";
 import { createScorecardDraft, loadScorecard, logChange, publishScorecard } from "./config-store";
+import { rebuildAuditRollupsQuietly } from "./rollup";
 
 /**
  * The failure-condition screen (PRD §4.5): the shared library, and adding a condition to it and to scorecard drafts.
@@ -184,7 +185,10 @@ export async function deleteCondition(db: Sequelize, code: string, deleted_by: s
   });
 }
 
-/** Publishes a scorecard's draft as its new version; the agents on the version it was copied from move to it. */
+/**
+ * Publishes a scorecard's draft as its new version; the agents on the version it was copied from move to it. Then
+ * rebuilds `daily_rollup`, whose re-scored numbers use each agent's assigned scorecard.
+ */
 export async function publishDraft(db: Sequelize, scorecard_id: string, published_by: string) {
   const [v] = await select<{ draft: number | null }>(
     db,
@@ -194,7 +198,10 @@ export async function publishDraft(db: Sequelize, scorecard_id: string, publishe
   if (v?.draft == null) throw new ConditionError(`scorecard ${scorecard_id} has no draft to publish`, 404);
   const errors = validateScorecard((await loadScorecard(db, scorecard_id, v.draft))!);
   if (errors.length) throw new ConditionError(`scorecard ${scorecard_id} version ${v.draft} can't be published: ${errors.join("; ")}`, 400);
-  return publishScorecard(db, scorecard_id, published_by);
+  const published = await publishScorecard(db, scorecard_id, published_by);
+  // agents may now be on this version, so the re-scored roll-up numbers change (P2-7)
+  await rebuildAuditRollupsQuietly(db, `publishing ${scorecard_id} v${published.version}`);
+  return published;
 }
 
 /** Throws away a scorecard's draft, with its metrics and conditions. Library conditions stay. */

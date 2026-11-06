@@ -92,7 +92,7 @@ export function PassBadge({ passed }: { passed: boolean | null }) {
 
 function Tile({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <section aria-label={label} className="flex min-w-0 flex-col gap-1.5 rounded-xl border border-line bg-surface px-4 py-3">
+    <section aria-label={label} className="flex min-w-0 flex-col gap-1.5 rounded-xl bg-surface shadow-card px-4 py-3">
       <h2 className="text-xs text-muted">{label}</h2>
       {children}
     </section>

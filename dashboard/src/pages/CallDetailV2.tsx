@@ -37,7 +37,7 @@ function TilesSkeleton() {
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-busy="true" aria-label="Loading the audit">
       {[0, 1, 2, 3].map((i) => (
-        <div key={i} className="flex flex-col gap-2 rounded-xl border border-line bg-surface px-4 py-3">
+        <div key={i} className="flex flex-col gap-2 rounded-xl bg-surface shadow-card px-4 py-3">
           <Skeleton className="h-3 w-20" />
           <Skeleton className="h-8 w-24" />
           <Skeleton className="h-2 w-full" />

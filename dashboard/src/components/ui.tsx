@@ -1,5 +1,5 @@
 import { AlertTriangle, CheckCircle2, CircleSlash, Clock, Eye, MinusCircle, PenLine, XCircle } from "lucide-react";
-import { type ButtonHTMLAttributes, type ComponentProps, type ReactNode, useEffect, useId, useRef } from "react";
+import { type ButtonHTMLAttributes, type ComponentProps, type ReactElement, type ReactNode, cloneElement, isValidElement, useEffect, useId, useRef, useState } from "react";
 import type { AuditListRow, AuditStatus } from "../api";
 
 type Tone = "good" | "warning" | "serious" | "critical" | "neutral";
@@ -22,7 +22,7 @@ const ICON_TONE: Record<Tone, string> = {
 /** Status chip: the icon carries the status colour; the label stays in text ink. */
 export function Badge({ tone, icon: Icon, children }: { tone: Tone; icon: typeof CheckCircle2; children: ReactNode }) {
   return (
-    <span className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-medium text-ink whitespace-nowrap ${TONE[tone]}`}>
+    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium text-ink whitespace-nowrap ${TONE[tone]}`}>
       <Icon size={13} className={ICON_TONE[tone]} aria-hidden />
       {children}
     </span>
@@ -35,11 +35,11 @@ export function SuccessBadge({ result }: { result: "PASS" | "FAIL" | null }) {
   return null;
 }
 
-const GOAL_LABEL = { ACHIEVED: "Achieved", NOT_ACHIEVED: "Not achieved", NOT_APPLICABLE: "Not applicable" } as const;
-export function GoalBadge({ result }: { result: AuditListRow["goal_result"] }) {
+const GOAL_LABEL = { ACHIEVED: "Achieved", PARTIAL: "Partial", NOT_ACHIEVED: "Not achieved", NOT_APPLICABLE: "Not applicable" } as const;
+export function GoalBadge({ result }: { result: AuditListRow["goal_result"] | "PARTIAL" }) {
   if (!result) return null;
   if (result === "ACHIEVED") return <Badge tone="good" icon={CheckCircle2}>{GOAL_LABEL[result]}</Badge>;
-  if (result === "NOT_ACHIEVED") return <Badge tone="warning" icon={AlertTriangle}>{GOAL_LABEL[result]}</Badge>;
+  if (result === "NOT_ACHIEVED" || result === "PARTIAL") return <Badge tone="warning" icon={AlertTriangle}>{GOAL_LABEL[result]}</Badge>;
   return <Badge tone="neutral" icon={MinusCircle}>{GOAL_LABEL[result]}</Badge>;
 }
 
@@ -87,14 +87,14 @@ export function Meter({ score, max }: { score: number | null; max: number }) {
 
 export function Card({ title, action, children, className = "" }: { title?: ReactNode; action?: ReactNode; children: ReactNode; className?: string }) {
   return (
-    <section className={`rounded-xl border border-line bg-surface ${className}`}>
+    <section className={`rounded-xl bg-surface shadow-card ${className}`}>
       {title && (
-        <header className="flex items-center justify-between gap-2 border-b border-line px-4 py-2.5">
-          <h2 className="text-sm font-semibold text-ink">{title}</h2>
+        <header className="flex items-center justify-between gap-2 px-5 pt-4">
+          <h2 className="text-base font-medium text-ink">{title}</h2>
           {action}
         </header>
       )}
-      <div className="p-4">{children}</div>
+      <div className="p-5">{children}</div>
     </section>
   );
 }
@@ -102,9 +102,9 @@ export function Card({ title, action, children, className = "" }: { title?: Reac
 /** Stat tile: label · value · optional hint. */
 export function StatTile({ label, value, hint }: { label: string; value: ReactNode; hint?: ReactNode }) {
   return (
-    <div className="rounded-xl border border-line bg-surface px-4 py-3">
-      <div className="text-xs text-muted">{label}</div>
-      <div className="mt-1 text-2xl font-semibold text-ink">{value}</div>
+    <div className="rounded-xl bg-surface px-5 py-4 shadow-card">
+      <div className="text-[13px] text-ink-2">{label}</div>
+      <div className="tabular mt-1 text-[28px] leading-[34px] font-medium tracking-[-0.02em] text-ink">{value}</div>
       {hint && <div className="mt-0.5 text-xs text-muted">{hint}</div>}
     </div>
   );
@@ -161,7 +161,7 @@ export function Select({ label, value, onChange, options }: {
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-8 rounded-md border border-line bg-surface px-2 text-sm text-ink focus:outline-2 focus:outline-accent"
+        className="h-8 rounded-full border border-control bg-surface px-3 text-sm text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
       >
         {options.map(([v, l]) => (
           <option key={v} value={v}>
@@ -306,4 +306,116 @@ export function ErrorNote({ children }: { children: ReactNode }) {
 /** Loading placeholder at the size of what it stands for: flat, no shimmer. */
 export function Skeleton({ className = "" }: { className?: string }) {
   return <div className={`rounded-md bg-sunken ${className}`} aria-hidden />;
+}
+
+/**
+ * A dark tooltip card on hover and keyboard focus (CSS only: `group-hover` / `group-focus-within`; `display: none` at
+ * rest, so a hidden tip never widens the page). Wrap something
+ * focusable (a link or button) so keyboard users reach it; the tip is announced through `aria-describedby`.
+ * `side` picks above or below. Keep the text to a number and a short line.
+ */
+export function Tip({
+  tip,
+  children,
+  side = "top",
+  className = "",
+}: {
+  tip: ReactNode;
+  children: ReactNode;
+  side?: "top" | "bottom";
+  className?: string;
+}) {
+  const id = useId();
+  return (
+    <span className={`group/tip relative inline-flex ${className}`}>
+      {/* the description goes on the focusable child itself, so screen readers announce it */}
+      {isValidElement(children) ? cloneElement(children as ReactElement<{ "aria-describedby"?: string }>, { "aria-describedby": id }) : children}
+      <span
+        id={id}
+        role="tooltip"
+        className={`pointer-events-none absolute left-1/2 z-30 hidden w-max max-w-[min(16rem,calc(100vw-2rem))] -translate-x-1/2 rounded-lg bg-primary px-3 py-2 text-xs leading-[18px] text-primary-ink shadow-raised group-focus-within/tip:block group-hover/tip:block ${
+          side === "top" ? "bottom-full mb-2" : "top-full mt-2"
+        }`}
+      >
+        {tip}
+      </span>
+    </span>
+  );
+}
+
+/**
+ * A button that opens a floating panel under it (filters, date range). Closes on Esc (focus back to the button) and
+ * on a tap outside. `align` puts the panel's edge under the button's left or right edge.
+ */
+export function Popover({
+  label,
+  children,
+  align = "left",
+  buttonClassName = "",
+  panelClassName = "",
+}: {
+  label: ReactNode;
+  children: (close: () => void) => ReactNode;
+  align?: "left" | "right";
+  buttonClassName?: string;
+  panelClassName?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  const panelId = useId();
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setOpen(false);
+      button.current?.focus();
+    };
+    const onDown = (e: PointerEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onDown);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onDown);
+    };
+  }, [open]);
+  return (
+    <div ref={ref} className="relative">
+      <button
+        ref={button}
+        type="button"
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={() => setOpen((o) => !o)}
+        className={`btn btn-secondary btn-compact ${buttonClassName}`}
+      >
+        {label}
+      </button>
+      {open && (
+        <div
+          id={panelId}
+          className={`menu-pop absolute z-30 mt-2 max-w-[calc(100vw-2rem)] rounded-xl border border-[var(--dialog-edge)] bg-surface p-3 shadow-raised ${
+            // on phones every panel opens from the left edge of its button, so it stays on screen
+            align === "right" ? "left-0 origin-top-left sm:right-0 sm:left-auto sm:origin-top-right" : "left-0 origin-top-left"
+          } ${panelClassName}`}
+        >
+          {children(() => {
+            setOpen(false);
+            button.current?.focus();
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** What a panel shows when it has nothing: a short title, one line on why, and the next step if there is one. */
+export function EmptyState({ title, children, action }: { title: string; children?: ReactNode; action?: ReactNode }) {
+  return (
+    <div className="flex flex-col items-start gap-1 py-6">
+      <p className="text-sm font-medium text-ink">{title}</p>
+      {children && <p className="max-w-prose text-sm text-muted">{children}</p>}
+      {action && <div className="mt-2">{action}</div>}
+    </div>
+  );
 }

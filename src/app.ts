@@ -14,6 +14,7 @@ import { conditionsRouter } from "@/routes/conditions";
 import config from "@/routes/config";
 import { rescoreRouter } from "@/routes/rescore";
 import { spotCheckRouter } from "@/routes/spot-check";
+import { dashboardRouter } from "@/routes/dashboard";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
@@ -86,6 +87,13 @@ app.route(
 app.route(
   "/v1/audit",
   spotCheckRouter(
+    () => sequelize,
+    () => env.AUDIT_V2_ENABLED,
+  ),
+);
+app.route(
+  "/v1/audit",
+  dashboardRouter(
     () => sequelize,
     () => env.AUDIT_V2_ENABLED,
   ),

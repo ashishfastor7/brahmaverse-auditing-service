@@ -54,7 +54,7 @@ export const usedBy = (agents: { label: string }[]) => (agents.length ? `Used by
 /** The live version: read-only, with the way into a draft. */
 export function PublishedBar({ version, publishedAt, action }: { version: number; publishedAt: string | null; action: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-surface px-4 py-3">
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-surface shadow-card px-4 py-3">
       <div className="flex flex-wrap items-center gap-2 text-sm text-ink-2">
         <VersionBadge status="published" version={version} />
         <span>Live{publishedAt ? ` since ${formatDate(publishedAt)}` : ""}. Read-only: changes go in a draft.</span>

@@ -714,3 +714,81 @@ export const spotCheckApi = {
   save: (auditId: number, answer: BlindAnswer) =>
     call<{ data: BlindItem }>(`/v2/spot-checks/items/${auditId}`, { method: "POST", body: JSON.stringify(answer) }).then((r) => r.data),
 };
+
+// ---- System dashboard (v2, PRD §6; P2-7 – P2-9): one summary per filter set, from the daily roll-ups ----
+
+/** A rate with what backs it: `num` of `den` (value null when nothing does). Average score: points over scored calls. */
+export type Rate = { num: number; den: number; value: number | null };
+export type Kpi = { current: Rate; previous: Rate | null };
+export type KpiKey =
+  | "total_calls"
+  | "connected"
+  | "connect_rate"
+  | "audit_coverage"
+  | "pass_rate"
+  | "system_goal_rate"
+  | "business_goal_rate"
+  | "partial_share"
+  | "average_score"
+  | "needs_review";
+export type OutcomeBucket = "success" | "business_miss" | "ai_failure" | "achieved_despite_ai" | "na";
+export type DashboardMode = "as_audited" | "rescored";
+export type DashboardFilters = Partial<{
+  from: string;
+  to: string;
+  agent: string;
+  direction: string;
+  goal: string;
+  scorecard: string;
+  compare: string;
+  mode: DashboardMode;
+}>;
+export type Dashboard = {
+  filters: { from: string; to: string; compare: boolean; mode: DashboardMode; agent?: string; direction?: string; goal?: string; scorecard?: string };
+  previous: { from: string; to: string } | null;
+  bucket: "day" | "week";
+  sample: { audited: number; sampled: number; hand_picked: number; low: boolean };
+  kpis: Record<KpiKey, Kpi>;
+  trend: { bucket: string; audited: number; pass_rate: Rate; system_goal_rate: Rate; business_goal_rate: Rate; versions: string[] }[];
+  markers: { day: string; bucket: string; agent_code: string | null; type: string; label: string }[];
+  histogram: { bins: { label: string; calls: number; previous: number | null }[]; scored: number; threshold: number | null };
+  failures: { kind: "condition" | "check" | "metric"; key: string; label: string; calls: number; of: number }[];
+  buckets: { current: Record<OutcomeBucket, number>; previous: Record<OutcomeBucket, number> | null };
+  heatmap: {
+    agents: { code: string; label: string }[];
+    metrics: { key: string; label: string }[];
+    cells: { n: number; value: number | null }[][];
+  };
+  funnel: {
+    agent: string | null;
+    label: string;
+    stages: { key: "connected" | "audited" | "conversation_completed" | "goal_discussed" | "achieved"; calls: number }[];
+    partial: number;
+    not_achieved: number;
+    reasons: { reason: string; calls: number }[];
+  }[];
+  agents: {
+    code: string;
+    label: string;
+    total_calls: number;
+    connected: number;
+    audited: number;
+    pass_rate: Rate;
+    system_goal_rate: Rate;
+    business_goal_rate: Rate;
+    partial_share: Rate;
+    average_score: Rate;
+    previous_pass_rate: Rate | null;
+    spark: (number | null)[];
+  }[];
+  options: {
+    agents: { code: string; label: string }[];
+    scorecards: { key: string; label: string }[];
+    goals: { key: string; label: string }[];
+  };
+  calls_refreshed_at: string | null;
+};
+
+export const dashboardApi = {
+  get: (f: DashboardFilters) => call<{ data: Dashboard }>(`/v2/dashboard${qs(f)}`).then((r) => r.data),
+};

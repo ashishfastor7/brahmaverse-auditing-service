@@ -145,17 +145,23 @@ does the same from the command line and prints the judge's raw JSON. v1 audits k
 
 Dashboards read pre-counted numbers instead of scanning audits. Nothing here runs an audit; it only counts.
 
-- **`daily_rollup`**, one row per IST day of the *call*, agent and scorecard version. It counts the call's current v2
+- **`daily_rollup`**, one row per IST day of the *call*, agent, direction (`inbound` / `outbound` / `unknown`, from the
+  call's `call_type`), scorecard version and goal version (0 when none). It counts the call's current v2
   audit only (`completed`, not superseded), so failed, skipped, pending and v1 rows are left out, and so are calls with
   no `call_created_at`. Columns: audited, PASS / FAIL (`success_result` null counts in neither), needs review, system
   goal PASS / FAIL / N/A, business goal ACHIEVED / PARTIAL / NOT_ACHIEVED / N/A, `score_sum` over `scored` audits, the
   histogram (0–20, 20–40, 40–60, 60–80, 80–100, with 100 in the last bin), outcome buckets, per-metric
-  `{ n, score_sum, max_sum }` (N/A left out) and failure codes (calls per code). Agents resolve with `agentFor`, else
-  `unknown`.
+  `{ n, score_sum, max_sum, lost }` (N/A left out; `lost` = calls under full marks) and failure codes (calls per code).
+  Since migration 0019 also: `sampled` (audits from a random sample; the rest were hand-picked), `system_checks`
+  (S1–S4 → pass / fail / N/A), `business_reasons` (NOT_ACHIEVED reason → calls, `UNSPECIFIED` when none) and the
+  re-scored set `rs_passed`, `rs_failed`, `rs_score_sum`, `rs_scored`, `rs_histogram`: the same audits scored again from
+  their stored metric results and flags with the agent's **assigned** scorecard (weights, threshold, auto-fail,
+  severities), no LLM; an audit without metric results keeps its audited verdict. Goals and buckets don't depend on
+  weights. Agents resolve with `agentFor`, else `unknown`.
 - **Outcome buckets** (PRD §3): `success` (system PASS, business ACHIEVED), `business_miss` (PASS, not achieved; for the
   business team), `ai_failure` (FAIL, not achieved; the engineering priority), `achieved_despite_ai` (FAIL, ACHIEVED),
   `na` (either goal N/A or missing). PARTIAL counts as not achieved.
-- **`daily_call_rollup`**, source calls per IST day of `created_at` and agent, playground calls left out unless
+- **`daily_call_rollup`**, source calls per IST day of `created_at`, agent and direction, playground calls left out unless
   `AUDIT_INCLUDE_PLAYGROUND`. `connected` = `completed`, `not_connected` = `no_answer` + `failed`; other statuses
   (`queued`, `dialing`, `ongoing`, `skipped`) count only in `total`.
 - **Rates aren't stored.** `rollupRates` (`src/audit/v2/rollup.ts`) derives them from summed counts:
@@ -171,6 +177,8 @@ Dashboards read pre-counted numbers instead of scanning audits. Nothing here run
   - Every night at `AUDIT_ROLLUP_HOUR_IST` (default 02:00) both tables are rebuilt in full. `AUDIT_ROLLUP_NIGHTLY`
     defaults to on.
   - `bun run rollup:rebuild` does the full rebuild by hand. `--from 2026-11-01 --to 2026-11-06` rebuilds only those days.
+    Run it once after `bun run migrate` applies 0019, which empties both tables.
+  - Publishing a scorecard rebuilds `daily_rollup` (its re-scored numbers use the assigned scorecards).
   - Call counts change only in the nightly rebuild or the script, since an audit doesn't change them. They need
     `SOURCE_DB_*`; without it they're skipped.
 
@@ -284,6 +292,35 @@ the only page with the flag off.
   shown apart. To re-test a changed prompt, or to run the planted cases, `eval:v2` is still the tool.
 - Call timeline and "seek the audio" wait for timing data (P2-17).
 
+### System dashboard (P2-7 – P2-10)
+
+`#/dashboard` (v2 only; `GET /v1/audit/v2/dashboard`) answers "are calls getting better, and if not, why?" from the
+daily roll-ups alone, in one request (a 30-day view returns in well under a second).
+
+- **Filters** (kept in the URL): date range (today, last 7 / 30 / 90 days, custom; IST, default the last 7 days, at
+  most 366), agent, direction, business goal (agent goal version), scorecard version, *Compare* (adds the same-length
+  period before, with deltas) and *As audited* / *Re-scored*. Call counts and connect rate can't be split by goal or
+  scorecard; those two filters apply to audit numbers only.
+- **KPI tiles**: total calls, connect rate, audited (share of connected), pass rate, system goal rate, business goal
+  rate with the Partial share beside it, average score, needs review. Rates move in points, counts in percent; a
+  base under 5 shows "was N" instead of a percentage.
+- **Panels**: pass / system goal / business goal rate per day (per week past 60 days), with lines broken at scorecard
+  version changes and release markers (`release_marker` rows and published scorecards and goals from
+  `config_change`); score histogram with the bins under the pass threshold marked (when one threshold applies) and the
+  previous period dashed; top failure causes (failure conditions, failed system checks, metrics under full marks,
+  ranked by calls); outcome buckets; business goal funnel (connected → audited → conversation completed (S2 not
+  failed) → goal discussed (business goal applied) → achieved, Partial beside it, not-achieved reasons as chips);
+  agents × metrics heatmap (average %, grey under 5 calls); agent table with a pass-rate sparkline. *Export* saves
+  the KPIs and agent table as CSV.
+- **Every number** shows its numerator and denominator on hover or focus and opens the calls behind it: the call list
+  with `engine=v2` filters on each call's current v2 audit (`system_goal`, `business_goal` incl. `PARTIAL` and
+  `APPLICABLE`, `bucket`, `scorecard`, `goal_version`, `check`, `metric_lost`, `business_reason`, `min_score` /
+  `max_score`, `from` / `to`), shown there as removable chips. Click-through lists calls as audited, also in re-scored
+  mode.
+- **Sample size**: a chip says how many audited calls back the page; warnings show under 30, and when any audit was
+  hand-picked rather than drawn at random. Today every audit is a single *Audit this call*, so that warning always
+  shows until random-sample batches exist (P1-13).
+
 ## How Pass/Fail is decided
 
 A call **fails if any single failure condition occurs**, and passes otherwise. Pass/Fail is not
@@ -332,6 +369,8 @@ itself (serving it as `audio/wav`, since archived files were stored with the wro
 - **Changing the password doesn't end existing sessions.** They last until they expire (`AUDIT_SESSION_HOURS`). To sign everyone out now, run `DELETE FROM audit_session` on the audit DB.
 - **The sign-in throttle counts by connecting address and lives in memory.** Behind a proxy every client shares the proxy's address, so 10 bad tries lock everyone out for 15 minutes; a restart clears it.
 - **The planted cases are synthetic.** They prove the judge catches each defect, not that it agrees with your reviewers. For v2, `eval:v2` measures that on the golden set, which fills up from reviews (none exist until the review buttons, P2-4 / P2-18).
+- **Re-scored mode follows the assigned scorecard.** Switching an agent to another scorecard version changes past
+  days' re-scored numbers (after the rebuild that publishing runs; a plain re-assignment waits for the nightly one).
 - **Call counts in `daily_call_rollup` are up to a day old.** They refresh nightly (or with `bun run rollup:rebuild`), not when a call ends. Audit counts refresh on every audit.
 - **One judge call per audit.** Scores vary a little between runs; re-running and comparing (self-consistency) would tighten confidence.
 

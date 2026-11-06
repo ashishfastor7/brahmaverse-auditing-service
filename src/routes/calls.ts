@@ -2,12 +2,13 @@ import { normalizeCall } from "@/audit/normalize";
 import { runAudit } from "@/audit/run-audit";
 import { agentFor, agents } from "@/audit/rubrics";
 import { tables } from "@/db";
+import { v2CallIds } from "@/db/call-filters";
 import { type AuditResultRow, V1, V1_EXCLUDED, withoutV2Fields } from "@/db/models/audit-result";
 import { getSourceCall, listSourceCalls, sourceCallCounts, sourceDbConfigured } from "@/services/call-source.db";
 import { playableRecordingUrl } from "@/services/recording.service";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { Op, type WhereOptions } from "sequelize";
+import { Op, QueryTypes, type WhereOptions } from "sequelize";
 import { z } from "zod";
 
 /**
@@ -39,6 +40,21 @@ const listQuery = z.object({
   from: z.string().optional(),
   to: z.string().optional(),
   search: z.string().trim().optional(),
+  /** `v2`: audit filters and the audit shown are the call's current v2 audit (dashboard click-through, P2-7). */
+  engine: z.enum(["v1", "v2"]).default("v1"),
+  system_goal: z.enum(["PASS", "FAIL", "NOT_APPLICABLE"]).optional(),
+  business_goal: z.enum(["ACHIEVED", "PARTIAL", "NOT_ACHIEVED", "NOT_APPLICABLE", "APPLICABLE"]).optional(),
+  bucket: z.enum(["success", "business_miss", "ai_failure", "achieved_despite_ai", "na"]).optional(),
+  /** `scorecard_id@version` */
+  scorecard: z.string().regex(/^[\w-]+@\d+$/).optional(),
+  /** `agent_code@version` */
+  goal_version: z.string().regex(/^[\w-]+@\d+$/).optional(),
+  /** A system check that failed: S1–S4. */
+  check: z.enum(["S1", "S2", "S3", "S4"]).optional(),
+  check_ok: z.enum(["S1", "S2", "S3", "S4"]).optional(),
+  /** A metric scored under full marks. */
+  metric_lost: z.string().optional(),
+  business_reason: z.string().optional(),
   sort: z.enum(["newest", "oldest", "score_asc", "score_desc"]).default("newest"),
   page: z.coerce.number().int().min(1).default(1),
   page_size: z.coerce.number().int().min(1).max(100).default(25),
@@ -46,6 +62,22 @@ const listQuery = z.object({
 type ListQuery = z.infer<typeof listQuery>;
 
 const agentIds = (code?: string) => (code ? (agents.find((a) => a.code === code)?.agent_ids ?? [-1]) : undefined);
+
+/** Each call's current v2 audit, shaped like the v1 summary the list shows (score, pass/fail, goal). */
+async function currentV2Audits(callIds: number[]) {
+  const map = new Map<number, Record<string, unknown>>();
+  if (callIds.length === 0) return map;
+  const rows = await tables.AuditResult.sequelize!.query<any>(
+    `SELECT id, call_id, status, skip_reason, score::float8 AS overall_score, success_result, business_goal AS goal_result,
+            business_reason AS goal_reason_code, failure_codes, needs_review, rubric_version, updated_at, system_goal, business_goal
+       FROM audit_results
+      WHERE engine = 'v2' AND source = 'voice_call_logs' AND superseded_by IS NULL AND call_id = ANY($1)
+      ORDER BY updated_at DESC`,
+    { bind: [callIds], type: QueryTypes.SELECT },
+  );
+  for (const r of rows) if (!map.has(r.call_id)) map.set(r.call_id, r);
+  return map;
+}
 
 /** Audit-side filters, applied in the audit DB and handed to the source query as an id list. */
 function auditWhere(q: ListQuery): WhereOptions | null {
@@ -110,6 +142,21 @@ router.get("/calls", async (c) => {
 
   let rows: any[];
   let total: number;
+
+  if (q.engine === "v2") {
+    // Dashboard click-through: filter on the current v2 audit; score sorts aren't offered here.
+    const only_ids = (await v2CallIds(tables.AuditResult.sequelize!, q)) ?? undefined;
+    ({ rows, total } = await listSourceCalls({ ...base, only_ids, order: q.sort === "oldest" ? "oldest" : "newest", limit: q.page_size, offset }));
+    const v2 = await currentV2Audits(rows.map((r) => r.id));
+    const data = rows.map((r) => ({
+      ...r,
+      agent_code: agentFor(r.agent_code, r.agent_id)?.code ?? r.agent_code,
+      agent_label: agentFor(r.agent_code, r.agent_id)?.label ?? null,
+      audit: v2.get(r.id) ?? null,
+    }));
+    return c.json({ data, page: q.page, page_size: q.page_size, total });
+  }
+
   const aw = auditWhere(q);
 
   if (q.sort.startsWith("score")) {

@@ -431,16 +431,32 @@ Rules for every task (CLAUDE.md "v2 rules"):
     - The nightly rebuild is on by default at 02:00 IST.
     - Call counts refresh only nightly or with the script, not on an audit write.
     - Rates are derived, not stored.
-- [ ] **P2-7 Dashboard API and KPI tiles** (§6 items 1–2, behaviour rules)
+- [x] **P2-7 Dashboard API and KPI tiles** (§6 items 1–2, behaviour rules)
   - Filters (date range, agent, direction, business goal, scorecard version, compare-to-previous) and KPIs with
     deltas and denominators. The business goal rate tile shows the Partial share next to it (Decisions #12).
   - Warnings when fewer than 30 audited calls back a number or the audits were hand-picked.
-- [ ] **P2-8 Charts: trend, histogram, top failure causes, outcome buckets** (§6 items 3–6)
+- [x] **P2-8 Charts: trend, histogram, top failure causes, outcome buckets** (§6 items 3–6)
   - Add a chart library. Trend lines break at scorecard version changes. Histogram bins 0–20 … 80–100 with
     sub-threshold bins highlighted. Every bar opens the matching calls.
-- [ ] **P2-9 Heatmap, funnel, agent table** (§6 items 7–9)
-- [ ] **P2-10 As-audited vs re-scored toggle** (§6 behaviour rules)
+- [x] **P2-9 Heatmap, funnel, agent table** (§6 items 7–9)
+- [x] **P2-10 As-audited vs re-scored toggle** (§6 behaviour rules)
   - Re-scores everything with one weight set from stored metric results, without changing stored audits.
+  - Done 2026-11-06 (P2-7 – P2-10 in one change):
+    - Migration 0019: `direction` and `goal_version` join both roll-ups' keys; `daily_rollup` gains `sampled`,
+      `system_checks`, `business_reasons`, `metric_averages[key].lost` and the re-scored `rs_*` set. Both tables are
+      emptied; `rollup:rebuild` refills them. Publishing a scorecard rebuilds `daily_rollup`.
+    - Pure `dashboardSummary` (`src/audit/v2/dashboard.ts`) builds the whole page; `GET /v2/dashboard` reads only the
+      roll-ups plus thresholds, labels and markers. `GET /calls?engine=v2` (`db/call-filters.ts`) lists the calls behind
+      any number.
+    - Dashboard page `dashboard/src/pages/Dashboard.tsx`, charts in `components/dashboard/charts.tsx` (hand-rolled SVG
+      and HTML; no chart library, as with the PDF report). The whole app moved to the Brahmaverse design system tokens.
+  - Decisions (2026-11-06):
+    - Re-scored = each agent's assigned scorecard (one weight set per agent), stored in the roll-up, not computed per
+      request.
+    - Funnel: conversation completed = S2 not failed; goal discussed = business goal applies.
+    - Hand-picked = any `trigger_mode` other than `sample`.
+    - Release markers are read-only here (`release_marker` + published `config_change`); their CRUD stays P2-11.
+    - Sentiment and the mockup's insight sentences are left out (not in §6; problems are flagged on the data).
 - [ ] **P2-11 Release markers** (§6 item 3, §8 #8)
   - `release_marker` table (migration) and CRUD. Markers appear on trends, and two periods or versions can be
     compared. The table exists (step 6, migration 0008).

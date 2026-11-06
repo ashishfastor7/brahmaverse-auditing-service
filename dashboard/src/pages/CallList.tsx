@@ -22,6 +22,31 @@ function setFilters(next: CallFilters) {
   window.location.hash = `/?${p.toString()}`;
 }
 
+/** Labels for the filters the system dashboard links with (`engine=v2`), shown as removable chips. */
+const V2_FILTER_LABEL: Record<string, (v: string) => string> = {
+  from: (v) => `From ${istDate(v)}`,
+  to: (v) => `To ${istDate(v, true)}`,
+  system_goal: (v) => `System goal: ${humanize(v)}`,
+  business_goal: (v) => (v === "APPLICABLE" ? "Business goal applied" : `Business goal: ${humanize(v)}`),
+  bucket: (v) => `Outcome: ${humanize(v)}`,
+  scorecard: (v) => `Scorecard ${v.replace("@", " v")}`,
+  goal_version: (v) => `Goal ${v.replace("@", " v")}`,
+  check: (v) => `Failed check ${v}`,
+  check_ok: (v) => (v === "S2" ? "Conversation completed (S2 didn't fail)" : `Check ${v} didn't fail`),
+  audit: (v) => (v === "audited" ? "Audited" : "Not audited"),
+  metric_lost: (v) => `Under full marks: ${humanize(v)}`,
+  business_reason: (v) => `Not achieved: ${humanize(v)}`,
+  min_score: (v) => `Score ≥ ${v}`,
+  max_score: (v) => `Score < ${v}`,
+  needs_review: () => "Needs review",
+};
+
+/** An ISO instant as its IST day; `end` shows the last day of a half-open range. */
+function istDate(iso: string, end = false) {
+  const t = Date.parse(iso) - (end ? 1 : 0);
+  return Number.isNaN(t) ? iso : new Date(t).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
+}
+
 function AuditCell({ row }: { row: CallRow }) {
   const a = row.audit;
   if (!a) {
@@ -65,6 +90,8 @@ export function CallList({ search }: { search: string }) {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* The tiles count all calls (agent only); after a dashboard click-through they'd disagree with it, so they hide. */}
+      {(filters as Record<string, string>).engine !== "v2" && (
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         <StatTile
           label="Calls in database"
@@ -74,22 +101,23 @@ export function CallList({ search }: { search: string }) {
           }
         />
         <StatTile label="Audited" value={s ? s.audited.toLocaleString() : "—"} hint={s?.avg_score != null ? `average score ${s.avg_score}` : "no audits yet"} />
-        <StatTile label="Success rate" value={s?.success_rate != null ? `${s.success_rate}%` : "—"} hint="audited calls with no failures" />
+        <StatTile label="Pass rate" value={s?.success_rate != null ? `${s.success_rate}%` : "—"} hint="audited calls with no failures" />
         <StatTile label="Goal rate" value={s?.goal_rate != null ? `${s.goal_rate}%` : "—"} hint="excludes not-applicable calls" />
         <StatTile label="Needs review" value={s ? s.needs_review.toLocaleString() : "—"} hint="low auditor confidence" />
       </div>
+      )}
 
       <div className="flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1 text-xs text-muted">
           Search
           <span className="relative">
-            <Search size={14} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-muted" aria-hidden />
+            <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" aria-hidden />
             <input
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && update({ search: searchText.trim() })}
               placeholder="Call id, name or summary"
-              className="h-8 w-56 rounded-md border border-line bg-surface pl-7 pr-2 text-sm text-ink focus:outline-2 focus:outline-accent"
+              className="h-8 w-56 rounded-full border border-control bg-surface pl-8 pr-3 text-sm text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
             />
           </span>
         </label>
@@ -132,6 +160,28 @@ export function CallList({ search }: { search: string }) {
         )}
       </div>
 
+      {(filters as Record<string, string>).engine === "v2" && (
+        <div role="group" className="flex flex-wrap items-center gap-2 text-sm" aria-label="Filters from the dashboard">
+          <a href={`#/dashboard${(filters as Record<string, string>).back ? `?${(filters as Record<string, string>).back}` : ""}`} className="text-ink-2 hover:text-ink">
+            ← Dashboard
+          </a>
+          <span className="text-muted">Current v2 audits ·</span>
+          {Object.entries(filters as Record<string, string>)
+            .filter(([k]) => V2_FILTER_LABEL[k])
+            .map(([k, v]) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => update({ [k]: "" } as CallFilters)}
+                aria-label={`Remove filter: ${V2_FILTER_LABEL[k]!(v)}`}
+                className="inline-flex items-center gap-1.5 rounded-full bg-sunken px-3 py-1 text-ink hover:bg-line-strong"
+              >
+                {V2_FILTER_LABEL[k]!(v)} <span aria-hidden className="text-muted">×</span>
+              </button>
+            ))}
+        </div>
+      )}
+
       {s && s.top_failures.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <span className="text-muted">Most common failures:</span>
@@ -140,7 +190,7 @@ export function CallList({ search }: { search: string }) {
               key={f.code}
               onClick={() => update({ failure_code: filters.failure_code === f.code ? "" : f.code })}
               aria-pressed={filters.failure_code === f.code}
-              className={`rounded-md border px-2 py-0.5 text-ink hover:bg-sunken ${
+              className={`rounded-full border px-2.5 py-0.5 text-ink hover:bg-sunken ${
                 filters.failure_code === f.code ? "border-accent bg-sunken" : "border-line bg-surface"
               }`}
             >
@@ -153,6 +203,10 @@ export function CallList({ search }: { search: string }) {
       <Card className="overflow-hidden" title={`Calls${list.data ? ` · ${list.data.total.toLocaleString()}` : ""}`}>
         {list.isError ? (
           <p className="text-sm text-ink">Could not load calls: {(list.error as Error).message}</p>
+        ) : list.isPending ? (
+          <p className="text-sm text-muted" role="status">
+            Loading calls…
+          </p>
         ) : list.data && list.data.data.length === 0 ? (
           <p className="text-sm text-muted">No calls match these filters.</p>
         ) : (
