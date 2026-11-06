@@ -23,20 +23,33 @@ function downloadPdf(report: JudgeReport) {
 
 function Stat({ value, label, hint, lead = false }: { value: string; label: string; hint: string; lead?: boolean }) {
   return (
-    <div className="min-w-0">
-      <p className={`font-semibold text-ink ${lead ? "text-3xl" : "text-2xl"}`}>{value}</p>
-      <p className="mt-1 text-xs text-ink-2">{label}</p>
+    <div className={`min-w-0 rounded-xl border border-line px-4 py-3 ${lead ? "bg-sunken" : "bg-surface"}`}>
+      <p className="text-xs font-medium text-muted">{label}</p>
+      <p className="mt-1 text-2xl font-semibold text-ink tabular">{value}</p>
       <p className="text-xs text-muted tabular">{hint}</p>
     </div>
   );
 }
 
+/** Slim 3px agreement bar. Grey under the minimum base (a tiny base never shouts), critical when below the bar, accent otherwise. */
+function RateBar({ rate, small, weak }: { rate: number | null; small: boolean; weak: boolean }) {
+  const fill = small ? "bg-muted/60" : weak ? "bg-critical" : "bg-accent";
+  return (
+    <span className="block h-[3px] w-20 overflow-hidden rounded-full bg-accent-track" aria-hidden>
+      <span className={`block h-full rounded-full ${fill}`} style={{ width: `${Math.round((rate ?? 0) * 100)}%` }} />
+    </span>
+  );
+}
+
+const MIN_BASE = 5;
+
 function Report({ report }: { report: JudgeReport }) {
   if (report.calls === 0)
     return <p className="text-sm text-ink-2">No Golden Set calls yet. Agree with or dispute an audit, or finish a blind spot-check, and it will count here.</p>;
+  const rows = [...report.parameters].sort((a, b) => Number(b.needs_improvement) - Number(a.needs_improvement));
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 items-end gap-6 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Stat lead value={formatRate(report.overall.rate)} label="Overall agreement" hint={`${report.overall.agree} of ${report.overall.total} decisions`} />
         <Stat value={report.calls.toLocaleString()} label="Golden Set calls" hint={`${report.blind_calls} blind spot-checks`} />
         <Stat value={formatRate(report.blind.rate)} label="Blind agreement" hint={`${report.blind.agree} of ${report.blind.total} decisions`} />
@@ -62,20 +75,25 @@ function Report({ report }: { report: JudgeReport }) {
               </tr>
             </thead>
             <tbody>
-              {report.parameters.map((p) => (
+              {rows.map((p) => (
                 <tr key={p.key} className="border-t border-line">
-                  <th scope="row" className="py-2 pr-3 text-left font-normal text-ink">
+                  <th scope="row" className="py-2.5 pr-3 text-left font-normal text-ink">
                     {p.label}
                   </th>
-                  <td className="py-2 pr-6 text-right text-muted tabular">{p.total}</td>
-                  <td className={`py-2 text-right text-ink tabular ${p.needs_improvement ? "font-semibold" : ""}`}>
-                    {p.needs_improvement && (
-                      <>
-                        <AlertTriangle size={13} className="mr-1.5 inline-block align-[-2px] text-critical" aria-hidden />
-                        <span className="sr-only">Needs improvement: </span>
-                      </>
-                    )}
-                    {formatRate(p.rate)}
+                  <td className="py-2.5 pr-6 text-right text-muted tabular">{p.total}</td>
+                  <td className="py-2.5">
+                    <span className="flex items-center justify-end gap-3">
+                      {p.needs_improvement && (
+                        <>
+                          <AlertTriangle size={13} className="text-critical" aria-hidden />
+                          <span className="sr-only">Needs improvement: </span>
+                        </>
+                      )}
+                      <RateBar rate={p.rate} small={p.total < MIN_BASE} weak={p.needs_improvement} />
+                      <span className={`w-12 text-right tabular ${p.total < MIN_BASE ? "text-muted" : "text-ink"} ${p.needs_improvement ? "font-semibold" : ""}`}>
+                        {formatRate(p.rate)}
+                      </span>
+                    </span>
                   </td>
                 </tr>
               ))}
@@ -83,11 +101,11 @@ function Report({ report }: { report: JudgeReport }) {
           </table>
         </section>
 
-        <section aria-labelledby="judge-report-insights" className="min-w-0">
+        <section aria-labelledby="judge-report-insights" className="min-w-0 rounded-xl bg-sunken p-4">
           <h3 id="judge-report-insights" className="text-sm font-semibold text-ink">
             What does this tell you?
           </h3>
-          <ul className="mt-3 flex list-disc flex-col gap-2 pl-4 text-sm text-ink-2">
+          <ul className="mt-3 flex list-disc flex-col gap-2.5 pl-4 text-sm text-ink-2 marker:text-muted">
             {report.insights.map((insight) => (
               <li key={insight}>{insight}</li>
             ))}
