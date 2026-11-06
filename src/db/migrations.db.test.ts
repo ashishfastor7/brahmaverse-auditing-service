@@ -123,6 +123,7 @@ const ALL_TABLES = [
   "audit_results",
   "audit_session",
   "config_change",
+  "daily_call_rollup",
   "daily_rollup",
   "failure_condition",
   "failure_flag",

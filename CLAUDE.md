@@ -26,6 +26,7 @@ bun run replay --db --call-id 3507 [--force]         # audit past calls from voi
                                                      # --engine v2 [--print] audits with v2; --show-prompt writes the judge request only
 bun run record:readers --call-id 4570 [--redact "Acme"]  # real rows for the v2 readers into fixtures/readers/recorded/ (needs AI_DB_*, VAJRA_DB_*); review before committing
 bun run record:transcripts --call-id 4572 [--call-id …] [--redact "Acme"]  # anonymised calls into fixtures/transcripts/ for the signal tests; read every file before committing
+bun run rollup:rebuild [--from 2026-11-01 --to 2026-11-06]  # rebuild daily_rollup / daily_call_rollup (aggregation only)
 ```
 
 Lint: no linter or lint script; the checks are `bun run typecheck` and `npm run build` in `dashboard/` (both tsc).
@@ -99,6 +100,8 @@ Other pieces:
   `v2/spot-check.ts` (seeded draws stored in `spot_check_sample`); the API never sends a verdict before the blind review.
 - AI judge evaluation report (P2-19, spot-check page): `GET /v2/spot-checks/report`, pure `judgeReport`
   (`v2/eval/judge-report.ts`) over the golden set as audited: no LLM, nothing saved. PDF: `dashboard/src/lib/report-pdf.ts`.
+- Daily roll-ups (P2-6): pure `v2/rollup.ts`, DB `db/rollup.ts`; `runAuditV2` and re-score refresh the call's IST day,
+  `background/rollup.job.ts` rebuilds nightly (aggregation only, never audits). Dashboards read the roll-up tables.
 - v2 engine (`src/audit/v2/`): `facts.ts` (signals, rule checks) → `audit-call.ts` (`auditCallV2`, pure apart from the
   judge; one retry, then `needs_review`) → `computeScore`. `run-audit.ts` (`runAuditV2`) inserts `engine = 'v2'` rows and
   supersedes the call's previous one. Bump `JUDGE_PROMPT_VERSION` (`v2/judge/prompt.ts`) on any wording change, after

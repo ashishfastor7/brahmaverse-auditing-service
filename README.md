@@ -141,6 +141,39 @@ does the same from the command line and prints the judge's raw JSON. v1 audits k
   marks only the new row `failed`. Unless forced, a call already audited with the same scorecard, goal, weights,
   prompt version and model returns the existing audit. Each row stores the model and `judge_prompt_version`.
 
+### Daily roll-ups (P2-6)
+
+Dashboards read pre-counted numbers instead of scanning audits. Nothing here runs an audit; it only counts.
+
+- **`daily_rollup`**, one row per IST day of the *call*, agent and scorecard version. It counts the call's current v2
+  audit only (`completed`, not superseded), so failed, skipped, pending and v1 rows are left out, and so are calls with
+  no `call_created_at`. Columns: audited, PASS / FAIL (`success_result` null counts in neither), needs review, system
+  goal PASS / FAIL / N/A, business goal ACHIEVED / PARTIAL / NOT_ACHIEVED / N/A, `score_sum` over `scored` audits, the
+  histogram (0–20, 20–40, 40–60, 60–80, 80–100, with 100 in the last bin), outcome buckets, per-metric
+  `{ n, score_sum, max_sum }` (N/A left out) and failure codes (calls per code). Agents resolve with `agentFor`, else
+  `unknown`.
+- **Outcome buckets** (PRD §3): `success` (system PASS, business ACHIEVED), `business_miss` (PASS, not achieved; for the
+  business team), `ai_failure` (FAIL, not achieved; the engineering priority), `achieved_despite_ai` (FAIL, ACHIEVED),
+  `na` (either goal N/A or missing). PARTIAL counts as not achieved.
+- **`daily_call_rollup`**, source calls per IST day of `created_at` and agent, playground calls left out unless
+  `AUDIT_INCLUDE_PLAYGROUND`. `connected` = `completed`, `not_connected` = `no_answer` + `failed`; other statuses
+  (`queued`, `dialing`, `ongoing`, `skipped`) count only in `total`.
+- **Rates aren't stored.** `rollupRates` (`src/audit/v2/rollup.ts`) derives them from summed counts:
+  - pass rate = PASS ÷ (PASS + FAIL)
+  - system goal rate = PASS ÷ (PASS + FAIL)
+  - business goal rate = ACHIEVED ÷ applicable (ACHIEVED + PARTIAL + NOT_ACHIEVED), with the Partial share = PARTIAL ÷ applicable
+  - connect rate = connected ÷ (connected + not connected)
+
+  Each rate is null when its denominator is 0.
+- **When it refreshes:**
+  - After every v2 audit write or supersede (`runAuditV2`) and every re-score, the call's day in `daily_rollup` is
+    recomputed. A refresh failure is logged and never fails the audit.
+  - Every night at `AUDIT_ROLLUP_HOUR_IST` (default 02:00) both tables are rebuilt in full. `AUDIT_ROLLUP_NIGHTLY`
+    defaults to on.
+  - `bun run rollup:rebuild` does the full rebuild by hand. `--from 2026-11-01 --to 2026-11-06` rebuilds only those days.
+  - Call counts change only in the nightly rebuild or the script, since an audit doesn't change them. They need
+    `SOURCE_DB_*`; without it they're skipped.
+
 ## Changes needed in the other services
 
 These live in `patches/` and are **not applied**. Apply them on a branch in each repo:
@@ -299,6 +332,7 @@ itself (serving it as `audio/wav`, since archived files were stored with the wro
 - **Changing the password doesn't end existing sessions.** They last until they expire (`AUDIT_SESSION_HOURS`). To sign everyone out now, run `DELETE FROM audit_session` on the audit DB.
 - **The sign-in throttle counts by connecting address and lives in memory.** Behind a proxy every client shares the proxy's address, so 10 bad tries lock everyone out for 15 minutes; a restart clears it.
 - **The planted cases are synthetic.** They prove the judge catches each defect, not that it agrees with your reviewers. For v2, `eval:v2` measures that on the golden set, which fills up from reviews (none exist until the review buttons, P2-4 / P2-18).
+- **Call counts in `daily_call_rollup` are up to a day old.** They refresh nightly (or with `bun run rollup:rebuild`), not when a call ends. Audit counts refresh on every audit.
 - **One judge call per audit.** Scores vary a little between runs; re-running and comparing (self-consistency) would tighten confidence.
 
 **What counts as a loop.** Repeating a question 3+ times only fails the call when the agent ignored

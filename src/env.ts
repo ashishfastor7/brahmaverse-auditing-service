@@ -84,6 +84,10 @@ export const env = createEnv({
     AUDIT_SYNC_LOOKBACK_HOURS: z.coerce.number().min(1).default(24),
     AUDIT_SYNC_MAX_PER_RUN: z.coerce.number().int().min(1).default(20),
 
+    // Nightly roll-up rebuild (P2-6): recomputes daily_rollup and daily_call_rollup; aggregation only, never audits
+    AUDIT_ROLLUP_NIGHTLY: bool(true),
+    AUDIT_ROLLUP_HOUR_IST: z.coerce.number().int().min(0).max(23).default(2),
+
     // `bun run test:db` sets this: *.db.test.ts create and drop throwaway databases on the DB_* server
     AUDIT_TEST_DB: bool(false),
   },

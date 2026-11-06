@@ -52,8 +52,9 @@ export function pickSpotChecks(
   return { picks, shortfall };
 }
 
-const IST_OFFSET_MS = 330 * 60_000;
-const DAY_MS = 86_400_000;
+/** IST is UTC+5:30 all year (no daylight saving). */
+export const IST_OFFSET_MS = 330 * 60_000;
+export const DAY_MS = 86_400_000;
 
 /** The Monday (IST, PRD §6) of the week `at` falls in, as `YYYY-MM-DD`. */
 export function istWeekStart(at: Date): string {
